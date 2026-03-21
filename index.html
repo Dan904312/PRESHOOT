@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080810">
+<title>Scout</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#080810;
+  --s1:#0F0F1A;
+  --s2:#161625;
+  --s3:#1E1E30;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.12);
+  --text:#F0F0F8;
+  --text2:#8A8AA8;
+  --text3:#4A4A65;
+  --accent:#7C4DFF;
+  --accent2:#FF5C35;
+  --green:#00E5A0;
+  --red:#FF4757;
+  --amber:#FFB300;
+  --fd:'Syne',sans-serif;
+  --fb:'Plus Jakarta Sans',sans-serif;
+  --r:12px;
+  --rlg:18px;
+  --nav-h:64px;
+  --sh:0 4px 24px rgba(0,0,0,.5);
+  --glow:0 0 40px rgba(124,77,255,.25);
+}
+html{height:100%;overflow:hidden}
+body{
+  font-family:var(--fb);background:var(--bg);color:var(--text);
+  height:100%;overflow:hidden;
+  overscroll-behavior:none;
+  -webkit-overflow-scrolling:touch;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* == SCREENS == */
+.screen{
+  position:fixed;inset:0;
+  display:none;flex-direction:column;
+  background:var(--bg);
+  padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  overflow:hidden;
+}
+.screen.active{display:flex}
+.screen-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
+/* == BOTTOM NAV == */
+.bnav{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:rgba(8,8,16,.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;
+  height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.bnav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;cursor:pointer;transition:all .2s;padding:8px 0;
+}
+.bnav-item.active .bnav-icon{color:var(--accent)}
+.bnav-item.active .bnav-lbl{color:var(--accent)}
+.bnav-icon{font-size:20px;color:var(--text3);transition:color .2s}
+.bnav-lbl{font-size:10px;font-weight:600;letter-spacing:.5px;color:var(--text3);text-transform:uppercase;transition:color .2s}
+.bnav-scan{
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(124,77,255,.5);
+  margin-top:-20px;
+  transition:transform .15s,box-shadow .15s;
+}
+.bnav-scan:active{transform:scale(.93)}
+.bnav-scan svg{color:#fff}
+
+/* == SCREEN: HOME == */
+.home-header{
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.home-logo{font-family:var(--fd);font-size:26px;font-weight:800;letter-spacing:-.5px}
+.home-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.streak-pill{
+  display:flex;align-items:center;gap:6px;
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:20px;padding:6px 12px;
+  font-size:12px;font-weight:600;
+}
+.streak-fire{font-size:14px}
+.home-scan-zone{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 24px;gap:20px;
+}
+.scan-ring-outer{
+  width:200px;height:200px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(124,77,255,.12),rgba(255,92,53,.08));
+  border:1.5px solid rgba(124,77,255,.3);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+  animation:ringPulse 3s ease-in-out infinite;
+}
+@keyframes ringPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,77,255,.3)}50%{box-shadow:0 0 0 20px rgba(124,77,255,0)}}
+.scan-ring-inner{
+  width:156px;height:156px;border-radius:50%;
+  background:var(--s2);border:1.5px solid rgba(124,77,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform .15s;
+}
+.scan-ring-inner:active{transform:scale(.95)}
+.scan-btn-icon{font-size:44px;display:block}
+.scan-label{font-family:var(--fd);font-size:18px;font-weight:700;letter-spacing:.5px;text-align:center;margin-top:4px}
+.scan-sublabel{font-size:13px;color:var(--text2);text-align:center;line-height:1.5;max-width:240px}
+.scan-usage{
+  display:flex;align-items:center;gap:8px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:10px 16px;
+  font-size:13px;font-weight:500;
+}
+.usage-dots{display:flex;gap:5px}
+.usage-dot{width:8px;height:8px;border-radius:50%;background:var(--border2)}
+.usage-dot.used{background:var(--accent)}
+.usage-dot.unlimited{width:24px;border-radius:4px;background:var(--accent)}
+
+.home-recent{padding:0 20px 16px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{font-size:13px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text2)}
+.see-all{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
+.recent-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.recent-scroll::-webkit-scrollbar{display:none}
+.recent-chip{
+  flex-shrink:0;background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;cursor:pointer;
+  transition:border-color .15s;
+}
+.recent-chip:hover{border-color:var(--accent)}
+.recent-chip-title{font-size:12px;font-weight:600;white-space:nowrap;margin-bottom:2px}
+.recent-chip-meta{font-size:11px;color:var(--text2)}
+
+/* == LOADING OVERLAY == */
+.loading-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(8,8,16,.95);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:24px;
+  backdrop-filter:blur(10px);
+}
+.loading-overlay.active{display:flex}
+.scan-anim{
+  width:120px;height:120px;border-radius:50%;
+  border:2px solid var(--border);
+  border-top-color:var(--accent);
+  border-right-color:var(--accent2);
+  animation:spin 1s linear infinite;
+  display:flex;align-items:center;justify-content:center;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scan-anim-inner{
+  width:88px;height:88px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(124,77,255,.15),rgba(255,92,53,.1));
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;
+}
+.loading-title{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:.5px}
+.loading-steps{display:flex;flex-direction:column;gap:8px;width:220px}
+.loading-step{
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;color:var(--text2);
+  transition:color .3s;
+}
+.loading-step.done{color:var(--green)}
+.loading-step.active{color:var(--text)}
+.step-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--border2);flex-shrink:0;transition:background .3s;
+}
+.loading-step.done .step-dot{background:var(--green)}
+.loading-step.active .step-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+
+/* == SCREEN: RESULTS == */
+.results-header{
+  padding:calc(env(safe-area-inset-top) + 12px) 20px 0;
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.back-btn{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--s2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:16px;flex-shrink:0;
+}
+.results-header-info{flex:1;min-width:0}
+.results-title{font-family:var(--fd);font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.results-subtitle{font-size:12px;color:var(--text2);margin-top:2px}
+.rescan-btn{
+  padding:8px 14px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-size:12px;font-weight:700;
+  border:none;cursor:pointer;flex-shrink:0;
+  font-family:var(--fb);
+}
+
+.scene-strip{
+  margin:12px 20px;border-radius:var(--r);overflow:hidden;
+  height:100px;position:relative;flex-shrink:0;
+}
+.scene-strip img{width:100%;height:100%;object-fit:cover}
+.scene-strip-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(8,8,16,.8) 0%,transparent 60%);
+  display:flex;align-items:center;padding:0 16px;gap:8px;
+}
+.scene-tag{
+  background:rgba(255,255,255,.1);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:20px;padding:4px 12px;
+  font-size:11px;font-weight:600;white-space:nowrap;
+}
+
+.ideas-list{padding:0 20px 16px;display:flex;flex-direction:column;gap:12px}
+
+/* IDEA CARD */
+.idea-card{
+  background:var(--s2);border:1.5px solid var(--border);
+  border-radius:var(--rlg);overflow:hidden;
+  cursor:pointer;transition:border-color .15s,transform .1s;
+  position:relative;
+}
+.idea-card:active{transform:scale(.985)}
+.idea-card:hover{border-color:var(--border2)}
+.idea-card.saved{border-color:rgba(124,77,255,.4)}
+.idea-card-top{padding:14px 14px 10px;display:flex;align-items:flex-start;gap:10px}
+.idea-format-badge{
+  flex-shrink:0;padding:4px 10px;border-radius:6px;
+  font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  white-space:nowrap;
+}
+.fmt-trending{background:rgba(255,92,53,.15);color:var(--accent2);border:1px solid rgba(255,92,53,.25)}
+.fmt-cinematic{background:rgba(124,77,255,.15);color:#A47BFF;border:1px solid rgba(124,77,255,.25)}
+.fmt-pov{background:rgba(0,229,160,.12);color:var(--green);border:1px solid rgba(0,229,160,.2)}
+.fmt-edu{background:rgba(255,179,0,.12);color:var(--amber);border:1px solid rgba(255,179,0,.2)}
+.fmt-story{background:rgba(255,71,87,.12);color:#FF7080;border:1px solid rgba(255,71,87,.2)}
+.fmt-creative{background:rgba(255,255,255,.08);color:var(--text2);border:1px solid var(--border2)}
+.idea-card-main{flex:1;min-width:0}
+.idea-card-title{font-family:var(--fd);font-size:15px;font-weight:700;line-height:1.2;margin-bottom:6px}
+.idea-card-hook{
+  font-size:12px;color:var(--text2);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.idea-card-meta{
+  padding:0 14px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.meta-chip{
+  display:flex;align-items:center;gap:4px;
+  background:var(--s3);border-radius:6px;padding:3px 8px;
+  font-size:11px;color:var(--text2);
+}
+.meta-chip .ico{font-size:10px}
+.trending-now-badge{
+  margin-left:auto;
+  background:linear-gradient(135deg,rgba(255,92,53,.2),rgba(255,179,0,.15));
+  border:1px solid rgba(255,92,53,.3);
+  border-radius:6px;padding:3px 8px;
+  font-size:10px;font-weight:700;color:var(--accent2);
+  display:flex;align-items:center;gap:4px;
+}
+.idea-card-save{
+  position:absolute;top:12px;right:12px;
+  width:28px;height:28px;border-radius:8px;
+  background:var(--s3);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;cursor:pointer;transition:all .15s;z-index:2;
+}
+.idea-card-save:hover{border-color:var(--accent)}
+.idea-card-save.saved{background:rgba(124,77,255,.15);border-color:var(--accent)}
+
+/* == IDEA DETAIL SHEET == */
+.sheet-overlay{
+  position:fixed;inset:0;z-index:400;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  display:none;align-items:flex-end;
+}
+.sheet-overlay.open{display:flex}
+.sheet{
+  width:100%;background:var(--s1);
+  border-radius:20px 20px 0 0;
+  max-height:90vh;overflow-y:auto;
+  padding:0 0 calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+.sheet-overlay.open .sheet{transform:translateY(0)}
+.sheet-handle{
+  width:36px;height:4px;border-radius:2px;
+  background:var(--border2);margin:12px auto 0;
+}
+.sheet-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px}
+.sheet-title{font-family:var(--fd);font-size:20px;font-weight:700;line-height:1.2;flex:1}
+.sheet-close{
+  width:28px;height:28px;border-radius:8px;background:var(--s2);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:14px;color:var(--text2);flex-shrink:0;
+}
+.sheet-section{padding:16px 20px;border-bottom:1px solid var(--border)}
+.sheet-section:last-child{border-bottom:none}
+.sheet-section-label{
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:8px;
+}
+.sheet-section-content{font-size:14px;line-height:1.7;color:var(--text)}
+.hook-block{
+  background:var(--s2);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px;font-size:14px;line-height:1.7;
+  border-left:3px solid var(--accent);
+  font-style:italic;
+}
+.shot-angle-block{
+  background:var(--s2);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px;font-size:13px;line-height:1.7;color:var(--text2);
+}
+.sheet-actions{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.capcut-btn{
+  width:100%;padding:14px;border-radius:var(--r);
+  background:linear-gradient(135deg,#000,#1a1a1a);
+  border:1.5px solid rgba(255,255,255,.15);
+  color:#fff;font-size:14px;font-weight:700;
+  cursor:pointer;font-family:var(--fb);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:opacity .15s;
+}
+.capcut-btn:active{opacity:.8}
+.capcut-logo{
+  width:22px;height:22px;border-radius:5px;
+  background:linear-gradient(135deg,#00E0FF,#A855F7);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff;font-family:var(--fd);
+}
+.action-row{display:flex;gap:10px}
+.action-btn{
+  flex:1;padding:12px;border-radius:var(--r);
+  border:1.5px solid var(--border);background:var(--s2);
+  color:var(--text);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:var(--fb);
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .15s;
+}
+.action-btn:hover{border-color:var(--border2)}
+.action-btn.save-active{background:rgba(124,77,255,.12);border-color:var(--accent);color:var(--accent)}
+.rate-row{display:flex;gap:10px}
+.rate-btn{
+  flex:1;padding:10px;border-radius:var(--r);
+  border:1.5px solid var(--border);background:var(--s2);
+  font-size:18px;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  font-family:var(--fb);font-size:13px;color:var(--text2);
+}
+.rate-btn:active{transform:scale(.95)}
+.rate-btn.up:hover{border-color:var(--green);background:rgba(0,229,160,.08)}
+.rate-btn.dn:hover{border-color:var(--red);background:rgba(255,71,87,.08)}
+
+/* == SCREEN: LIBRARY == */
+.lib-header{
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.lib-title{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.3px}
+.lib-count{font-size:12px;color:var(--text2);background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-weight:600}
+.lib-filters{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none}
+.lib-filters::-webkit-scrollbar{display:none}
+.lib-filter{
+  flex-shrink:0;padding:6px 14px;border-radius:20px;
+  border:1.5px solid var(--border);background:transparent;
+  color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;
+  font-family:var(--fb);transition:all .15s;
+}
+.lib-filter.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.lib-grid{padding:0 20px;display:flex;flex-direction:column;gap:10px}
+.lib-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;gap:12px;text-align:center;
+}
+.lib-empty-ico{font-size:48px}
+.lib-empty-title{font-family:var(--fd);font-size:18px;font-weight:700}
+.lib-empty-sub{font-size:13px;color:var(--text2);line-height:1.6;max-width:240px}
+
+/* == SCREEN: PROFILE == */
+.prof-header{
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 0;
+}
+.prof-hero{
+  padding:20px;margin:16px 20px;
+  background:linear-gradient(135deg,rgba(124,77,255,.15),rgba(255,92,53,.08));
+  border:1px solid rgba(124,77,255,.2);border-radius:var(--rlg);
+  display:flex;align-items:center;gap:16px;
+}
+.prof-avatar{
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--fd);font-size:22px;font-weight:800;color:#fff;
+  flex-shrink:0;
+}
+.prof-info{flex:1}
+.prof-name{font-family:var(--fd);font-size:18px;font-weight:700}
+.prof-plan{font-size:12px;color:var(--text2);margin-top:2px;display:flex;align-items:center;gap:6px}
+.prof-plan-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.prof-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin:0 20px 16px}
+.prof-stat{background:var(--s2);padding:16px;text-align:center}
+.prof-stat-num{font-family:var(--fd);font-size:26px;font-weight:700;color:var(--accent)}
+.prof-stat-lbl{font-size:11px;color:var(--text2);margin-top:2px;font-weight:500}
+.prof-section{margin:0 20px 20px}
+.prof-section-title{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.prof-row{
+  display:flex;align-items:center;gap:12px;padding:14px 0;
+  border-bottom:1px solid var(--border);
+}
+.prof-row:last-child{border-bottom:none}
+.prof-row-ico{width:36px;height:36px;border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.prof-row-info{flex:1}
+.prof-row-title{font-size:14px;font-weight:500}
+.prof-row-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.prof-row-action{font-size:13px;color:var(--text3)}
+
+/* == PAYWALL MODAL == */
+.modal-ov{
+  position:fixed;inset:0;z-index:600;
+  background:rgba(0,0,0,.8);backdrop-filter:blur(6px);
+  display:none;align-items:flex-end;
+}
+.modal-ov.open{display:flex}
+.paywall-sheet{
+  width:100%;background:var(--s1);
+  border-radius:20px 20px 0 0;
+  padding:0 0 calc(32px + env(safe-area-inset-bottom));
+}
+.paywall-glow{
+  width:100%;height:140px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(124,77,255,.3) 0%,transparent 70%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:48px;
+}
+.paywall-body{padding:0 24px}
+.paywall-title{font-family:var(--fd);font-size:26px;font-weight:800;letter-spacing:-.5px;text-align:center;margin-bottom:8px}
+.paywall-sub{font-size:14px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:24px}
+.paywall-features{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.paywall-feat{display:flex;align-items:center;gap:12px;font-size:14px}
+.paywall-feat-ico{width:32px;height:32px;border-radius:9px;background:rgba(124,77,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.paywall-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.pw-plan{
+  background:var(--s2);border:2px solid var(--border);border-radius:var(--r);
+  padding:14px;cursor:pointer;transition:border-color .15s;
+  position:relative;text-align:center;
+}
+.pw-plan.selected{border-color:var(--accent)}
+.pw-plan-popular{
+  position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  background:var(--accent);color:#fff;font-size:9px;font-weight:700;
+  padding:2px 10px;border-radius:10px;letter-spacing:.5px;white-space:nowrap;
+}
+.pw-plan-price{font-family:var(--fd);font-size:26px;font-weight:700;margin-bottom:2px}
+.pw-plan-period{font-size:11px;color:var(--text2)}
+.pw-plan-save{font-size:10px;color:var(--green);font-weight:600;margin-top:4px}
+.paywall-cta{
+  width:100%;padding:16px;border-radius:var(--r);
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-family:var(--fd);font-size:20px;font-weight:700;
+  border:none;cursor:pointer;letter-spacing:.5px;
+  transition:opacity .15s;
+}
+.paywall-cta:active{opacity:.9}
+.paywall-dismiss{
+  width:100%;padding:12px;background:none;border:none;
+  color:var(--text3);font-size:13px;cursor:pointer;
+  font-family:var(--fb);margin-top:8px;
+}
+
+/* == TOAST == */
+.toast{
+  position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
+  left:20px;right:20px;z-index:700;
+  background:var(--s3);border:1px solid var(--border2);border-radius:var(--r);
+  padding:12px 16px;font-size:13px;font-weight:500;
+  display:flex;align-items:center;gap:10px;
+  box-shadow:var(--sh);
+  transform:translateY(20px);opacity:0;
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* == UTILITY == */
+.btn-primary{
+  padding:14px 24px;border-radius:var(--r);
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-family:var(--fd);font-size:16px;font-weight:700;
+  border:none;cursor:pointer;letter-spacing:.3px;
+  width:100%;transition:opacity .15s;
+}
+.btn-primary:active{opacity:.9}
+.divider{height:1px;background:var(--border);margin:0 20px}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="scan-anim">
+    <div class="scan-anim-inner" id="scan-anim-emoji">📸</div>
+  </div>
+  <div class="loading-title">Analysing your photos...</div>
+  <div class="loading-steps" id="loading-steps">
+    <div class="loading-step active" id="step-0"><div class="step-dot"></div>Detecting scene and environment</div>
+    <div class="loading-step" id="step-1"><div class="step-dot"></div>Identifying creative angles</div>
+    <div class="loading-step" id="step-2"><div class="step-dot"></div>Matching trending formats</div>
+    <div class="loading-step" id="step-3"><div class="step-dot"></div>Writing hooks and shot guides</div>
+  </div>
+</div>
+
+<!-- IDEA DETAIL SHEET -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet(event)">
+  <div class="sheet" id="idea-sheet">
+    <div class="sheet-handle"></div>
+    <div id="sheet-content"></div>
+  </div>
+</div>
+
+<!-- PAYWALL MODAL -->
+<div class="modal-ov" id="paywall-modal">
+  <div class="paywall-sheet">
+    <div class="paywall-glow">✨</div>
+    <div class="paywall-body">
+      <div class="paywall-title">Unlock Scout Pro</div>
+      <div class="paywall-sub">Unlimited scans, trend tracking, and full shot guides — for less than a coffee a week.</div>
+      <div class="paywall-features">
+        <div class="paywall-feat"><div class="paywall-feat-ico">♾️</div><span>Unlimited daily scans</span></div>
+        <div class="paywall-feat"><div class="paywall-feat-ico">🔥</div><span>Real-time trending formats and sounds</span></div>
+        <div class="paywall-feat"><div class="paywall-feat-ico">🧠</div><span>AI remembers your locations, never repeats</span></div>
+        <div class="paywall-feat"><div class="paywall-feat-ico">📋</div><span>Full shot checklists and session planning</span></div>
+      </div>
+      <div class="paywall-plans" id="pw-plans">
+        <div class="pw-plan" id="pw-monthly" onclick="selectPlan('monthly')">
+          <div class="pw-plan-price">$9</div>
+          <div class="pw-plan-period">per month</div>
+        </div>
+        <div class="pw-plan selected" id="pw-yearly" onclick="selectPlan('yearly')">
+          <div class="pw-plan-popular">BEST VALUE</div>
+          <div class="pw-plan-price">$59</div>
+          <div class="pw-plan-period">per year</div>
+          <div class="pw-plan-save">Save $49</div>
+        </div>
+      </div>
+      <button class="paywall-cta" onclick="subscribePro()">Start Free Trial</button>
+      <button class="paywall-dismiss" onclick="closePaywall()">Maybe later</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toast-ico">✓</span><span id="toast-txt"></span></div>
+
+<!-- HIDDEN INPUTS -->
+<input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(this)">
+<input type="file" id="camera-input" accept="image/*" capture="environment" style="position:fixed;left:-9999px;opacity:0;pointer-events:none" onchange="handleImageSelect(this)">
+<input type="file" id="gallery-input-real" accept="image/*" style="position:fixed;left:-9999px;opacity:0;pointer-events:none" onchange="handleImageSelect(this)">
+
+<!-- == SCREEN: HOME == -->
+<div class="screen active" id="screen-home">
+  <div class="home-header">
+    <div class="home-logo">Sc<span>out</span></div>
+    <div class="streak-pill"><span class="streak-fire">🔥</span><span id="streak-count">0</span> day streak</div>
+  </div>
+  <div class="screen-body">
+    <div class="home-scan-zone">
+      <div class="scan-ring-outer">
+        <div class="scan-ring-inner" onclick="openCamera()">
+          <span class="scan-btn-icon">📍</span>
+        </div>
+      </div>
+      <div>
+        <div class="scan-label">Take a photo</div>
+        <div class="scan-sublabel">Take a photo of anywhere — Scout finds video ideas hidden in plain sight</div>
+      </div>
+      <div class="scan-usage" id="scan-usage"></div>
+    </div>
+    <div class="home-recent" id="home-recent" style="display:none">
+      <div class="section-header">
+        <div class="section-title">Recent ideas</div>
+        <div class="see-all" onclick="goTab('library')">See all</div>
+      </div>
+      <div class="recent-scroll" id="recent-scroll"></div>
+    </div>
+  </div>
+</div>
+
+<!-- == SCREEN: RESULTS == -->
+<div class="screen" id="screen-results">
+  <div class="results-header">
+    <div class="back-btn" onclick="goTab('home')">←</div>
+    <div class="results-header-info">
+      <div class="results-title" id="results-title">Ideas for your location</div>
+      <div class="results-subtitle" id="results-subtitle">6 ideas generated</div>
+    </div>
+    <button class="rescan-btn" onclick="openCamera()">Rescan</button>
+  </div>
+  <div class="screen-body">
+    <div class="scene-strip" id="scene-strip">
+      <div style="width:100%;height:100%;background:linear-gradient(135deg,var(--s2),var(--s3))"></div>
+    </div>
+    <div class="ideas-list" id="ideas-list"></div>
+  </div>
+</div>
+
+<!-- == SCREEN: LIBRARY == -->
+<div class="screen" id="screen-library">
+  <div class="lib-header">
+    <div class="lib-title">Library</div>
+    <div class="lib-count" id="lib-count">0 saved</div>
+  </div>
+  <div class="lib-filters">
+    <button class="lib-filter active" onclick="filterLib('all',this)">All</button>
+    <button class="lib-filter" onclick="filterLib('trending',this)">🔥 Trending</button>
+    <button class="lib-filter" onclick="filterLib('cinematic',this)">🎬 Cinematic</button>
+    <button class="lib-filter" onclick="filterLib('pov',this)">👁 POV</button>
+    <button class="lib-filter" onclick="filterLib('educational',this)">💡 Educational</button>
+  </div>
+  <div class="screen-body">
+    <div class="lib-grid" id="lib-grid"></div>
+  </div>
+</div>
+
+<!-- == SCREEN: PROFILE == -->
+<div class="screen" id="screen-profile">
+  <div class="screen-body">
+    <div class="prof-header">
+      <div style="font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.3px">Profile</div>
+    </div>
+    <div class="prof-hero">
+      <div class="prof-avatar" id="prof-av">S</div>
+      <div class="prof-info">
+        <div class="prof-name">Scout Creator</div>
+        <div class="prof-plan"><div class="prof-plan-dot" id="plan-dot"></div><span id="plan-name">Free Plan</span></div>
+      </div>
+    </div>
+    <div class="prof-stats">
+      <div class="prof-stat"><div class="prof-stat-num" id="stat-scans">0</div><div class="prof-stat-lbl">Total scans</div></div>
+      <div class="prof-stat"><div class="prof-stat-num" id="stat-saved">0</div><div class="prof-stat-lbl">Ideas saved</div></div>
+      <div class="prof-stat"><div class="prof-stat-num" id="stat-streak">0</div><div class="prof-stat-lbl">Day streak</div></div>
+    </div>
+    <div class="prof-section">
+      <div class="prof-section-title">Plan</div>
+      <div class="prof-row" onclick="openPaywall()">
+        <div class="prof-row-ico">✨</div>
+        <div class="prof-row-info"><div class="prof-row-title" id="prof-plan-title">Free — 3 scans/day</div><div class="prof-row-sub">Tap to upgrade to unlimited</div></div>
+        <div class="prof-row-action">→</div>
+      </div>
+    </div>
+    <div class="prof-section">
+      <div class="prof-section-title">Settings</div>
+      <div class="prof-row">
+        <div class="prof-row-ico">🔔</div>
+        <div class="prof-row-info"><div class="prof-row-title">Notifications</div><div class="prof-row-sub">Daily scan reminders</div></div>
+        <div class="prof-row-action">→</div>
+      </div>
+      <div class="prof-row" onclick="clearHistory()">
+        <div class="prof-row-ico">🗑</div>
+        <div class="prof-row-info"><div class="prof-row-title">Clear scan history</div><div class="prof-row-sub">Resets idea anti-repetition</div></div>
+        <div class="prof-row-action">→</div>
+      </div>
+      <div class="prof-row" onclick="exportLibrary()">
+        <div class="prof-row-ico">📤</div>
+        <div class="prof-row-info"><div class="prof-row-title">Export saved ideas</div><div class="prof-row-sub">Copy to clipboard as text</div></div>
+        <div class="prof-row-action">→</div>
+      </div>
+    </div>
+    <div class="prof-section">
+      <div class="prof-section-title">About</div>
+      <div class="prof-row">
+        <div class="prof-row-ico">📖</div>
+        <div class="prof-row-info"><div class="prof-row-title">How Scout works</div><div class="prof-row-sub">AI scene analysis + trend matching</div></div>
+        <div class="prof-row-action">→</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- == BOTTOM NAV == -->
+<nav class="bnav">
+  <div class="bnav-item active" id="nav-home" onclick="goTab('home')">
+    <div class="bnav-icon">🏠</div>
+    <div class="bnav-lbl">Home</div>
+  </div>
+  <div class="bnav-item" id="nav-scan" onclick="openCamera()">
+    <div class="bnav-scan">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="3" fill="currentColor"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="bnav-lbl" style="margin-top:8px">Scan</div>
+  </div>
+  <div class="bnav-item" id="nav-library" onclick="goTab('library')">
+    <div class="bnav-icon">🔖</div>
+    <div class="bnav-lbl">Library</div>
+  </div>
+</nav>
+
+<script>
+// ==========================================
+// STATE
+// ==========================================
+var FREE_SCANS_PER_DAY = 3;
+var MAX_HISTORY = 60; // ideas stored for anti-repetition
+
+var STATE = {
+  plan: 'free',
+  selectedPlan: 'yearly',
+  currentTab: 'home',
+  currentScanImage: null,
+  currentScanB64: null,
+  currentScanMime: 'image/jpeg',
+  currentIdeas: [],
+  currentSceneInfo: {},
+  activeIdeaIdx: -1,
+  libFilter: 'all'
+};
+
+// Persistent storage helpers
+function getStore(key, def) {
+  try { var v = localStorage.getItem('scout_' + key); return v ? JSON.parse(v) : def; }
+  catch(e) { return def; }
+}
+function setStore(key, val) {
+  try { localStorage.setItem('scout_' + key, JSON.stringify(val)); } catch(e) {}
+}
+
+function getScansToday() {
+  var today = new Date().toDateString();
+  var data = getStore('scans_today', {date:'', count:0});
+  if (data.date !== today) return 0;
+  return data.count;
+}
+function incrementScansToday() {
+  var today = new Date().toDateString();
+  var data = getStore('scans_today', {date:'', count:0});
+  if (data.date !== today) data = {date:today, count:0};
+  data.count++;
+  setStore('scans_today', data);
+}
+function canScan() {
+  if (STATE.plan === 'pro') return true;
+  return getScansToday() < FREE_SCANS_PER_DAY;
+}
+
+function getStreak() {
+  var streak = getStore('streak', {count:0, lastDate:''});
+  var today = new Date().toDateString();
+  var yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (streak.lastDate === today) return streak.count;
+  if (streak.lastDate === yesterday) return streak.count;
+  return 0;
+}
+function updateStreak() {
+  var streak = getStore('streak', {count:0, lastDate:''});
+  var today = new Date().toDateString();
+  var yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (streak.lastDate === today) return;
+  if (streak.lastDate === yesterday) {
+    streak.count++;
+  } else if (streak.lastDate !== today) {
+    streak.count = 1;
+  }
+  streak.lastDate = today;
+  setStore('streak', streak);
+}
+
+function getHistory() { return getStore('idea_history', []); }
+function addToHistory(ideas, sceneType) {
+  var hist = getHistory();
+  var entry = {
+    sceneType: sceneType || 'general',
+    ideas: ideas.map(function(i) { return {title: i.title, format: i.format, category: i.category}; }),
+    ts: Date.now()
+  };
+  hist.unshift(entry);
+  if (hist.length > MAX_HISTORY) hist = hist.slice(0, MAX_HISTORY);
+  setStore('idea_history', hist);
+}
+
+function getPastIdeasForScene(sceneType) {
+  var hist = getHistory();
+  var relevant = [];
+  hist.forEach(function(entry) {
+    if (entry.sceneType === sceneType || entry.sceneType === 'general') {
+      (entry.ideas || []).forEach(function(idea) {
+        relevant.push(idea.title + ' (' + idea.format + ')');
+      });
+    }
+  });
+  return relevant.slice(0, 12);
+}
+
+function getLibrary() { return getStore('library', []); }
+function saveToLibrary(idea) {
+  var lib = getLibrary();
+  var exists = lib.find(function(i) { return i.title === idea.title; });
+  if (exists) return false;
+  idea.savedAt = Date.now();
+  lib.unshift(idea);
+  setStore('library', lib);
+  return true;
+}
+function removeFromLibrary(title) {
+  var lib = getLibrary().filter(function(i) { return i.title !== title; });
+  setStore('library', lib);
+}
+function isInLibrary(title) {
+  return getLibrary().some(function(i) { return i.title === title; });
+}
+
+function getTotalScans() { return getStore('total_scans', 0); }
+function incrementTotalScans() { setStore('total_scans', getTotalScans() + 1); }
+
+// ==========================================
+// TOAST
+// ==========================================
+var toastTimer = null;
+function showToast(msg, ico) {
+  ico = ico || '✓';
+  document.getElementById('toast-txt').textContent = msg;
+  document.getElementById('toast-ico').textContent = ico;
+  var t = document.getElementById('toast');
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+// ==========================================
+// NAVIGATION
+// ==========================================
+function goTab(tab) {
+  var screens = ['home', 'results', 'library', 'profile'];
+  screens.forEach(function(s) { document.getElementById('screen-' + s).classList.remove('active'); });
+  document.querySelectorAll('.bnav-item').forEach(function(n) { n.classList.remove('active'); });
+  var screen = document.getElementById('screen-' + tab);
+  if (screen) screen.classList.add('active');
+  var navEl = document.getElementById('nav-' + tab);
+  if (navEl) navEl.classList.add('active');
+  STATE.currentTab = tab;
+  if (tab === 'library') renderLibrary();
+  if (tab === 'profile') renderProfile();
+  if (tab === 'home') renderHome();
+}
+
+// ==========================================
+// CAMERA / IMAGE
+// ==========================================
+function openCamera() {
+  if (!canScan()) { openPaywall(); return; }
+  var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) { showSourcePicker(); } else { triggerCamera(); }
+}
+function triggerCamera() {
+  var el = document.getElementById('camera-input');
+  if (el) { el.value = ''; el.click(); }
+}
+function triggerGallery() {
+  var el = document.getElementById('gallery-input-real');
+  if (el) { el.value = ''; el.click(); }
+}
+function openGallery() {
+  if (!canScan()) { openPaywall(); return; }
+  triggerGallery();
+}
+function showSourcePicker() {
+  var existing = document.getElementById('source-picker');
+  if (existing) { existing.remove(); return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'source-picker';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;backdrop-filter:blur(6px)';
+
+  var inner = document.createElement('div');
+  inner.style.cssText = 'width:100%;background:#161625;border-radius:20px 20px 0 0;padding:16px 20px calc(28px + env(safe-area-inset-bottom))';
+
+  var handle = document.createElement('div');
+  handle.style.cssText = 'width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin:0 auto 20px';
+
+  var title = document.createElement('div');
+  title.style.cssText = 'font-family:Syne,sans-serif;font-size:18px;font-weight:700;margin-bottom:16px;color:#F0F0F8';
+  title.textContent = 'Add a photo';
+
+  var camBtn = document.createElement('button');
+  camBtn.style.cssText = 'width:100%;padding:16px;background:#1E1E30;border:1.5px solid rgba(255,255,255,.07);border-radius:12px;color:#F0F0F8;font-size:15px;font-weight:600;font-family:Instrument Sans,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left';
+  camBtn.innerHTML = '<span style="font-size:24px">📷</span><span>Take a photo</span>';
+  camBtn.onclick = function() { overlay.remove(); triggerCamera(); };
+
+  var galBtn = document.createElement('button');
+  galBtn.style.cssText = 'width:100%;padding:16px;background:#1E1E30;border:1.5px solid rgba(255,255,255,.07);border-radius:12px;color:#F0F0F8;font-size:15px;font-weight:600;font-family:Instrument Sans,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left';
+  galBtn.innerHTML = '<span style="font-size:24px">🖼</span><span>Choose from library</span>';
+  galBtn.onclick = function() { overlay.remove(); triggerGallery(); };
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.style.cssText = 'width:100%;padding:13px;background:transparent;border:none;color:rgba(240,240,248,.4);font-size:14px;cursor:pointer;font-family:Instrument Sans,sans-serif';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = function() { overlay.remove(); };
+
+  inner.appendChild(handle);
+  inner.appendChild(title);
+  inner.appendChild(camBtn);
+  inner.appendChild(galBtn);
+  inner.appendChild(cancelBtn);
+  overlay.appendChild(inner);
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function handleImageSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  console.log('Scout: file selected type:', file.type, 'size:', file.size);
+  showToast('Processing photo...', '⏳');
+
+  // FileReader only — blob URLs blocked inside Claude.ai sandbox
+  var reader = new FileReader();
+  reader.onerror = function() { showToast('Could not read photo — try another', '⚠️'); };
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    var img = new Image();
+    img.onerror = function() {
+      console.error('Scout: img failed to load from FileReader data');
+      showToast('Could not decode photo — try another', '⚠️');
+    };
+    img.onload = function() {
+      try {
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        console.log('Scout: decoded dimensions', w, 'x', h);
+        if (!w || !h) { showToast('Photo has no dimensions — try another', '⚠️'); return; }
+        // Shrink to max 640px — keeps payload under 200KB
+        var maxDim = 400;
+        if (w > maxDim || h > maxDim) {
+          var ratio = Math.min(maxDim/w, maxDim/h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        var out = canvas.toDataURL('image/jpeg', 0.40);
+        var b64 = out.split(',')[1];
+        console.log('Scout: b64 length after resize:', b64 ? b64.length : 0);
+        if (!b64 || b64.length < 500) {
+          showToast('Photo processing failed — try a different one', '⚠️');
+          return;
+        }
+        STATE.currentScanImage = out;
+        STATE.currentScanB64 = b64;
+        STATE.currentScanMime = 'image/jpeg';
+        startScan();
+      } catch(ex) {
+        console.error('Scout: canvas draw error:', ex.message);
+        showToast('Photo error — try another', '⚠️');
+      }
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resizeImage(dataUrl, maxDim, quality, cb) {
+  var img = new Image();
+  img.onerror = function() {
+    console.error('resizeImage: image load error');
+    cb(null, null);
+  };
+  img.onload = function() {
+    try {
+      var w = img.width, h = img.height;
+      console.log('resizeImage: original size', w, 'x', h);
+      if (!w || !h) { console.error('resizeImage: zero dimensions'); cb(null, null); return; }
+      if (w > maxDim || h > maxDim) {
+        var ratio = Math.min(maxDim / w, maxDim / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      // Try JPEG first
+      var dataUrlOut = canvas.toDataURL('image/jpeg', quality || 0.75);
+      // Validate output — should be much larger than a blank canvas
+      var b64 = dataUrlOut.split(',')[1];
+      console.log('resizeImage: output b64 length:', b64 ? b64.length : 0);
+      if (!b64 || b64.length < 500) {
+        // Fallback: try PNG
+        console.warn('resizeImage: JPEG output too small, trying PNG');
+        dataUrlOut = canvas.toDataURL('image/png');
+        b64 = dataUrlOut.split(',')[1];
+        console.log('resizeImage: PNG b64 length:', b64 ? b64.length : 0);
+      }
+      if (!b64 || b64.length < 500) {
+        console.error('resizeImage: all formats failed, canvas may be blank');
+        cb(null, null);
+        return;
+      }
+      cb(b64, dataUrlOut);
+    } catch(e) {
+      console.error('resizeImage exception:', e.message, e.stack);
+      cb(null, null);
+    }
+  };
+  // Use crossOrigin to help with some mobile browsers
+  img.crossOrigin = 'anonymous';
+  img.src = dataUrl;
+}
+
+// ==========================================
+// LOADING ANIMATION
+// ==========================================
+var loadingTimer = null;
+function startLoadingAnim() {
+  document.getElementById('loading-overlay').classList.add('active');
+  var steps = document.querySelectorAll('.loading-step');
+  steps.forEach(function(s) { s.classList.remove('active','done'); });
+  steps[0].classList.add('active');
+  var i = 0;
+  loadingTimer = setInterval(function() {
+    if (i < steps.length - 1) {
+      steps[i].classList.remove('active');
+      steps[i].classList.add('done');
+      i++;
+      steps[i].classList.add('active');
+    }
+  }, 900);
+}
+function stopLoadingAnim() {
+  if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
+  var steps = document.querySelectorAll('.loading-step');
+  steps.forEach(function(s) { s.classList.remove('active'); s.classList.add('done'); });
+  setTimeout(function() { document.getElementById('loading-overlay').classList.remove('active'); }, 400);
+}
+
+// ==========================================
+// AI SCAN
+// ==========================================
+
+// Trending formats pool — rotates to keep fresh
+var TRENDING_FORMATS = [
+  'Get Ready With Me style transition','POV: you just found','Day in the life segment',
+  'Silent vlog aesthetic','Satisfying before/after','Behind the scenes reveal',
+  'Phone found footage style','Aesthetic slow-motion b-roll','Storytime with text overlay',
+  'Reaction-style zoom in','Trending audio sync cut','GRWM car edition',
+  'Cinematic title card intro','Satisfying detail reel','One location many angles challenge'
+];
+
+function getTrendingFormats() {
+  var seed = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
+  var shuffled = TRENDING_FORMATS.slice();
+  for (var i = shuffled.length - 1; i > 0; i--) {
+    var j = (seed * (i + 1) * 2654435761) % (i + 1);
+    var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+  }
+  return shuffled.slice(0, 4).join(', ');
+}
+
+function buildPrompt(pastIdeas) {
+  var avoidSection = '';
+  if (pastIdeas.length > 0) {
+    avoidSection = 'CRITICAL — do not repeat any of these previously generated ideas: ' + pastIdeas.join(' | ') + '. Generate completely different angles, formats, and concepts.';
+  }
+  var trending = getTrendingFormats();
+
+  return 'You are Scout, an AI creative director for content creators. Analyse this photo of a real location.\n\n' +
+    avoidSection + '\n\n' +
+    'Currently trending formats this week: ' + trending + '\n\n' +
+    'Generate exactly 6 video/photo content ideas for this specific location. Each must use a DIFFERENT creative lens — you must cover all 6 of these lenses, one each:\n' +
+    '1. TRENDING — uses a currently trending format or sound style\n' +
+    '2. CINEMATIC — film-quality, visually stunning approach\n' +
+    '3. POV — immersive first-person perspective\n' +
+    '4. EDUCATIONAL — teaches something about this place or subject\n' +
+    '5. STORYTELLING — narrative arc, emotional pull\n' +
+    '6. UNEXPECTED — a creative angle nobody would think of\n\n' +
+    'For each idea be SPECIFIC to what is actually in this photo. Reference real elements you can see.\n\n' +
+    'Return ONLY a valid JSON object, no markdown:\n' +
+    '{"sceneType":"one of: urban/nature/indoor/automotive/architectural/beach/industrial/commercial","sceneLabel":"short description e.g. Multi-storey car park","ideas":[\n' +
+    '{"title":"Short punchy title","hook":"Word-for-word script for first 3 seconds — make it specific","format":"Format name e.g. POV walk, Cinematic b-roll, Trending transition","shotAngle":"Exact camera position, movement, and framing instructions","audio":"Specific audio style or describe the sound","capcutSearch":"Best CapCut template search term","trending":true or false,"difficulty":"Easy or Medium or Hard","filmTime":"X mins","category":"trending or cinematic or pov or educational or storytelling or unexpected"}\n' +
+    ']}';
+}
+
+function startScan() {
+  if (!STATE.currentScanB64) { showToast('No image selected', '⚠️'); return; }
+  var b64len = STATE.currentScanB64.length;
+  console.log('Scout: sending image, b64 length:', b64len, 'mime:', STATE.currentScanMime);
+  if (b64len < 500) {
+    showToast('Photo could not be processed — try a different one', '⚠️');
+    return;
+  }
+  if (b64len > 300000) {
+    showToast('Photo still too large — please try again', '⚠️');
+    console.error('Scout: b64 too large even after resize:', b64len);
+    return;
+  }
+  startLoadingAnim();
+  incrementScansToday();
+  incrementTotalScans();
+  updateStreak();
+
+  var pastIdeas = getPastIdeasForScene('general');
+  var prompt = buildPrompt(pastIdeas);
+
+  var messages = [
+    {
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: STATE.currentScanMime, data: STATE.currentScanB64 } },
+        { type: 'text', text: prompt }
+      ]
+    }
+  ];
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: messages })
+  })
+  .then(function(response) {
+    console.log('Scout: HTTP status', response.status, 'ok:', response.ok);
+    return response.text().then(function(txt) {
+      return { status: response.status, ok: response.ok, raw: txt };
+    });
+  })
+  .then(function(res) {
+    stopLoadingAnim();
+    console.log('Scout: raw response preview:', res.raw.slice(0, 300));
+
+    // Parse JSON from raw text
+    var data;
+    try { data = JSON.parse(res.raw); }
+    catch(e) {
+      console.error('Scout: response is not JSON:', res.raw.slice(0, 400));
+      showToast('Unexpected response — try again', '⚠️');
+      return;
+    }
+
+    // API returned an error status
+    if (!res.ok) {
+      var em = 'Error ' + res.status;
+      if (data.error && data.error.message) em = data.error.message;
+      else if (data.message) em = data.message;
+      console.error('Scout: API error body:', JSON.stringify(data));
+      showToast(em.slice(0, 80), '⚠️');
+      return;
+    }
+
+    // Extract the text content from Claude's response
+    var block = null;
+    if (data.content && data.content.length) {
+      for (var i = 0; i < data.content.length; i++) {
+        if (data.content[i].type === 'text') { block = data.content[i]; break; }
+      }
+    }
+    if (!block) {
+      console.error('Scout: no text block in response:', JSON.stringify(data).slice(0, 300));
+      showToast('No response from AI — try again', '⚠️');
+      return;
+    }
+
+    var raw = block.text || '';
+    console.log('Scout: raw:', raw.slice(0, 150));
+    var parsed = null;
+    var s = raw.indexOf('{');
+    var e2 = raw.lastIndexOf('}');
+    if (s !== -1 && e2 > s) {
+      try { parsed = JSON.parse(raw.slice(s, e2 + 1)); } catch(err) { console.error('parse err:', err.message); }
+    }
+    console.log('Scout: parsed keys:', Object.keys(parsed));
+    console.log('Scout: ideas:', JSON.stringify(parsed).slice(0, 300));
+
+    // Handle edge cases in structure
+    var ideas = parsed.ideas || parsed.Ideas || parsed.content || [];
+    if (!ideas.length && Array.isArray(parsed)) ideas = parsed;
+
+    if (!ideas.length) {
+      showToast('No ideas generated — try again', '⚠️');
+      return;
+    }
+    parsed.ideas = ideas;
+        addToHistory(STATE.currentIdeas, parsed.sceneType || 'general');
+    renderResults();
+    goTab('results');
+    renderHome();
+  })
+  .catch(function(err) {
+    stopLoadingAnim();
+    console.error('Scout: fetch threw:', err.name, err.message);
+    if (err.name === 'TypeError') {
+      showToast('Network error — must be opened in Claude.ai', '⚠️');
+    } else {
+      showToast('Error: ' + (err.message || 'unknown').slice(0, 70), '⚠️');
+    }
+  });
+}
+
+// ==========================================
+// RENDER RESULTS
+// ==========================================
+var FORMAT_CLASSES = {
+  trending: 'fmt-trending',
+  cinematic: 'fmt-cinematic',
+  pov: 'fmt-pov',
+  educational: 'fmt-edu',
+  storytelling: 'fmt-story',
+  unexpected: 'fmt-creative'
+};
+
+function renderResults() {
+  var info = STATE.currentSceneInfo;
+  document.getElementById('results-title').textContent = info.label || 'Your photos';
+  document.getElementById('results-subtitle').textContent = STATE.currentIdeas.length + ' ideas generated';
+
+  // Scene strip
+  var strip = document.getElementById('scene-strip');
+  if (STATE.currentScanImage) {
+    strip.innerHTML = '<img src="' + STATE.currentScanImage + '" alt="Location"><div class="scene-strip-overlay"><span class="scene-tag">' + (info.label || 'Your photo') + '</span><span class="scene-tag" style="text-transform:capitalize">' + (info.type || 'indoor') + '</span></div>';
+  }
+
+  var list = document.getElementById('ideas-list');
+  var h = '';
+  STATE.currentIdeas.forEach(function(idea, i) {
+    var fmtCls = FORMAT_CLASSES[idea.category] || 'fmt-creative';
+    var inLib = isInLibrary(idea.title);
+    var diff = idea.difficulty || 'Easy';
+    var diffColor = diff === 'Easy' ? 'var(--green)' : diff === 'Hard' ? 'var(--red)' : 'var(--amber)';
+
+    h += '<div class="idea-card' + (inLib ? ' saved' : '') + '" onclick="openIdeaDetail(' + i + ')">';
+    h += '<div class="idea-card-save' + (inLib ? ' saved' : '') + '" onclick="event.stopPropagation();quickSave(' + i + ',this)" title="Save idea">';
+    h += inLib ? '🔖' : '🔖';
+    h += '</div>';
+    h += '<div class="idea-card-top">';
+    h += '<div class="idea-format-badge ' + fmtCls + '">' + (idea.category || 'idea').toUpperCase() + '</div>';
+    h += '<div class="idea-card-main">';
+    h += '<div class="idea-card-title">' + (idea.title || '') + '</div>';
+    h += '<div class="idea-card-hook">"' + (idea.hook || '') + '"</div>';
+    if (idea.whyItWorks) h += '<div style="font-size:11px;color:var(--accent);margin-top:5px;font-weight:500;opacity:.8">↑ ' + idea.whyItWorks + '</div>';
+    h += '</div></div>';
+    h += '<div class="idea-card-meta">';
+    h += '<div class="meta-chip"><span class="ico">⏱</span>' + (idea.filmTime || '5 mins') + '</div>';
+    h += '<div class="meta-chip"><span style="color:' + diffColor + '">●</span>' + diff + '</div>';
+    h += '<div class="meta-chip">🎬 ' + (idea.format || 'Video') + '</div>';
+    if (idea.trending) h += '<div class="trending-now-badge">🔥 Trending</div>';
+    h += '</div></div>';
+  });
+  list.innerHTML = h;
+}
+
+function quickSave(idx, el) {
+  var idea = STATE.currentIdeas[idx];
+  if (!idea) return;
+  var inLib = isInLibrary(idea.title);
+  if (inLib) {
+    removeFromLibrary(idea.title);
+    el.classList.remove('saved');
+    el.closest('.idea-card').classList.remove('saved');
+    showToast('Removed from library');
+  } else {
+    idea.sceneLabel = STATE.currentSceneInfo.label || '';
+    idea.sceneType = STATE.currentSceneInfo.type || '';
+    saveToLibrary(idea);
+    el.classList.add('saved');
+    el.closest('.idea-card').classList.add('saved');
+    showToast('Saved to library 🔖');
+  }
+}
+
+// ==========================================
+// IDEA DETAIL SHEET
+// ==========================================
+function openIdeaDetail(idx) {
+  var idea = STATE.ideas || STATE.currentIdeas;
+  if (Array.isArray(idx)) { idea = idx; idx = 0; }
+  var i = (typeof idx === 'number') ? idx : 0;
+  var source = STATE.activeSource || STATE.currentIdeas;
+  var item = source[i];
+  if (!item) return;
+  STATE.activeIdeaIdx = i;
+  renderSheet(item);
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function renderSheet(item) {
+  var inLib = isInLibrary(item.title);
+  var fmtCls = FORMAT_CLASSES[item.category] || 'fmt-creative';
+  var ccUrl = 'https://www.capcut.com/template-center?keyword=' + encodeURIComponent(item.capcutSearch || item.format || 'video template');
+
+  var h = '';
+  h += '<div class="sheet-header">';
+  h += '<div style="flex:1"><div class="idea-format-badge ' + fmtCls + '" style="display:inline-flex;margin-bottom:8px">' + (item.category || 'IDEA').toUpperCase() + '</div>';
+  h += '<div class="sheet-title">' + (item.title || '') + '</div></div>';
+  h += '<div class="sheet-close" onclick="closeSheet()">✕</div>';
+  h += '</div>';
+
+  h += '<div class="sheet-section">';
+  h += '<div class="sheet-section-label">Opening hook — say this first</div>';
+  h += '<div class="hook-block">"' + (item.hook || '') + '"</div>';
+  h += '</div>';
+
+  if (item.whyItWorks) {
+    h += '<div class="sheet-section">';
+    h += '<div class="sheet-section-label">Why this works</div>';
+    h += '<div style="background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.2);border-radius:var(--r);padding:12px 14px;font-size:13px;line-height:1.6;color:var(--text)">' + item.whyItWorks + '</div>';
+    h += '</div>';
+  }
+  h += '<div class="sheet-section">';
+  h += '<div class="sheet-section-label">How to film it</div>';
+  h += '<div class="shot-angle-block">' + (item.shotAngle || '') + '</div>';
+  h += '</div>';
+
+  h += '<div class="sheet-section">';
+  h += '<div class="sheet-section-label">Audio style</div>';
+  h += '<div class="sheet-section-content">' + (item.audio || '') + '</div>';
+  h += '</div>';
+
+  h += '<div class="sheet-section" style="display:flex;gap:20px">';
+  h += '<div><div class="sheet-section-label">Difficulty</div><div style="font-size:15px;font-weight:600">' + (item.difficulty || 'Easy') + '</div></div>';
+  h += '<div><div class="sheet-section-label">Film time</div><div style="font-size:15px;font-weight:600">' + (item.filmTime || '5 mins') + '</div></div>';
+  h += '<div><div class="sheet-section-label">Format</div><div style="font-size:13px;color:var(--text2)">' + (item.format || '') + '</div></div>';
+  h += '</div>';
+
+  h += '<div class="sheet-actions">';
+  h += '<a href="' + ccUrl + '" target="_blank" class="capcut-btn"><div class="capcut-logo">CC</div>Open in CapCut →</a>';
+  h += '<div class="action-row">';
+  h += '<button class="action-btn' + (inLib ? ' save-active' : '') + '" id="sheet-save-btn" onclick="toggleSheetSave()">' + (inLib ? '🔖 Saved' : '🔖 Save') + '</button>';
+  h += '<button class="action-btn" onclick="shareIdea()">📤 Share</button>';
+  h += '</div>';
+  h += '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-align:center">Was this idea useful?</div>';
+  h += '<div class="rate-row">';
+  h += '<button class="rate-btn up" onclick="rateIdea(true)">👍 Yes, great idea</button>';
+  h += '<button class="rate-btn dn" onclick="rateIdea(false)">👎 Not for me</button>';
+  h += '</div>';
+  h += '</div>';
+
+  document.getElementById('sheet-content').innerHTML = h;
+}
+
+function openLibraryIdeaDetail(idx) {
+  var lib = getLibrary();
+  var filtered = getFilteredLib();
+  var item = filtered[idx];
+  if (!item) return;
+  STATE.activeSource = filtered;
+  STATE.activeIdeaIdx = idx;
+  renderSheet(item);
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function closeSheet(e) {
+  if (e && e.target !== document.getElementById('sheet-overlay')) return;
+  document.getElementById('sheet-overlay').classList.remove('open');
+  STATE.activeIdeaIdx = -1;
+  STATE.activeSource = null;
+}
+
+function toggleSheetSave() {
+  var source = STATE.activeSource || STATE.currentIdeas;
+  var item = source[STATE.activeIdeaIdx];
+  if (!item) return;
+  var inLib = isInLibrary(item.title);
+  var btn = document.getElementById('sheet-save-btn');
+  if (inLib) {
+    removeFromLibrary(item.title);
+    if (btn) { btn.textContent = '🔖 Save'; btn.classList.remove('save-active'); }
+    showToast('Removed from library');
+  } else {
+    item.sceneLabel = (STATE.currentSceneInfo || {}).label || '';
+    item.sceneType = (STATE.currentSceneInfo || {}).type || '';
+    saveToLibrary(item);
+    if (btn) { btn.textContent = '🔖 Saved'; btn.classList.add('save-active'); }
+    showToast('Saved to library 🔖');
+  }
+  renderResults();
+}
+
+function rateIdea(good) {
+  // Store rating for future prompt tuning
+  var ratings = getStore('ratings', []);
+  var source = STATE.activeSource || STATE.currentIdeas;
+  var item = source[STATE.activeIdeaIdx];
+  if (item) ratings.push({title: item.title, category: item.category, good: good, ts: Date.now()});
+  if (ratings.length > 100) ratings = ratings.slice(-100);
+  setStore('ratings', ratings);
+  showToast(good ? 'Good to know — more like this 👍' : 'Got it — we\'ll vary it more 👎');
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+
+function shareIdea() {
+  var source = STATE.activeSource || STATE.currentIdeas;
+  var item = source[STATE.activeIdeaIdx];
+  if (!item) return;
+  var text = 'Scout idea: ' + item.title + '\n\nHook: "' + item.hook + '"\n\nHow to film: ' + item.shotAngle + '\n\nAudio: ' + item.audio;
+  if (navigator.share) {
+    navigator.share({ title: item.title, text: text }).catch(function() {});
+  } else {
+    navigator.clipboard.writeText(text).then(function() { showToast('Idea copied to clipboard 📋'); }).catch(function() { showToast('Could not copy'); });
+  }
+}
+
+// ==========================================
+// LIBRARY
+// ==========================================
+function getFilteredLib() {
+  var lib = getLibrary();
+  var f = STATE.libFilter;
+  if (f === 'all') return lib;
+  return lib.filter(function(i) { return i.category === f; });
+}
+
+function filterLib(f, btn) {
+  STATE.libFilter = f;
+  document.querySelectorAll('.lib-filter').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  renderLibrary();
+}
+
+function renderLibrary() {
+  var filtered = getFilteredLib();
+  var lib = getLibrary();
+  document.getElementById('lib-count').textContent = lib.length + ' saved';
+  var grid = document.getElementById('lib-grid');
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="lib-empty"><div class="lib-empty-ico">🔖</div><div class="lib-empty-title">Nothing saved yet</div><div class="lib-empty-sub">Scan a location and save the ideas you like — they\'ll live here.</div></div>';
+    return;
+  }
+  var h = '';
+  filtered.forEach(function(idea, i) {
+    var fmtCls = FORMAT_CLASSES[idea.category] || 'fmt-creative';
+    var diff = idea.difficulty || 'Easy';
+    var diffColor = diff === 'Easy' ? 'var(--green)' : diff === 'Hard' ? 'var(--red)' : 'var(--amber)';
+    h += '<div class="idea-card saved" onclick="openLibraryIdeaDetail(' + i + ')">';
+    h += '<div class="idea-card-save saved" onclick="event.stopPropagation();removeLibIdea(\'' + idea.title.replace(/'/g, "\\'") + '\',this)">🗑</div>';
+    h += '<div class="idea-card-top">';
+    h += '<div class="idea-format-badge ' + fmtCls + '">' + (idea.category || 'idea').toUpperCase() + '</div>';
+    h += '<div class="idea-card-main">';
+    h += '<div class="idea-card-title">' + idea.title + '</div>';
+    h += '<div class="idea-card-hook">"' + idea.hook + '"</div>';
+    if (idea.sceneLabel) h += '<div style="font-size:11px;color:var(--text3);margin-top:4px">📍 ' + idea.sceneLabel + '</div>';
+    h += '</div></div>';
+    h += '<div class="idea-card-meta">';
+    h += '<div class="meta-chip"><span class="ico">⏱</span>' + (idea.filmTime || '5 mins') + '</div>';
+    h += '<div class="meta-chip"><span style="color:' + diffColor + '">●</span>' + diff + '</div>';
+    if (idea.trending) h += '<div class="trending-now-badge">🔥 Trending</div>';
+    h += '</div></div>';
+  });
+  grid.innerHTML = h;
+}
+
+function removeLibIdea(title, el) {
+  removeFromLibrary(title);
+  el.closest('.idea-card').remove();
+  var lib = getLibrary();
+  document.getElementById('lib-count').textContent = lib.length + ' saved';
+  showToast('Removed');
+}
+
+// ==========================================
+// HOME
+// ==========================================
+function renderHome() {
+  // Streak
+  var streak = getStreak();
+  document.getElementById('streak-count').textContent = streak;
+
+  // Usage dots
+  var scansToday = getScansToday();
+  var isPro = STATE.plan === 'pro';
+  var usageEl = document.getElementById('scan-usage');
+  if (isPro) {
+    usageEl.innerHTML = '<span style="color:var(--accent);font-weight:700">Pro</span><div class="usage-dots"><div class="usage-dot unlimited"></div></div><span style="color:var(--text2)">Unlimited scans</span>';
+  } else {
+    var dots = '';
+    for (var d = 0; d < FREE_SCANS_PER_DAY; d++) {
+      dots += '<div class="usage-dot' + (d < scansToday ? ' used' : '') + '"></div>';
+    }
+    var remaining = Math.max(0, FREE_SCANS_PER_DAY - scansToday);
+    usageEl.innerHTML = '<div class="usage-dots">' + dots + '</div><span style="color:var(--text2)">' + remaining + ' scan' + (remaining !== 1 ? 's' : '') + ' left today</span>';
+  }
+
+  // Recent ideas
+  var hist = getHistory();
+  var recentEl = document.getElementById('home-recent');
+  var scrollEl = document.getElementById('recent-scroll');
+  if (!hist.length) {
+    recentEl.style.display = 'none';
+    return;
+  }
+  recentEl.style.display = 'block';
+  var allRecent = [];
+  hist.slice(0, 3).forEach(function(entry) {
+    (entry.ideas || []).slice(0, 2).forEach(function(idea) {
+      allRecent.push({ title: idea.title, sceneType: entry.sceneType });
+    });
+  });
+  var rh = '';
+  allRecent.slice(0, 6).forEach(function(idea) {
+    rh += '<div class="recent-chip">';
+    rh += '<div class="recent-chip-title">' + idea.title + '</div>';
+    rh += '<div class="recent-chip-meta">' + idea.sceneType + '</div>';
+    rh += '</div>';
+  });
+  scrollEl.innerHTML = rh;
+}
+
+// ==========================================
+// PROFILE
+// ==========================================
+function renderProfile() {
+  var streak = getStreak();
+  var saved = getLibrary().length;
+  var total = getTotalScans();
+  document.getElementById('stat-scans').textContent = total;
+  document.getElementById('stat-saved').textContent = saved;
+  document.getElementById('stat-streak').textContent = streak;
+  var isPro = STATE.plan === 'pro';
+  document.getElementById('plan-dot').style.background = isPro ? 'var(--accent)' : 'var(--text3)';
+  document.getElementById('plan-name').textContent = isPro ? 'Scout Pro' : 'Free Plan';
+  document.getElementById('prof-plan-title').textContent = isPro ? 'Scout Pro — Unlimited scans' : 'Free — 3 scans/day';
+}
+
+function clearHistory() {
+  if (!confirm('Clear your scan history? This resets the anti-repetition memory.')) return;
+  setStore('idea_history', []);
+  showToast('History cleared — fresh ideas ahead');
+}
+
+function exportLibrary() {
+  var lib = getLibrary();
+  if (!lib.length) { showToast('Nothing in library yet', 'ℹ️'); return; }
+  var text = 'SCOUT — Saved Ideas\n\n';
+  lib.forEach(function(idea, i) {
+    text += (i + 1) + '. ' + idea.title + '\n';
+    text += '   Hook: "' + idea.hook + '"\n';
+    text += '   How to film: ' + idea.shotAngle + '\n';
+    text += '   Audio: ' + idea.audio + '\n\n';
+  });
+  navigator.clipboard.writeText(text).then(function() {
+    showToast('Copied to clipboard 📋');
+  }).catch(function() { showToast('Could not copy'); });
+}
+
+// ==========================================
+// PAYWALL
+// ==========================================
+function openPaywall() { document.getElementById('paywall-modal').classList.add('open'); }
+function closePaywall() { document.getElementById('paywall-modal').classList.remove('open'); }
+function selectPlan(p) {
+  STATE.selectedPlan = p;
+  document.getElementById('pw-monthly').classList.toggle('selected', p === 'monthly');
+  document.getElementById('pw-yearly').classList.toggle('selected', p === 'yearly');
+}
+function subscribePro() {
+  // Simulate upgrade
+  STATE.plan = 'pro';
+  closePaywall();
+  renderHome();
+  renderProfile();
+  showToast('Welcome to Scout Pro! 🚀');
+}
+
+// ==========================================
+// INIT
+// ==========================================
+function init() {
+  renderHome();
+  // Close sheet on back button
+  window.addEventListener('popstate', function() {
+    if (document.getElementById('sheet-overlay').classList.contains('open')) {
+      document.getElementById('sheet-overlay').classList.remove('open');
+    }
+  });
+}
+init();
+</script>
+</body>
+</html>
