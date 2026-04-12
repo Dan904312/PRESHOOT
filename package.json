@@ -1,1 +1,1 @@
-{\n  "name": "PRESHOOT",\n  "version": "1.0.0",\n  "scripts": {\n    "dev": "next dev",\n    "build": "next build",\n    "start": "next start"\n  },\n  "dependencies": {\n    "next": "latest",\n    "react": "latest",\n    "react-dom": "latest"\n  },\n  "devDependencies": {}\n}
+{"name": "preshoot","version": "1.0.0","private": true,"dependencies": {"next": "latest","react": "latest","react-dom": "latest","supabase-js": "latest","axios": "latest","framer-motion": "latest","recharts": "latest"}}
