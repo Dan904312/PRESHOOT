@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PreShoot Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06060F;--s1:#0D0D1C;--s2:#13131F;--s3:#1A1A2A;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --text:#EDEDF5;--text2:#7A7A9A;--text3:#3E3E58;
+  --accent:#7C4DFF;--accent2:#FF5C35;
+  --green:#00E5A0;--red:#FF4757;--amber:#FFB300;--blue:#3B82F6;
+}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--s1)}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
+button{font-family:inherit;cursor:pointer;border:none}
+input,textarea,select{font-family:inherit;color:var(--text)}
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100}
+.login-box{background:var(--s1);border:1.5px solid var(--border2);border-radius:20px;padding:40px;width:340px;text-align:center}
+.login-logo{font-size:32px;font-weight:800;color:var(--text);letter-spacing:-1px;margin-bottom:4px}
+.login-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
+.login-inp{width:100%;padding:12px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;outline:none;margin-bottom:12px;transition:border-color .2s;color:var(--text)}
+.login-inp:focus{border-color:var(--accent)}
+.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:12px;font-size:15px;font-weight:700}
+.login-err{font-size:13px;color:var(--red);margin-top:10px;min-height:18px}
+#app{display:none}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:var(--s1);border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+.sidebar-logo{font-size:18px;font-weight:800;margin-bottom:24px;padding-left:8px;letter-spacing:-0.5px}
+.sidebar-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-btn{padding:10px 12px;border-radius:10px;background:none;color:var(--text2);font-size:13px;font-weight:600;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px}
+.nav-btn:hover{background:var(--s2);color:var(--text)}
+.nav-btn.active{background:rgba(124,77,255,.12);color:var(--accent)}
+.nav-btn .nav-ico{font-size:16px;width:20px;text-align:center}
+.sidebar-bottom{margin-top:auto;padding-top:16px;border-top:1px solid var(--border)}
+.main{margin-left:220px;padding:32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stats-grid.six{grid-template-columns:repeat(6,1fr)}
+.stats-grid.two{grid-template-columns:repeat(2,1fr);max-width:480px}
+.stat-card{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;padding:18px}
+.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:4px}
+.stat-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;font-weight:600}
+.stat-card.green .stat-val{color:var(--green)}
+.stat-card.amber .stat-val{color:var(--amber)}
+.stat-card.red .stat-val{color:var(--red)}
+.stat-card.blue .stat-val{color:var(--blue)}
+.stat-card.accent .stat-val{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.section-title{font-size:15px;font-weight:700;margin:28px 0 14px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;padding:20px}
+.chart-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.chart-total{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.chart-range{display:flex;gap:4px}
+.range-btn{padding:5px 10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;font-size:11px;font-weight:700;color:var(--text2);transition:all .15s}
+.range-btn.active{background:rgba(124,77,255,.15);border-color:var(--accent);color:var(--accent)}
+.chart-wrap{width:100%;height:180px;position:relative}
+.chart-empty{display:flex;align-items:center;justify-content:center;height:180px;color:var(--text3);font-size:13px}
+.chart-tip{position:absolute;background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;pointer-events:none;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.table-wrap{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;overflow:hidden}
+.table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.table-title{font-size:15px;font-weight:700}
+.search-inp{padding:8px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);outline:none;width:220px;transition:border-color .2s}
+.search-inp:focus{border-color:var(--accent)}
+.search-inp::placeholder{color:var(--text3)}
+.filter-tabs{display:flex;gap:6px}
+.filter-tab{padding:6px 14px;background:var(--s2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:700;color:var(--text2);transition:all .15s}
+.filter-tab.active{background:rgba(124,77,255,.15);border-color:var(--accent);color:var(--accent)}
+table{width:100%;border-collapse:collapse}
+th{padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);background:var(--s2)}
+td{padding:14px 16px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge.pro{background:rgba(124,77,255,.15);color:var(--accent);border:1px solid rgba(124,77,255,.25)}
+.badge.free{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border)}
+.badge.active{background:rgba(0,229,160,.1);color:var(--green);border:1px solid rgba(0,229,160,.2)}
+.badge.cancelled{background:rgba(255,71,87,.08);color:var(--red);border:1px solid rgba(255,71,87,.15)}
+.badge.revoked{background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3)}
+.badge.past_due{background:rgba(255,179,0,.1);color:var(--amber);border:1px solid rgba(255,179,0,.2)}
+.badge.promo{background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.badge.trialing{background:rgba(0,229,160,.08);color:var(--green);border:1px solid rgba(0,229,160,.15)}
+.badge.none{background:rgba(255,255,255,.04);color:var(--text3);border:1px solid var(--border)}
+.act-btn{padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;transition:all .15s;border:1.5px solid}
+.act-btn.revoke{background:rgba(255,71,87,.1);color:var(--red);border-color:rgba(255,71,87,.2)}
+.act-btn.revoke:hover{background:rgba(255,71,87,.2)}
+.act-btn.restore{background:rgba(0,229,160,.1);color:var(--green);border-color:rgba(0,229,160,.2)}
+.act-btn.restore:hover{background:rgba(0,229,160,.2)}
+.act-row{display:flex;gap:6px;align-items:center}
+.email-cell{font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.avatar-img{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.avatar-init{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
+.date-cell{font-size:12px;color:var(--text2)}
+.mono{font-size:11px;color:var(--text3);font-family:monospace;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-row{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
+.event-row:last-child{border-bottom:none}
+.event-ico{width:32px;height:32px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px}
+.event-info{flex:1}
+.event-type{font-size:13px;font-weight:700;margin-bottom:2px}
+.event-meta{font-size:12px;color:var(--text2)}
+.event-amount{font-size:13px;font-weight:800;color:var(--green)}
+.form-card{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;padding:24px;max-width:480px}
+.form-lbl{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;margin-top:16px;display:block;text-transform:uppercase;letter-spacing:.6px}
+.form-lbl:first-child{margin-top:0}
+.form-inp{width:100%;padding:11px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;transition:border-color .2s;color:var(--text)}
+.form-inp:focus{border-color:var(--accent)}
+.form-inp::placeholder{color:var(--text3)}
+.form-btn{margin-top:20px;padding:12px 24px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:10px;font-size:14px;font-weight:700}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-btn{padding:8px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text2);transition:all .15s}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+.toast-bar{position:fixed;bottom:24px;right:24px;background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:12px 18px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+.toast-bar.show{opacity:1}
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}.stats-grid.six{grid-template-columns:repeat(3,1fr)}.chart-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Pre<span>Shoot</span></div>
+    <div class="login-sub">Admin Dashboard</div>
+    <input class="login-inp" type="password" id="admin-key-inp" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">Pre<span>Shoot</span></div>
+    <button class="nav-btn active" onclick="showPage('overview',this)"><span class="nav-ico">📊</span> Overview</button>
+    <button class="nav-btn" onclick="showPage('users',this)"><span class="nav-ico">👥</span> All Users</button>
+    <button class="nav-btn" onclick="showPage('events',this)"><span class="nav-ico">📋</span> Event Log</button>
+    <button class="nav-btn" onclick="showPage('promo',this)"><span class="nav-ico">🎟</span> Promo Codes</button>
+    <button class="nav-btn" onclick="showPage('grant',this)"><span class="nav-ico">✨</span> Grant Access</button>
+    <div class="sidebar-bottom">
+      <button class="nav-btn" onclick="logout()" style="color:var(--red)"><span class="nav-ico">🚪</span> Sign Out</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="page-overview">
+      <div class="page-title">Overview</div>
+      <div class="page-sub">Real-time business metrics</div>
+
+      <div class="stats-grid">
+        <div class="stat-card accent"><div class="stat-val" id="ov-total-users">—</div><div class="stat-lbl">Total Users</div></div>
+        <div class="stat-card green"><div class="stat-val" id="ov-mrr">—</div><div class="stat-lbl">MRR</div></div>
+        <div class="stat-card blue"><div class="stat-val" id="ov-arr">—</div><div class="stat-lbl">ARR (projected)</div></div>
+        <div class="stat-card amber"><div class="stat-val" id="ov-conversion">—</div><div class="stat-lbl">Conversion Rate</div></div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-hd">
+            <div><div class="chart-title">New Signups</div><div class="chart-total" id="signups-total">—</div></div>
+            <div class="chart-range">
+              <button class="range-btn" onclick="setRange('signups',7,this)">7D</button>
+              <button class="range-btn active" onclick="setRange('signups',30,this)">30D</button>
+              <button class="range-btn" onclick="setRange('signups',90,this)">90D</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-signups"><div class="chart-empty"><div class="spinner"></div></div></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-hd">
+            <div><div class="chart-title">Revenue</div><div class="chart-total" id="revenue-total">—</div></div>
+            <div class="chart-range">
+              <button class="range-btn" onclick="setRange('revenue',7,this)">7D</button>
+              <button class="range-btn active" onclick="setRange('revenue',30,this)">30D</button>
+              <button class="range-btn" onclick="setRange('revenue',90,this)">90D</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-revenue"><div class="chart-empty"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <div class="section-title">User Activity</div>
+      <div class="stats-grid six">
+        <div class="stat-card"><div class="stat-val" id="ov-new-today" style="font-size:22px">—</div><div class="stat-lbl">New Today</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-new-week" style="font-size:22px">—</div><div class="stat-lbl">New This Week</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-new-month" style="font-size:22px">—</div><div class="stat-lbl">New This Month</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-active-today" style="font-size:22px">—</div><div class="stat-lbl">Active Today</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-active-week" style="font-size:22px">—</div><div class="stat-lbl">Active This Week</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-free" style="font-size:22px">—</div><div class="stat-lbl">Free Users</div></div>
+      </div>
+
+      <div class="section-title">Revenue</div>
+      <div class="stats-grid six">
+        <div class="stat-card green"><div class="stat-val" id="ov-rev-total" style="font-size:22px">—</div><div class="stat-lbl">Total Revenue</div></div>
+        <div class="stat-card green"><div class="stat-val" id="ov-rev-month" style="font-size:22px">—</div><div class="stat-lbl">This Month</div></div>
+        <div class="stat-card green"><div class="stat-val" id="ov-rev-today" style="font-size:22px">—</div><div class="stat-lbl">Today</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-arpu" style="font-size:22px">—</div><div class="stat-lbl">Avg Rev / User</div></div>
+        <div class="stat-card red"><div class="stat-val" id="ov-churn" style="font-size:22px">—</div><div class="stat-lbl">Churn Rate</div></div>
+        <div class="stat-card accent"><div class="stat-val" id="ov-pro" style="font-size:22px">—</div><div class="stat-lbl">Pro Subscribers</div></div>
+      </div>
+
+      <div class="section-title">Plan Breakdown</div>
+      <div class="stats-grid six">
+        <div class="stat-card"><div class="stat-val" id="ov-monthly" style="font-size:22px">—</div><div class="stat-lbl">Monthly Plan</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-yearly" style="font-size:22px">—</div><div class="stat-lbl">Yearly Plan</div></div>
+        <div class="stat-card blue"><div class="stat-val" id="ov-promo" style="font-size:22px">—</div><div class="stat-lbl">Promo Grants</div></div>
+        <div class="stat-card amber"><div class="stat-val" id="ov-pastdue" style="font-size:22px">—</div><div class="stat-lbl">Past Due</div></div>
+        <div class="stat-card red"><div class="stat-val" id="ov-cancelled" style="font-size:22px">—</div><div class="stat-lbl">Cancelled</div></div>
+        <div class="stat-card red"><div class="stat-val" id="ov-revoked" style="font-size:22px">—</div><div class="stat-lbl">Revoked</div></div>
+      </div>
+
+      <div class="section-title">App Usage</div>
+      <div class="stats-grid two">
+        <div class="stat-card"><div class="stat-val" id="ov-scans" style="font-size:22px">—</div><div class="stat-lbl">Total Scans</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-avg-scans" style="font-size:22px">—</div><div class="stat-lbl">Avg Scans / User</div></div>
+      </div>
+    </div>
+
+    <!-- ALL USERS -->
+    <div class="page" id="page-users">
+      <div class="page-title">All Users</div>
+      <div class="page-sub">Every signup — free and Pro</div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-title">Users</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div class="filter-tabs">
+              <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+              <button class="filter-tab" onclick="setFilter('pro',this)">Pro</button>
+              <button class="filter-tab" onclick="setFilter('free',this)">Free</button>
+            </div>
+            <input class="search-inp" id="user-search" placeholder="Search name or email..." oninput="searchUsers(this.value)">
+            <button class="refresh-btn" onclick="loadUsers()">↻ Refresh</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>User</th><th>Plan</th><th>Status</th><th>Scans</th><th>Joined</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="7" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="page" id="page-events">
+      <div class="page-title">Event Log</div>
+      <div class="page-sub">Full audit trail of all subscription activity</div>
+      <div class="table-wrap" style="padding:0">
+        <div class="table-header"><div class="table-title">Recent events</div><button class="refresh-btn" onclick="loadEvents()">↻ Refresh</button></div>
+        <div style="padding:0 20px" id="events-list"><div style="padding:40px;text-align:center"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PROMO -->
+    <div class="page" id="page-promo">
+      <div class="page-title">Promo Code Usage</div>
+      <div class="page-sub">Everyone who has redeemed a promo code</div>
+      <div class="table-wrap">
+        <div class="table-header"><div class="table-title">Redemptions</div><button class="refresh-btn" onclick="loadPromo()">↻ Refresh</button></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Code</th><th>Email</th><th>User ID</th><th>Used At</th></tr></thead>
+            <tbody id="promo-tbody"><tr><td colspan="4" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRANT -->
+    <div class="page" id="page-grant">
+      <div class="page-title">Grant Pro Access</div>
+      <div class="page-sub">Manually give someone Pro</div>
+      <div class="form-card">
+        <label class="form-lbl">Email address *</label>
+        <input class="form-inp" id="grant-email" placeholder="user@example.com">
+        <label class="form-lbl">User ID (optional)</label>
+        <input class="form-inp" id="grant-uid" placeholder="Supabase auth user ID">
+        <label class="form-lbl">Reason / Note</label>
+        <input class="form-inp" id="grant-reason" placeholder="e.g. Beta tester, support resolution">
+        <button class="form-btn" onclick="grantAccess()">Grant Pro Access</button>
+        <div id="grant-msg" style="height:18px;margin-top:10px;font-size:13px"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast-bar" id="toast"></div>
+
+<script>
+var KEY = '';
+var ALL_USERS = [];
+var searchTimer = null;
+var userFilter = 'all';
+
+function doLogin() {
+  var k = document.getElementById('admin-key-inp').value.trim();
+  if (!k) return;
+  api('overview_stats', {}, k).then(function(d) {
+    if (d.error) { document.getElementById('login-err').textContent = 'Invalid password'; return; }
+    KEY = k;
+    sessionStorage.setItem('ak', k);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+  }).catch(function() { document.getElementById('login-err').textContent = 'Server error'; });
+}
+
+function logout() { KEY = ''; sessionStorage.removeItem('ak'); location.reload(); }
+
+window.onload = function() {
+  var s = sessionStorage.getItem('ak');
+  if (!s) return;
+  KEY = s;
+  document.getElementById('admin-key-inp').value = s;
+  api('overview_stats', {}, s).then(function(d) {
+    if (d.error) { sessionStorage.removeItem('ak'); KEY = ''; return; }
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+  }).catch(function() { sessionStorage.removeItem('ak'); });
+};
+
+function api(action, params, key) {
+  return fetch('/api/admin-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': key || KEY },
+    body: JSON.stringify(Object.assign({ action: action }, params))
+  }).then(function(r) { return r.json(); });
+}
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'users') loadUsers();
+  if (name === 'events') loadEvents();
+  if (name === 'promo') loadPromo();
+}
+
+function boot() {
+  loadOverviewStats();
+  loadChart('signups', 30);
+  loadChart('revenue', 30);
+}
+
+function $(id) { return document.getElementById(id); }
+function money(n) { return '$' + Number(n||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}); }
+function set(id, v) { var el=$(id); if(el) el.textContent = v; }
+
+function loadOverviewStats() {
+  api('overview_stats', {}).then(function(d) {
+    if (d.error) { showToast('Stats error: ' + d.error); return; }
+    set('ov-total-users', d.totalUsers||0);
+    set('ov-mrr', money(d.mrr));
+    set('ov-arr', money(d.arr));
+    set('ov-conversion', (d.conversionRate||0) + '%');
+    set('ov-new-today', d.newToday||0);
+    set('ov-new-week', d.newThisWeek||0);
+    set('ov-new-month', d.newThisMonth||0);
+    set('ov-active-today', d.activeToday||0);
+    set('ov-active-week', d.activeThisWeek||0);
+    set('ov-free', d.freeUsers||0);
+    set('ov-rev-total', money(d.totalRevenue));
+    set('ov-rev-month', money(d.revenueThisMonth));
+    set('ov-rev-today', money(d.revenueToday));
+    set('ov-arpu', money(d.avgRevenuePerUser));
+    set('ov-churn', (d.churnRate||0) + '%');
+    set('ov-pro', d.proUsers||0);
+    set('ov-monthly', d.monthly||0);
+    set('ov-yearly', d.yearly||0);
+    set('ov-promo', d.promo||0);
+    set('ov-pastdue', d.past_due||0);
+    set('ov-cancelled', d.cancelled||0);
+    set('ov-revoked', d.revoked||0);
+    set('ov-scans', d.totalScansAllUsers||0);
+    set('ov-avg-scans', d.avgScansPerUser||0);
+  });
+}
+
+function setRange(type, days, btn) {
+  btn.parentElement.querySelectorAll('.range-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadChart(type, days);
+}
+
+function loadChart(type, days) {
+  var action = type === 'signups' ? 'signups_chart' : 'revenue_chart';
+  api(action, { days: days }).then(function(d) {
+    if (d.error) return;
+    var total = (d.values||[]).reduce(function(a,b){return a+b;},0);
+    if (type === 'signups') set('signups-total', total + ' new users');
+    else set('revenue-total', money(total));
+    drawChart('chart-' + type, d.labels, d.values, type === 'signups' ? '#7C4DFF' : '#00E5A0', type !== 'signups');
+  });
+}
+
+function drawChart(containerId, labels, values, color, isMoney) {
+  var wrap = $(containerId);
+  if (!wrap) return;
+  var hasData = values && values.some(function(v){return v>0;});
+  if (!hasData) { wrap.innerHTML = '<div class="chart-empty">No data yet</div>'; return; }
+  var W = wrap.clientWidth||400, H = 180, pL=4, pR=4, pT=14, pB=22;
+  var cW = W-pL-pR, cH = H-pT-pB;
+  var maxV = Math.max.apply(null,values)||1;
+  var n = values.length;
+  var sx = n>1 ? cW/(n-1) : 0;
+  var pts = values.map(function(v,i){return [pL+i*sx, pT+cH-(v/maxV)*cH];});
+  var pd = pts.map(function(p,i){return (i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
+  var ad = pd+' L'+pts[pts.length-1][0].toFixed(1)+','+(pT+cH)+' L'+pts[0][0].toFixed(1)+','+(pT+cH)+' Z';
+  var gid = containerId+'g';
+  var labelStep = Math.ceil(n/6);
+  var xlbls = labels.map(function(l,i){
+    if(i%labelStep!==0&&i!==n-1) return '';
+    var d=new Date(l+'T00:00:00');
+    return '<text x="'+(pL+i*sx).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--text3)" text-anchor="middle">'+(d.getMonth()+1)+'/'+(d.getDate())+'</text>';
+  }).join('');
+  var dots = pts.map(function(p,i){return '<circle class="cdot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.5" fill="'+color+'" stroke="var(--s1)" stroke-width="2" data-i="'+i+'"></circle>';}).join('');
+  wrap.innerHTML = '<svg width="100%" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="overflow:visible">'+
+    '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0%" stop-color="'+color+'" stop-opacity="0.28"></stop>'+
+    '<stop offset="100%" stop-color="'+color+'" stop-opacity="0"></stop>'+
+    '</linearGradient></defs>'+
+    '<path d="'+ad+'" fill="url(#'+gid+')"></path>'+
+    '<path d="'+pd+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>'+
+    dots+xlbls+'</svg>'+
+    '<div class="chart-tip" id="'+containerId+'-tip"></div>';
+  var tip = $(containerId+'-tip');
+  wrap.querySelectorAll('.cdot').forEach(function(dot){
+    dot.addEventListener('mouseenter',function(){
+      var i=parseInt(dot.getAttribute('data-i'));
+      var d=new Date(labels[i]+'T00:00:00');
+      tip.textContent=(d.getMonth()+1)+'/'+d.getDate()+': '+(isMoney?money(values[i]):values[i]);
+      tip.style.left=(parseFloat(dot.getAttribute('cx'))/W*wrap.clientWidth)+'px';
+      tip.style.top=(parseFloat(dot.getAttribute('cy'))-32)+'px';
+      tip.style.opacity='1';
+      dot.setAttribute('r','5');
+    });
+    dot.addEventListener('mouseleave',function(){tip.style.opacity='0';dot.setAttribute('r','3.5');});
+  });
+}
+
+function loadUsers(search) {
+  var tbody=$('users-tbody');
+  tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr>';
+  api('users_list',{search:search||null,plan_filter:userFilter==='all'?null:userFilter}).then(function(d){
+    if(d.error){tbody.innerHTML='<tr><td colspan="7" style="color:var(--red);padding:20px">Error: '+d.error+'</td></tr>';return;}
+    ALL_USERS=d.users||[];
+    renderUsers(ALL_USERS);
+  });
+}
+
+function renderUsers(users) {
+  var tbody=$('users-tbody');
+  if(!users.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">No users found</td></tr>';return;}
+  tbody.innerHTML=users.map(function(u){
+    var canRevoke=u.plan==='pro';
+    var canRestore=u.status==='revoked'||u.status==='cancelled';
+    var init=(u.name||u.email||'?')[0].toUpperCase();
+    var av=u.avatar?'<img class="avatar-img" src="'+u.avatar+'" onerror="this.style.display=\'none\'">':'<div class="avatar-init">'+init+'</div>';
+    return '<tr>'+
+      '<td><div class="email-cell">'+av+
+      '<div><div>'+(u.name||u.email||'Unknown')+'</div>'+
+      (u.name?'<div style="font-size:11px;color:var(--text3)">'+(u.email||'')+'</div>':'')+
+      '</div></div></td>'+
+      '<td><span class="badge '+(u.plan||'free')+'">'+(u.plan||'FREE').toUpperCase()+'</span></td>'+
+      '<td><span class="badge '+(u.status||'none')+'">'+(u.status||'none')+'</span></td>'+
+      '<td style="font-weight:700">'+(u.total_scans||0)+'</td>'+
+      '<td class="date-cell">'+(u.first_seen?new Date(u.first_seen).toLocaleDateString():'—')+'</td>'+
+      '<td class="date-cell">'+(u.last_seen?timeAgo(u.last_seen):'—')+'</td>'+
+      '<td><div class="act-row">'+
+      (canRevoke?'<button class="act-btn revoke" onclick="doRevoke(\''+u.user_id+'\',\''+esc(u.email||'')+'\')">Revoke</button>':'')+
+      (canRestore?'<button class="act-btn restore" onclick="doRestore(\''+u.user_id+'\',\''+esc(u.email||'')+'\')">Restore</button>':'')+
+      '</div></td></tr>';
+  }).join('');
+}
+
+function esc(s){return s.replace(/'/g,"\\'");}
+function timeAgo(ds){
+  var diff=Date.now()-new Date(ds).getTime();
+  var m=Math.floor(diff/60000);
+  if(m<1)return 'Just now';if(m<60)return m+'m ago';
+  var h=Math.floor(m/60);if(h<24)return h+'h ago';
+  var d=Math.floor(h/24);if(d<30)return d+'d ago';
+  return new Date(ds).toLocaleDateString();
+}
+
+function setFilter(f,btn){
+  userFilter=f;
+  btn.parentElement.querySelectorAll('.filter-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  loadUsers($('user-search').value.trim()||null);
+}
+
+function searchUsers(val){
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(function(){loadUsers(val.trim()||null);},400);
+}
+
+function doRevoke(uid,email){
+  if(!confirm('Revoke Pro for '+email+'?'))return;
+  var reason=prompt('Reason (optional):')||'';
+  api('revoke',{user_id:uid,reason:reason}).then(function(d){
+    if(d.success){showToast('Access revoked');loadUsers();loadOverviewStats();}
+    else showToast('Error: '+(d.error||'unknown'));
+  });
+}
+
+function doRestore(uid,email){
+  if(!confirm('Restore Pro for '+email+'?'))return;
+  api('restore',{user_id:uid}).then(function(d){
+    if(d.success){showToast('Access restored');loadUsers();loadOverviewStats();}
+    else showToast('Error: '+(d.error||'unknown'));
+  });
+}
+
+var EV_ICO={'checkout.completed':'💳','subscription.cancelled':'❌','subscription.updated':'🔄','payment.failed':'⚠️','payment.succeeded':'✅','promo.applied':'🎟','admin.revoked':'🚫','admin.restored':'✅','admin.granted':'✨'};
+
+function loadEvents(){
+  var el=$('events-list');
+  el.innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
+  api('events',{}).then(function(d){
+    if(d.error){el.innerHTML='<div style="color:var(--red);padding:20px">'+d.error+'</div>';return;}
+    var evts=d.events||[];
+    if(!evts.length){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">No events yet</div>';return;}
+    el.innerHTML=evts.map(function(e){
+      return '<div class="event-row">'+
+        '<div class="event-ico">'+(EV_ICO[e.event_type]||'📌')+'</div>'+
+        '<div class="event-info"><div class="event-type">'+e.event_type+'</div>'+
+        '<div class="event-meta">'+(e.email||e.user_id||'Unknown')+' &mdash; '+new Date(e.created_at).toLocaleString()+'</div></div>'+
+        (e.amount?'<div class="event-amount">'+money(e.amount)+'</div>':'')+
+        '</div>';
+    }).join('');
+  });
+}
+
+function loadPromo(){
+  var tbody=$('promo-tbody');
+  tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr>';
+  api('promo_log',{}).then(function(d){
+    if(d.error){tbody.innerHTML='<tr><td colspan="4" style="color:var(--red);padding:20px">'+d.error+'</td></tr>';return;}
+    var usage=d.usage||[];
+    if(!usage.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">No promo codes redeemed yet</td></tr>';return;}
+    tbody.innerHTML=usage.map(function(u){
+      return '<tr>'+
+        '<td><span style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700">'+u.code+'</span></td>'+
+        '<td>'+(u.email||'—')+'</td>'+
+        '<td class="mono">'+(u.user_id||'—')+'</td>'+
+        '<td class="date-cell">'+new Date(u.used_at).toLocaleString()+'</td></tr>';
+    }).join('');
+  });
+}
+
+function grantAccess(){
+  var email=$('grant-email').value.trim();
+  var uid=$('grant-uid').value.trim();
+  var reason=$('grant-reason').value.trim();
+  var msg=$('grant-msg');
+  if(!email){msg.style.color='var(--red)';msg.textContent='Email is required';return;}
+  msg.style.color='var(--text2)';msg.textContent='Granting...';
+  api('grant',{email:email,user_id:uid||null,reason:reason}).then(function(d){
+    if(d.success){
+      msg.style.color='var(--green)';msg.textContent='Pro granted to '+email;
+      $('grant-email').value='';$('grant-uid').value='';$('grant-reason').value='';
+      loadOverviewStats();
+    } else {msg.style.color='var(--red)';msg.textContent='Error: '+(d.error||'unknown');}
+  }).catch(function(){msg.style.color='var(--red)';msg.textContent='Network error';});
+}
+
+var toastT;
+function showToast(msg){
+  var el=$('toast');el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show');},3000);
+}
+</script>
+</body>
+</html>
