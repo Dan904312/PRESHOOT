@@ -73,7 +73,13 @@ If you’d like to improve PreShoot, feel free to open an issue or submit a pull
 
 📄 License
 
-This project is licensed under the MIT License.
+Copyright (c) 2026 Daniel Liu
+
+All rights reserved.
+
+This source code and all associated files are the proprietary property of Daniel Liu.
+
+No part of this software may be copied, modified, distributed, sublicensed, or used for commercial purposes without prior written permission from the copyright holder.
 
 ⸻
 
