@@ -71,6 +71,9 @@ If you’d like to improve PreShoot, feel free to open an issue or submit a pull
 
 ⸻
 
+I Built this because i faced this exact problem every single day and AI tools such as GPT gave very generic, unpersonalised, cringey and irrelevent ideas and results, this is why i made preshoot, using advanced personalisation and heavy context awarness i was able to fine tune the AI to learn exactly who you are thus giving better ideas and results than GPT.
+I mainly used Claude to build this project, as I don't know how to code myself but I am learning along the way!
+
 📄 License
 
 Copyright (c) 2026 Daniel Liu
