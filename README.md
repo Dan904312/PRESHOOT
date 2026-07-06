@@ -1,78 +1,44 @@
-🎬 PreShoot
+WELCOME TO PRESHOOT!!!
 
-AI-powered content ideation built for creators.
+PreShoot is a AI powered video idea and planning tool built for social media creators, businesses or individuals such as startup founders wanting to post videos, or make advertisement campaigns on their product.
 
-PreShoot helps creators overcome one of the biggest challenges in content creation: knowing what to post next.
+PreShoot aims to give extremely personalised, relevant and postable video ideas to users, using advanced personalisation and history context aware systems.
 
-Instead of generic AI suggestions, PreShoot generates personalized, relevant, and platform-aware content ideas based on your niche, audience, and previous content—helping you spend less time thinking and more time creating.
+This solves one of the biggest problems in content creation, not knowing what to post, around 72% of creators world wide simply don't know what to post and for small businesses or individuals that could mean not getting clients, funding or revenue, I faced this problem everyday, having been a social media creator for half my life, this is the biggest and most critical problem i come across. GPT and other similar AI language models and chatboxes gave unpersonalised, irrelevant, and cringey ideas that most creators wouldn't post.
 
-⸻
+______
 
-✨ Features
+INPUT:
+- User survey in menu eg. Cam gear, style, editing, platform
+- Google login
+- Photo of anything
+- Video format eg, Advert, UGC, Meme
+- Additional description or details (optional)
 
-* 🧠 Personalized AI content ideas
-* 📱 Platform-specific suggestions
-* 🎯 Niche-aware recommendations
-* ⚡ Fast content generation
-* 📈 Designed to improve consistency and creativity
-* 🔒 Simple and intuitive user experience
+OUTPUT:
+- 6 video ideas
+- Full descriptions
+- Shotlists by Director AI
 
-⸻
+______
 
-🚀 The Problem
+Built with
 
-Millions of creators experience creative blocks every week.
+.HTML
+REACT.JS
+.JSON
+GITHUB (obviously)
+Vercel
+Supabase
+Antropic API
 
-Most AI tools generate generic ideas that don’t reflect a creator’s style, audience, or content history. This leads to repetitive content and wasted time.
+______
 
-PreShoot was built to solve that.
+ACCESS ON:
+(https://preshoot.vercel.app/app.html)
 
-⸻
+______
 
-💡 Our Solution
-
-PreShoot uses AI to generate content ideas tailored to each creator.
-
-Instead of asking:
-
-“Give me 10 TikTok ideas”
-
-Creators receive ideas that actually fit their content, making brainstorming faster and helping them stay consistent without sacrificing originality.
-
-⸻
-
-🛠 Tech Stack
-
-* Frontend: React
-* Backend: Node.js
-* AI: OpenAI API
-* Database: Supabase
-* Authentication: Clerk
-* Deployment: Vercel
-
-⸻
-
-📌 Roadmap
-
-* AI trend analysis
-* Calendar & scheduling
-* Team workspaces
-* Analytics dashboard
-* Saved idea library
-* Brand voice personalization
-
-⸻
-
-🤝 Contributing
-
-Contributions, feature requests, and feedback are always welcome.
-
-If you’d like to improve PreShoot, feel free to open an issue or submit a pull request.
-
-⸻
-
-I Built this because i faced this exact problem every single day and AI tools such as GPT gave very generic, unpersonalised, cringey and irrelevent ideas and results, this is why i made preshoot, using advanced personalisation and heavy context awarness i was able to fine tune the AI to learn exactly who you are thus giving better ideas and results than GPT.
-I mainly used Claude to build this project, as I don't know how to code myself but I am learning along the way!
 
 📄 License
 
