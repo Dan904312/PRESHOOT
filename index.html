@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PreShoot — AI Video Ideas for Creators</title>
+<meta name="description" content="Point your camera at any location and get six shoot-ready video ideas in under 30 seconds. AI built for content creators.">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0a0a14;
+  --ink-2:#0f0f1c;
+  --ink-3:#161625;
+  --ink-4:#1d1d30;
+  --rule:rgba(255,255,255,.065);
+  --rule-2:rgba(255,255,255,.12);
+  --txt:#e8e8f0;
+  --txt-2:rgba(232,232,240,.55);
+  --txt-3:rgba(232,232,240,.28);
+  --accent:#7c5cfc;
+  --accent-dim:rgba(124,92,252,.14);
+  --accent-border:rgba(124,92,252,.28);
+  --green:#1aff9c;
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+  --dur-fast:240ms;
+  --dur-mid:480ms;
+  --dur-slow:720ms;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  background:var(--ink);
+  color:var(--txt);
+  line-height:1.6;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+::selection{background:rgba(124,92,252,.3);color:#fff}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+img,video{max-width:100%;display:block}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ── Noise overlay ─────────────────────────────── */
+.noise{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+  opacity:.55;
+}
+
+/* ── NAV ───────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  height:60px;
+  display:flex;align-items:center;
+  padding:0 40px;
+  background:rgba(10,10,20,.82);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-bottom:1px solid var(--rule);
+  transform:translateY(-60px);
+  opacity:0;
+  transition:transform var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out);
+}
+nav.visible{transform:translateY(0);opacity:1}
+.nav-logo{
+  font-family:'Syne',sans-serif;
+  font-size:17px;font-weight:800;
+  letter-spacing:-.4px;
+  color:var(--txt);
+  margin-right:auto;
+}
+.nav-logo em{
+  font-style:normal;
+  color:transparent;
+  -webkit-text-stroke:1px rgba(232,232,240,.4);
+}
+.nav-links{display:flex;align-items:center;gap:32px}
+.nav-links a{
+  font-size:13.5px;font-weight:500;
+  color:var(--txt-2);
+  transition:color var(--dur-fast) ease;
+  letter-spacing:.01em;
+}
+.nav-links a:hover{color:var(--txt)}
+.nav-open{
+  margin-left:32px;
+  padding:7px 18px;
+  font-size:13px;font-weight:600;
+  color:var(--txt);
+  border:1px solid var(--rule-2);
+  border-radius:8px;
+  letter-spacing:.01em;
+  transition:background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.nav-open:hover{background:var(--ink-3);border-color:rgba(255,255,255,.18)}
+@media(max-width:700px){.nav-links{display:none}}
+
+/* ── HERO ──────────────────────────────────────── */
+.hero{
+  position:relative;
+  min-height:100svh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:100px 24px 80px;
+  overflow:hidden;
+}
+
+/* hero animated planes */
+.hero-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.plane{
+  position:absolute;
+  border-radius:2px;
+  transform-origin:center center;
+}
+.plane-1{
+  width:140%;height:280px;
+  top:-60px;left:-20%;
+  background:linear-gradient(135deg,rgba(80,50,180,.09) 0%,rgba(120,80,255,.05) 60%,transparent 100%);
+  transform:rotate(-12deg);
+  animation:plane-drift-1 28s ease-in-out infinite alternate;
+}
+.plane-2{
+  width:120%;height:220px;
+  bottom:10%;left:-10%;
+  background:linear-gradient(135deg,transparent 0%,rgba(90,60,200,.06) 50%,rgba(60,40,160,.04) 100%);
+  transform:rotate(-8deg);
+  animation:plane-drift-2 36s ease-in-out infinite alternate;
+}
+.plane-3{
+  width:80%;height:180px;
+  top:30%;right:-10%;
+  background:linear-gradient(225deg,rgba(100,70,220,.07) 0%,transparent 70%);
+  transform:rotate(6deg);
+  animation:plane-drift-3 22s ease-in-out infinite alternate;
+}
+@keyframes plane-drift-1{
+  0%{transform:rotate(-12deg) translateY(0) translateX(0)}
+  100%{transform:rotate(-10deg) translateY(30px) translateX(20px)}
+}
+@keyframes plane-drift-2{
+  0%{transform:rotate(-8deg) translateY(0)}
+  100%{transform:rotate(-6deg) translateY(-24px) translateX(-16px)}
+}
+@keyframes plane-drift-3{
+  0%{transform:rotate(6deg) translateX(0)}
+  100%{transform:rotate(4deg) translateX(-20px) translateY(12px)}
+}
+.hero-radial{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 55% at 50% 45%,rgba(100,70,220,.11) 0%,transparent 70%);
+}
+.hero-vignette{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 30%,rgba(10,10,20,.6) 100%);
+}
+
+/* hero content */
+.hero-content{
+  position:relative;z-index:2;
+  max-width:820px;
+  text-align:center;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:12.5px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--txt-3);
+  margin-bottom:32px;
+  opacity:0;
+  animation:eyebrow-in var(--dur-slow) var(--ease-out) 200ms forwards;
+}
+.hero-eyebrow::before{
+  content:'';display:block;
+  width:20px;height:1px;
+  background:var(--txt-3);
+}
+.hero-eyebrow::after{
+  content:'';display:block;
+  width:20px;height:1px;
+  background:var(--txt-3);
+}
+@keyframes eyebrow-in{
+  from{opacity:0;letter-spacing:.14em;filter:blur(6px)}
+  to{opacity:1;letter-spacing:.06em;filter:blur(0)}
+}
+.hero-h1{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(48px,8vw,88px);
+  font-weight:800;
+  line-height:1.02;
+  letter-spacing:-3px;
+  margin-bottom:28px;
+}
+/* line reveal wrappers */
+.h1-line{overflow:hidden;display:block}
+.h1-line-inner{
+  display:block;
+  transform:translateY(100%);
+  opacity:0;
+}
+.h1-line:nth-child(1) .h1-line-inner{animation:line-up var(--dur-slow) var(--ease-out) 350ms forwards}
+.h1-line:nth-child(2) .h1-line-inner{animation:line-up var(--dur-slow) var(--ease-out) 450ms forwards}
+.h1-line:nth-child(3) .h1-line-inner{animation:line-up var(--dur-slow) var(--ease-out) 540ms forwards}
+@keyframes line-up{
+  from{transform:translateY(100%);opacity:0}
+  to{transform:translateY(0);opacity:1}
+}
+.h1-accent{
+  color:transparent;
+  -webkit-text-stroke:1.5px rgba(232,232,240,.25);
+}
+.hero-sub{
+  font-size:clamp(15px,2vw,18px);
+  color:var(--txt-2);
+  line-height:1.65;
+  max-width:500px;
+  margin:0 auto 44px;
+  font-weight:400;
+  opacity:0;
+  animation:fade-up var(--dur-slow) var(--ease-out) 680ms forwards;
+}
+.hero-actions{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  flex-wrap:wrap;
+  opacity:0;
+  animation:fade-up var(--dur-slow) var(--ease-out) 780ms forwards;
+}
+.btn-primary{
+  padding:13px 28px;
+  background:var(--txt);
+  color:var(--ink);
+  border-radius:9px;
+  font-size:14px;font-weight:700;
+  letter-spacing:-.01em;
+  transition:background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+}
+.btn-primary:hover{background:#fff;transform:scale(1.02)}
+.btn-primary:active{transform:scale(.98)}
+.btn-ghost{
+  padding:13px 28px;
+  color:var(--txt-2);
+  border:1px solid var(--rule);
+  border-radius:9px;
+  font-size:14px;font-weight:500;
+  transition:color var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+}
+.btn-ghost:hover{color:var(--txt);border-color:var(--rule-2);transform:scale(1.02)}
+.btn-ghost:active{transform:scale(.98)}
+.hero-note{
+  margin-top:20px;
+  font-size:12.5px;
+  color:var(--txt-3);
+  letter-spacing:.01em;
+  opacity:0;
+  animation:fade-up var(--dur-slow) var(--ease-out) 920ms forwards;
+}
+@keyframes fade-up{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ── STAT STRIP ────────────────────────────────── */
+.stat-strip{
+  position:relative;z-index:1;
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  padding:0;
+}
+.stat-item{
+  padding:36px 40px;
+  border-right:1px solid var(--rule);
+}
+.stat-item:last-child{border-right:none}
+.stat-val{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(28px,3.5vw,40px);
+  font-weight:800;
+  letter-spacing:-1.5px;
+  color:var(--txt);
+  line-height:1;
+  margin-bottom:6px;
+}
+.stat-lbl{
+  font-size:13px;
+  color:var(--txt-3);
+  font-weight:400;
+  letter-spacing:.01em;
+}
+@media(max-width:800px){
+  .stat-strip{grid-template-columns:repeat(2,1fr)}
+  .stat-item{border-bottom:1px solid var(--rule)}
+  .stat-item:nth-child(2){border-right:none}
+}
+@media(max-width:480px){
+  .stat-strip{grid-template-columns:1fr}
+  .stat-item{border-right:none}
+}
+
+/* ── SECTION BASE ──────────────────────────────── */
+.section{
+  max-width:1100px;
+  margin:0 auto;
+  padding:120px 40px;
+}
+.section-tag{
+  font-size:12px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--txt-3);
+  margin-bottom:20px;
+  display:block;
+}
+.section-h{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(30px,4.5vw,52px);
+  font-weight:800;
+  letter-spacing:-1.5px;
+  line-height:1.1;
+  color:var(--txt);
+  margin-bottom:16px;
+}
+.section-sub{
+  font-size:16px;
+  color:var(--txt-2);
+  line-height:1.7;
+  max-width:480px;
+  margin-bottom:64px;
+  font-weight:400;
+}
+@media(max-width:600px){.section{padding:80px 24px}}
+
+/* ── REVEAL ANIMATIONS ─────────────────────────── */
+.reveal{opacity:0;transform:translateY(36px);transition:opacity 640ms var(--ease-out),transform 640ms var(--ease-out)}
+.reveal.revealed{opacity:1;transform:translateY(0)}
+.reveal-left{opacity:0;transform:translateX(-28px);transition:opacity 640ms var(--ease-out),transform 640ms var(--ease-out)}
+.reveal-left.revealed{opacity:1;transform:translateX(0)}
+
+/* ── HOW IT WORKS ──────────────────────────────── */
+.steps{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:16px;
+  overflow:hidden;
+}
+.step{
+  background:var(--ink);
+  padding:44px 36px;
+  position:relative;
+  transition:background var(--dur-mid) ease;
+}
+.step:hover{background:var(--ink-2)}
+.step-num{
+  font-family:'Syne',sans-serif;
+  font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--txt-3);
+  margin-bottom:36px;
+}
+.step-glyph{
+  font-size:28px;
+  line-height:1;
+  margin-bottom:20px;
+  display:block;
+  filter:saturate(0.7);
+}
+.step-h{
+  font-family:'Syne',sans-serif;
+  font-size:20px;font-weight:700;
+  letter-spacing:-.4px;
+  margin-bottom:12px;
+  color:var(--txt);
+}
+.step-p{
+  font-size:14px;
+  color:var(--txt-2);
+  line-height:1.7;
+  font-weight:400;
+}
+@media(max-width:900px){.steps{grid-template-columns:1fr}}
+
+/* ── DIRECTOR DEMO ─────────────────────────────── */
+.demo-section{
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+  padding:120px 0;
+  overflow:hidden;
+  position:relative;
+}
+.demo-bg{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 80% at 60% 50%,rgba(90,60,200,.07) 0%,transparent 70%);
+}
+.demo-inner{
+  max-width:1100px;
+  margin:0 auto;
+  padding:0 40px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:80px;
+  align-items:center;
+}
+.demo-text{position:relative;z-index:2}
+.demo-text .section-sub{margin-bottom:32px}
+.demo-detail{
+  font-size:13px;
+  color:var(--txt-3);
+  line-height:1.6;
+  border-left:2px solid var(--rule);
+  padding-left:16px;
+  margin-top:24px;
+}
+
+/* Director chat window */
+.director-window{
+  position:relative;z-index:2;
+  background:var(--ink-2);
+  border:1px solid var(--rule-2);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.director-titlebar{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;
+  border-bottom:1px solid var(--rule);
+  background:var(--ink-3);
+}
+.titlebar-dots{display:flex;gap:6px}
+.titlebar-dot{width:10px;height:10px;border-radius:50%;background:var(--rule-2)}
+.titlebar-title{
+  font-size:12.5px;font-weight:600;
+  color:var(--txt-3);
+  letter-spacing:.01em;
+  margin-left:6px;
+}
+.titlebar-status{
+  margin-left:auto;
+  display:flex;align-items:center;gap:5px;
+  font-size:11.5px;
+  color:var(--green);
+  font-weight:500;
+}
+.status-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);
+  animation:status-pulse 2.4s ease-in-out infinite;
+}
+@keyframes status-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.director-ctx{
+  padding:14px 18px;
+  border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:8px;
+}
+.ctx-label{
+  font-size:11px;font-weight:600;
+  color:var(--txt-3);
+  letter-spacing:.06em;text-transform:uppercase;
+  white-space:nowrap;
+}
+.ctx-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ctx-chip{
+  font-size:11px;font-weight:500;
+  color:var(--txt-2);
+  background:var(--ink-4);
+  border:1px solid var(--rule);
+  border-radius:4px;
+  padding:2px 8px;
+  letter-spacing:.01em;
+}
+.director-messages{
+  padding:20px 18px;
+  min-height:240px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  font-size:13.5px;
+  line-height:1.65;
+}
+.msg-row{display:flex;gap:10px;align-items:flex-start}
+.msg-row.user{flex-direction:row-reverse}
+.msg-avatar{
+  width:26px;height:26px;border-radius:50%;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+  letter-spacing:.01em;
+}
+.msg-avatar.ai{background:rgba(124,92,252,.2);color:rgba(124,92,252,.9);font-family:'Syne',sans-serif}
+.msg-avatar.user{background:var(--ink-3);color:var(--txt-3)}
+.msg-bubble{
+  max-width:82%;
+  padding:11px 14px;
+  border-radius:12px;
+  font-size:13px;
+  line-height:1.65;
+}
+.msg-bubble.ai{
+  background:var(--ink-3);
+  border:1px solid var(--rule);
+  color:var(--txt);
+  border-radius:4px 12px 12px 12px;
+}
+.msg-bubble.user{
+  background:rgba(124,92,252,.15);
+  border:1px solid var(--accent-border);
+  color:var(--txt);
+  border-radius:12px 4px 12px 12px;
+}
+.msg-bubble strong{color:var(--txt);font-weight:600}
+.msg-bubble em{color:var(--txt-3);font-style:normal;font-size:12px}
+.typing-indicator{
+  display:none;
+  align-items:center;gap:4px;
+  padding:14px;
+}
+.typing-indicator.active{display:flex}
+.typing-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--txt-3);
+  animation:typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2){animation-delay:.2s}
+.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes typing-bounce{
+  0%,60%,100%{transform:translateY(0);opacity:.4}
+  30%{transform:translateY(-5px);opacity:1}
+}
+.director-input-bar{
+  padding:14px 18px;
+  border-top:1px solid var(--rule);
+  display:flex;align-items:flex-end;gap:10px;
+}
+.demo-input{
+  flex:1;
+  background:var(--ink-3);
+  border:1px solid var(--rule);
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:13px;
+  color:var(--txt-2);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  resize:none;
+  outline:none;
+  line-height:1.5;
+  min-height:40px;
+  max-height:80px;
+}
+.demo-send{
+  width:36px;height:36px;
+  border-radius:8px;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  transition:background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring), opacity var(--dur-fast) ease;
+  position:relative;
+  overflow:hidden;
+}
+.demo-send:hover{background:rgba(140,108,255,1);transform:scale(1.06)}
+.demo-send:active{transform:scale(.94)}
+.demo-send.sending{opacity:.5;pointer-events:none}
+.demo-send svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform var(--dur-fast) var(--ease-spring)}
+.demo-send:hover svg{transform:translate(1px,-1px)}
+.demo-reset{
+  margin-top:12px;
+  padding:0 18px 14px;
+  display:none;
+}
+.demo-reset-btn{
+  font-size:12px;
+  color:var(--txt-3);
+  text-decoration:underline;
+  text-underline-offset:3px;
+  transition:color var(--dur-fast) ease;
+}
+.demo-reset-btn:hover{color:var(--txt-2)}
+
+@media(max-width:900px){
+  .demo-inner{grid-template-columns:1fr;gap:48px}
+  .demo-section{padding:80px 0}
+}
+@media(max-width:600px){.demo-inner{padding:0 24px}}
+
+/* ── FEATURES ──────────────────────────────────── */
+.feat-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:1px;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:16px;
+  overflow:hidden;
+}
+.feat-cell{
+  background:var(--ink);
+  padding:44px 40px;
+  position:relative;
+  transition:background var(--dur-mid) ease;
+}
+.feat-cell.span-2{grid-column:span 2}
+.feat-cell:hover{background:var(--ink-2)}
+.feat-glyph{
+  font-size:22px;
+  line-height:1;
+  margin-bottom:22px;
+  display:inline-block;
+  filter:saturate(.7);
+}
+.feat-h{
+  font-family:'Syne',sans-serif;
+  font-size:18px;font-weight:700;
+  letter-spacing:-.3px;
+  margin-bottom:10px;
+  color:var(--txt);
+}
+.feat-p{
+  font-size:14px;
+  color:var(--txt-2);
+  line-height:1.7;
+  font-weight:400;
+}
+.feat-tags{
+  display:flex;flex-wrap:wrap;gap:6px;
+  margin-top:18px;
+}
+.feat-tag{
+  font-size:11.5px;font-weight:500;
+  color:var(--txt-3);
+  background:var(--ink-3);
+  border:1px solid var(--rule);
+  border-radius:4px;
+  padding:3px 9px;
+  letter-spacing:.01em;
+}
+@media(max-width:700px){
+  .feat-grid{grid-template-columns:1fr}
+  .feat-cell.span-2{grid-column:span 1}
+}
+
+/* ── PRICING ───────────────────────────────────── */
+.pricing-wrap{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  max-width:760px;
+  margin:0 auto;
+}
+.price-card{
+  background:var(--ink-2);
+  border:1px solid var(--rule);
+  border-radius:16px;
+  padding:40px;
+  position:relative;
+  transition:border-color var(--dur-fast) ease, transform var(--dur-mid) var(--ease-spring);
+}
+.price-card:hover{transform:translateY(-3px)}
+.price-card.featured{
+  border-color:var(--accent-border);
+  background:rgba(80,50,200,.06);
+}
+.price-card.featured:hover{border-color:rgba(124,92,252,.45)}
+.price-featured-label{
+  position:absolute;top:-1px;left:50%;transform:translateX(-50%);
+  font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink);
+  background:var(--txt);
+  border-radius:0 0 7px 7px;
+  padding:4px 14px;
+}
+.price-plan{
+  font-size:12px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--txt-3);
+  margin-bottom:20px;
+}
+.price-amount{
+  font-family:'Syne',sans-serif;
+  font-size:52px;font-weight:800;
+  letter-spacing:-2.5px;
+  line-height:1;
+  color:var(--txt);
+  margin-bottom:4px;
+}
+.price-amount sup{
+  font-size:22px;font-weight:600;
+  vertical-align:super;
+  letter-spacing:0;
+  margin-right:2px;
+}
+.price-per{
+  font-size:13px;
+  color:var(--txt-3);
+  margin-bottom:32px;
+  display:flex;align-items:center;gap:8px;
+}
+.price-save{
+  font-size:11px;font-weight:700;
+  color:var(--green);
+  background:rgba(26,255,156,.08);
+  border:1px solid rgba(26,255,156,.18);
+  border-radius:4px;
+  padding:2px 7px;
+  letter-spacing:.02em;
+}
+.price-divider{border:none;border-top:1px solid var(--rule);margin:0 0 24px}
+.price-features{display:flex;flex-direction:column;gap:11px;margin-bottom:32px}
+.pf-row{
+  display:flex;align-items:center;gap:10px;
+  font-size:13.5px;
+  color:var(--txt-2);
+}
+.pf-check{
+  width:16px;height:16px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(26,255,156,.12);
+  color:var(--green);
+  font-size:9px;font-weight:700;
+}
+.pf-row.dim{color:var(--txt-3)}
+.pf-row.dim .pf-check{background:var(--ink-3);color:var(--txt-3)}
+.price-btn{
+  width:100%;
+  padding:13px;
+  border-radius:9px;
+  font-size:14px;font-weight:600;
+  letter-spacing:.01em;
+  transition:all var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+  text-align:center;display:block;
+}
+.price-btn.outline{
+  border:1px solid var(--rule-2);
+  color:var(--txt-2);
+}
+.price-btn.outline:hover{border-color:rgba(255,255,255,.22);color:var(--txt);transform:scale(1.01)}
+.price-btn.solid{
+  background:var(--txt);
+  color:var(--ink);
+}
+.price-btn.solid:hover{background:#fff;transform:scale(1.01)}
+.price-btn:active{transform:scale(.98)!important}
+@media(max-width:600px){
+  .pricing-wrap{grid-template-columns:1fr}
+  .price-card{padding:32px}
+}
+
+/* ── COMMUNITY ─────────────────────────────────── */
+.community-inner{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.community-card{
+  background:var(--ink-2);
+  border:1px solid var(--rule);
+  border-radius:14px;
+  padding:32px 36px;
+  display:flex;flex-direction:column;gap:12px;
+  transition:border-color var(--dur-fast) ease, background var(--dur-mid) ease;
+}
+.community-card:hover{background:var(--ink-3);border-color:var(--rule-2)}
+.community-hd{display:flex;align-items:center;justify-content:space-between}
+.community-name{
+  font-family:'Syne',sans-serif;
+  font-size:17px;font-weight:700;
+  letter-spacing:-.3px;
+  display:flex;align-items:center;gap:10px;
+}
+.community-ico{font-size:18px;filter:saturate(.7)}
+.community-count{
+  font-size:12px;
+  color:var(--txt-3);
+  font-family:monospace;
+  letter-spacing:.02em;
+}
+.community-p{
+  font-size:13.5px;
+  color:var(--txt-2);
+  line-height:1.6;
+  flex:1;
+}
+.community-link{
+  font-size:13px;font-weight:600;
+  color:var(--txt-2);
+  display:flex;align-items:center;gap:6px;
+  transition:color var(--dur-fast) ease, gap var(--dur-fast) ease;
+  letter-spacing:.01em;
+}
+.community-link:hover{color:var(--txt);gap:10px}
+@media(max-width:600px){.community-inner{grid-template-columns:1fr}}
+
+/* ── FINAL CTA ─────────────────────────────────── */
+.final-cta{
+  text-align:center;
+  padding:140px 24px;
+  position:relative;overflow:hidden;
+  border-top:1px solid var(--rule);
+}
+.final-cta-bg{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(90,60,200,.09) 0%,transparent 70%);
+}
+.final-h{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(36px,6vw,68px);
+  font-weight:800;
+  letter-spacing:-2px;
+  line-height:1.05;
+  margin-bottom:20px;
+  position:relative;z-index:1;
+}
+.final-sub{
+  font-size:17px;
+  color:var(--txt-2);
+  margin-bottom:44px;
+  position:relative;z-index:1;
+}
+.final-actions{
+  display:flex;align-items:center;justify-content:center;
+  gap:12px;flex-wrap:wrap;
+  position:relative;z-index:1;
+}
+
+/* ── FOOTER ────────────────────────────────────── */
+footer{
+  border-top:1px solid var(--rule);
+  padding:56px 40px 40px;
+  max-width:1100px;
+  margin:0 auto;
+}
+.footer-grid{
+  display:grid;
+  grid-template-columns:1.6fr 1fr 1fr 1fr;
+  gap:40px;
+  margin-bottom:56px;
+}
+.footer-brand-logo{
+  font-family:'Syne',sans-serif;
+  font-size:16px;font-weight:800;
+  letter-spacing:-.3px;
+  margin-bottom:12px;
+  display:block;
+}
+.footer-brand-logo em{font-style:normal;color:var(--txt-3)}
+.footer-brand-p{
+  font-size:13px;
+  color:var(--txt-3);
+  line-height:1.6;
+  max-width:220px;
+}
+.footer-col h4{
+  font-size:11.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--txt-3);
+  margin-bottom:18px;
+}
+.footer-col a{
+  display:block;
+  font-size:13.5px;
+  color:var(--txt-3);
+  margin-bottom:12px;
+  transition:color var(--dur-fast) ease;
+}
+.footer-col a:hover{color:var(--txt)}
+.footer-bottom{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:24px;
+  border-top:1px solid var(--rule);
+  flex-wrap:wrap;gap:12px;
+}
+.footer-copy,.footer-made{font-size:12.5px;color:var(--txt-3)}
+@media(max-width:700px){
+  .footer-grid{grid-template-columns:1fr 1fr;gap:32px}
+  footer{padding:48px 24px 32px}
+}
+@media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="noise" aria-hidden="true"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo">Pre<em>Shoot</em></div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#demo">Director AI</a>
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/app.html" class="nav-open">Open app</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="plane plane-1"></div>
+    <div class="plane plane-2"></div>
+    <div class="plane plane-3"></div>
+    <div class="hero-radial"></div>
+    <div class="hero-vignette"></div>
+  </div>
+  <div class="hero-content">
+    <span class="hero-eyebrow">AI for content creators</span>
+    <h1 class="hero-h1">
+      <span class="h1-line"><span class="h1-line-inner">Any location.</span></span>
+      <span class="h1-line"><span class="h1-line-inner">Six ideas.</span></span>
+      <span class="h1-line"><span class="h1-line-inner h1-accent">Thirty seconds.</span></span>
+    </h1>
+    <p class="hero-sub">Point your camera at wherever you are and get six shoot-ready video ideas — each with a word-for-word hook, camera guide, and editing direction.</p>
+    <div class="hero-actions">
+      <a href="/app.html" class="btn-primary">Start scanning free</a>
+      <a href="#demo" class="btn-ghost">See the Director AI</a>
+    </div>
+    <p class="hero-note">Free to start &nbsp;·&nbsp; No credit card</p>
+  </div>
+</section>
+
+<!-- STAT STRIP -->
+<div class="stat-strip">
+  <div class="stat-item reveal">
+    <div class="stat-val">6</div>
+    <div class="stat-lbl">Ideas per scan</div>
+  </div>
+  <div class="stat-item reveal" data-delay="80">
+    <div class="stat-val">&lt;30s</div>
+    <div class="stat-lbl">Time to ideas</div>
+  </div>
+  <div class="stat-item reveal" data-delay="160">
+    <div class="stat-val">100%</div>
+    <div class="stat-lbl">Personalised to you</div>
+  </div>
+  <div class="stat-item reveal" data-delay="240">
+    <div class="stat-val">8</div>
+    <div class="stat-lbl">Video formats</div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how">
+  <div class="reveal-left">
+    <span class="section-tag">How it works</span>
+    <h2 class="section-h">From location to filming<br>in three steps.</h2>
+    <p class="section-sub">No brief. No brief. No creative block. Scan where you are and walk away knowing exactly what to film.</p>
+  </div>
+  <div class="steps reveal">
+    <div class="step">
+      <div class="step-num">01 &nbsp;Capture</div>
+      <span class="step-glyph">📸</span>
+      <h3 class="step-h">Take a photo</h3>
+      <p class="step-p">Point your camera at any location — a car park, a rooftop, a gym, a street. PreShoot reads exactly what it sees and builds ideas around it. The more specific the scene, the sharper the ideas.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02 &nbsp;Choose</div>
+      <span class="step-glyph">🎯</span>
+      <h3 class="step-h">Set the format</h3>
+      <p class="step-p">Pick a video format — Advert, UGC, Viral, Storytelling, Educational, Trial Reel, or Meme. Add any context about your brand or audience. PreShoot locks every idea to that structure.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03 &nbsp;Film</div>
+      <span class="step-glyph">🎬</span>
+      <h3 class="step-h">Walk on set ready</h3>
+      <p class="step-p">Six ideas, each with a word-for-word hook, camera angle, editing style, audio direction, and YouTube reference. Link straight to CapCut templates. You show up knowing exactly what you're shooting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DIRECTOR DEMO -->
+<section class="demo-section" id="demo">
+  <div class="demo-bg" aria-hidden="true"></div>
+  <div class="demo-inner">
+    <div class="demo-text reveal-left">
+      <span class="section-tag">Director AI</span>
+      <h2 class="section-h">Your creative director,<br>always on call.</h2>
+      <p class="section-sub">Director is a fully context-aware AI assistant that knows your gear, your niche, your platform, and your scan history. Ask it anything — from hook writing to gear advice to full content calendars.</p>
+      <div class="demo-detail">The demo below is live. Press send and watch Director respond — this is exactly what using it feels like inside the app.</div>
+    </div>
+    <div class="director-window reveal">
+      <div class="director-titlebar">
+        <div class="titlebar-dots">
+          <div class="titlebar-dot"></div>
+          <div class="titlebar-dot"></div>
+          <div class="titlebar-dot"></div>
+        </div>
+        <div class="titlebar-title">PreShoot Director</div>
+        <div class="titlebar-status">
+          <div class="status-dot"></div>
+          AI Active
+        </div>
+      </div>
+      <div class="director-ctx">
+        <span class="ctx-label">Profile</span>
+        <div class="ctx-chips">
+          <span class="ctx-chip">Automotive</span>
+          <span class="ctx-chip">Sony A7IV</span>
+          <span class="ctx-chip">DJI RS4</span>
+          <span class="ctx-chip">Instagram Reels</span>
+        </div>
+      </div>
+      <div class="director-messages" id="dir-msgs">
+        <div class="msg-row">
+          <div class="msg-avatar ai">D</div>
+          <div class="msg-bubble ai">Hey. Your profile's loaded — automotive, Sony A7IV, DJI RS4, optimised for Reels. What are we working on?</div>
+        </div>
+      </div>
+      <div class="typing-indicator" id="typing-indicator">
+        <div class="msg-avatar ai" style="width:26px;height:26px">D</div>
+        <div style="display:flex;gap:4px;padding:10px 4px;align-items:center">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+      <div class="director-input-bar">
+        <textarea class="demo-input" id="demo-input" rows="2" readonly>I just scanned a rooftop carpark at golden hour. Give me a cinematic hook idea for my next Reel.</textarea>
+        <button class="demo-send" id="demo-send" aria-label="Send message">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="demo-reset" id="demo-reset">
+        <button class="demo-reset-btn" id="demo-reset-btn">Run demo again</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="reveal-left">
+    <span class="section-tag">Features</span>
+    <h2 class="section-h">Built around how<br>creators actually work.</h2>
+    <p class="section-sub">Every detail is designed to eliminate friction between the location and the finished video.</p>
+  </div>
+  <div class="feat-grid reveal">
+    <div class="feat-cell">
+      <span class="feat-glyph">🎯</span>
+      <h3 class="feat-h">Deep personalisation</h3>
+      <p class="feat-p">Set your niche, platform, gear, style and goals once. Every scan is built around your specific world — not generic advice. No two creators get the same output from the same photo.</p>
+      <div class="feat-tags">
+        <span class="feat-tag">Niche & platform</span>
+        <span class="feat-tag">Gear-aware</span>
+        <span class="feat-tag">Style-matched</span>
+      </div>
+    </div>
+    <div class="feat-cell">
+      <span class="feat-glyph">▶</span>
+      <h3 class="feat-h">Real references, not just text</h3>
+      <p class="feat-p">Every idea links to relevant YouTube videos and CapCut templates. See the shot before you film it, and drop your footage straight into the template.</p>
+      <div class="feat-tags">
+        <span class="feat-tag">YouTube references</span>
+        <span class="feat-tag">CapCut templates</span>
+      </div>
+    </div>
+    <div class="feat-cell">
+      <span class="feat-glyph">☁</span>
+      <h3 class="feat-h">Cross-device sync</h3>
+      <p class="feat-p">Sign in with Google and your entire history, saved ideas, Director chats, and settings follow you to every device. Never lose a scan.</p>
+      <div class="feat-tags">
+        <span class="feat-tag">Instant sync</span>
+        <span class="feat-tag">All devices</span>
+      </div>
+    </div>
+    <div class="feat-cell">
+      <span class="feat-glyph">📱</span>
+      <h3 class="feat-h">Platform-optimised output</h3>
+      <p class="feat-p">Ideas adapted for TikTok, Instagram Reels, YouTube Shorts, Longform, LinkedIn and more — with platform-specific guidance baked into every idea.</p>
+      <div class="feat-tags">
+        <span class="feat-tag">TikTok</span>
+        <span class="feat-tag">Reels</span>
+        <span class="feat-tag">YouTube</span>
+        <span class="feat-tag">LinkedIn</span>
+      </div>
+    </div>
+    <div class="feat-cell span-2">
+      <span class="feat-glyph">🏠</span>
+      <h3 class="feat-h">Install to home screen</h3>
+      <p class="feat-p">PreShoot is a mobile-first web app — no App Store needed. Add it to your home screen in seconds and it feels exactly like a native app. Open it on set, scan, and you're filming.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section" id="pricing" style="padding-top:0">
+  <div class="reveal-left">
+    <span class="section-tag">Pricing</span>
+    <h2 class="section-h">One plan. No tiers.</h2>
+    <p class="section-sub" style="margin-bottom:56px">Start free today. Upgrade when you're ready for unlimited scans and the Director AI.</p>
+  </div>
+  <div class="pricing-wrap reveal">
+    <div class="price-card">
+      <div class="price-plan">Free</div>
+      <div class="price-amount"><sup>$</sup>0</div>
+      <div class="price-per">forever</div>
+      <hr class="price-divider">
+      <div class="price-features">
+        <div class="pf-row"><div class="pf-check">✓</div>3 scans per day</div>
+        <div class="pf-row"><div class="pf-check">✓</div>All 8 video formats</div>
+        <div class="pf-row"><div class="pf-check">✓</div>Creator profile</div>
+        <div class="pf-row"><div class="pf-check">✓</div>YouTube & CapCut links</div>
+        <div class="pf-row dim"><div class="pf-check">–</div>Director AI</div>
+        <div class="pf-row dim"><div class="pf-check">–</div>Cross-device sync</div>
+        <div class="pf-row dim"><div class="pf-check">–</div>Export all ideas</div>
+      </div>
+      <a href="/app.html" class="price-btn outline">Get started free</a>
+    </div>
+    <div class="price-card featured">
+      <div class="price-featured-label">Pro</div>
+      <div class="price-plan">Monthly</div>
+      <div class="price-amount"><sup>$</sup>9</div>
+      <div class="price-per">per month &nbsp;<span style="color:var(--txt-3)">or</span>&nbsp; $79/year <span class="price-save">Save $29</span></div>
+      <hr class="price-divider">
+      <div class="price-features">
+        <div class="pf-row"><div class="pf-check">✓</div>Unlimited scans</div>
+        <div class="pf-row"><div class="pf-check">✓</div>All 8 video formats</div>
+        <div class="pf-row"><div class="pf-check">✓</div>Creator profile</div>
+        <div class="pf-row"><div class="pf-check">✓</div>YouTube & CapCut links</div>
+        <div class="pf-row"><div class="pf-check">✓</div>Director AI</div>
+        <div class="pf-row"><div class="pf-check">✓</div>Cross-device sync</div>
+        <div class="pf-row"><div class="pf-check">✓</div>Export all ideas</div>
+      </div>
+      <a href="https://buy.stripe.com/28EaEXa574Y9esvaEWa7C00" class="price-btn solid">Upgrade to Pro</a>
+    </div>
+  </div>
+</section>
+
+<!-- COMMUNITY -->
+<section class="section">
+  <div class="reveal-left">
+    <span class="section-tag">Community</span>
+    <h2 class="section-h">Creators in the room.</h2>
+    <p class="section-sub" style="margin-bottom:48px">Talk to other PreShoot users, share what's working, and get early access to new features.</p>
+  </div>
+  <div class="community-inner reveal">
+    <a href="https://discord.gg/sjxyeGmTsH" target="_blank" class="community-card">
+      <div class="community-hd">
+        <div class="community-name"><span class="community-ico">💬</span> Discord</div>
+        <span class="community-count">community →</span>
+      </div>
+      <p class="community-p">The PreShoot community. Share your scans, discuss formats, and get feedback on ideas with other creators who are actually filming.</p>
+      <span class="community-link">Join the server →</span>
+    </a>
+    <a href="https://www.instagram.com/danielvisualmedia" target="_blank" class="community-card">
+      <div class="community-hd">
+        <div class="community-name"><span class="community-ico">📸</span> Instagram</div>
+        <span class="community-count">behind the build →</span>
+      </div>
+      <p class="community-p">Follow the build journey. Behind-the-scenes of building PreShoot, automotive content, and creator workflow insights.</p>
+      <span class="community-link">Follow @danielvisualmedia →</span>
+    </a>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <div class="final-cta-bg" aria-hidden="true"></div>
+  <h2 class="final-h reveal">Your next six ideas<br>are in the next photo.</h2>
+  <p class="final-sub reveal">Scan once. Walk onto set knowing exactly what you're filming.</p>
+  <div class="final-actions reveal">
+    <a href="/app.html" class="btn-primary">Start scanning free</a>
+    <a href="#demo" class="btn-ghost">Watch the demo</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <span class="footer-brand-logo">Pre<em>Shoot</em></span>
+      <p class="footer-brand-p">AI-powered video ideas for content creators. Point, scan, film.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#how">How it works</a>
+      <a href="#demo">Director AI</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/app.html">Open app</a>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <a href="https://discord.gg/sjxyeGmTsH" target="_blank">Discord</a>
+      <a href="https://www.instagram.com/danielvisualmedia" target="_blank">Instagram</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="/privacy.html">Privacy policy</a>
+      <a href="/terms.html">Terms of service</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span class="footer-copy">© 2026 PreShoot. All rights reserved.</span>
+    <span class="footer-made">Built for creators.</span>
+  </div>
+</footer>
+
+<script>
+(function() {
+'use strict';
+
+/* ── NAV ENTRANCE ─────────────────────────────── */
+requestAnimationFrame(function() {
+  setTimeout(function() {
+    document.getElementById('nav').classList.add('visible');
+  }, 100);
+});
+
+/* ── SCROLL REVEAL ─────────────────────────────── */
+var revealEls = document.querySelectorAll('.reveal, .reveal-left');
+if ('IntersectionObserver' in window) {
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      var el = entry.target;
+      var delay = parseInt(el.getAttribute('data-delay') || '0', 10);
+      setTimeout(function() { el.classList.add('revealed'); }, delay);
+      observer.unobserve(el);
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+  revealEls.forEach(function(el) { observer.observe(el); });
+} else {
+  revealEls.forEach(function(el) { el.classList.add('revealed'); });
+}
+
+/* ── DIRECTOR DEMO ─────────────────────────────── */
+var RESPONSE = [
+  {type:'text', text:'Golden hour rooftop carpark. Long shadows, ambient engine tick. That\'s a rare setup — use it.'},
+  {type:'gap'},
+  {type:'bold', text:'Hook'},
+  {type:'text', text:' (word-for-word, first 3 seconds):'},
+  {type:'gap'},
+  {type:'italic', text:'[Cut to black. A single headlight blooms on. Camera drifts back slow.]'},
+  {type:'gap'},
+  {type:'quote', text:'"Nobody films here. That\'s exactly why I do."'},
+  {type:'gap'},
+  {type:'bold', text:'Shot guide:'},
+  {type:'text', text:' Low gimbal angle, tight on the headlight reflection against wet concrete. Let the golden sky flood in at exactly 3 seconds. Drift backward — don\'t rush the reveal.'},
+  {type:'gap'},
+  {type:'bold', text:'Edit:'},
+  {type:'text', text:' One hard cut on the beat drop. Colour grade → pull the shadows teal, lift the highlights into burnt orange. Feels cinematic, not filtered.'},
+  {type:'gap'},
+  {type:'bold', text:'Audio:'},
+  {type:'text', text:' Find a slowed instrumental that builds. No drop until the reveal lands. The silence earns the hit.'},
+  {type:'gap'},
+  {type:'muted', text:'This works because location scarcity is an instant curiosity gap — people stop scrolling for places they\'ve never seen filmed.'}
+];
+
+var msgs = document.getElementById('dir-msgs');
+var sendBtn = document.getElementById('demo-send');
+var input = document.getElementById('demo-input');
+var typing = document.getElementById('typing-indicator');
+var resetWrap = document.getElementById('demo-reset');
+var resetBtn = document.getElementById('demo-reset-btn');
+var hasRun = false;
+
+function addUserMessage() {
+  var row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = '<div class="msg-avatar user">Y</div><div class="msg-bubble user">' +
+    input.value.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>';
+  row.style.opacity = '0';
+  row.style.transform = 'translateY(8px)';
+  row.style.transition = 'opacity 220ms ease, transform 220ms ease';
+  msgs.appendChild(row);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      row.style.opacity = '1';
+      row.style.transform = 'translateY(0)';
+    });
+  });
+  msgs.scrollTop = msgs.scrollHeight;
+  return row;
+}
+
+function showTyping() {
+  typing.classList.add('active');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function hideTyping() {
+  typing.classList.remove('active');
+}
+
+function buildResponseBubble() {
+  var row = document.createElement('div');
+  row.className = 'msg-row';
+  var av = document.createElement('div');
+  av.className = 'msg-avatar ai';
+  av.textContent = 'D';
+  var bub = document.createElement('div');
+  bub.className = 'msg-bubble ai';
+  bub.style.minHeight = '20px';
+  row.appendChild(av);
+  row.appendChild(bub);
+  row.style.opacity = '0';
+  row.style.transform = 'translateY(8px)';
+  row.style.transition = 'opacity 280ms ease, transform 280ms ease';
+  msgs.appendChild(row);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      row.style.opacity = '1';
+      row.style.transform = 'translateY(0)';
+    });
+  });
+  return bub;
+}
+
+function typeResponse(bub, parts, callback) {
+  var html = '';
+  var partIdx = 0;
+  var charIdx = 0;
+  var totalDelay = 0;
+
+  function renderCurrent() {
+    var display = html;
+    if (partIdx < parts.length) {
+      var p = parts[partIdx];
+      if (p.type === 'text' || p.type === 'muted') {
+        var partial = (p.type === 'muted' ? '<em>' : '') + html.split('CURRENT_')[1] || '';
+      }
+    }
+    bub.innerHTML = html;
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  // Build all HTML first, then stream it character by character
+  var fullParts = [];
+  parts.forEach(function(p) {
+    if (p.type === 'gap') { fullParts.push({tag:'', txt:'\n'}); return; }
+    if (p.type === 'bold') { fullParts.push({tag:'strong', txt:p.text}); return; }
+    if (p.type === 'italic') { fullParts.push({tag:'i', txt:p.text}); return; }
+    if (p.type === 'quote') { fullParts.push({tag:'strong', txt:p.text}); return; }
+    if (p.type === 'muted') { fullParts.push({tag:'em', txt:p.text}); return; }
+    fullParts.push({tag:'', txt:p.text});
+  });
+
+  // Build target HTML
+  var targetHtml = '';
+  fullParts.forEach(function(p) {
+    if (p.txt === '\n') { targetHtml += '<br><br>'; return; }
+    if (p.tag === 'strong') { targetHtml += '<strong>' + p.txt + '</strong>'; return; }
+    if (p.tag === 'i') { targetHtml += '<em style="color:var(--txt-2)">' + p.txt + '</em>'; return; }
+    if (p.tag === 'em') { targetHtml += '<em>' + p.txt + '</em>'; return; }
+    targetHtml += p.txt;
+  });
+
+  // Stream character by character
+  var plain = targetHtml;
+  var idx = 0;
+  var speed = 18; // ms per character
+
+  // But we need to be smart — skip over HTML tags instantly
+  function nextChar() {
+    if (idx >= plain.length) {
+      bub.innerHTML = plain;
+      msgs.scrollTop = msgs.scrollHeight;
+      if (callback) callback();
+      return;
+    }
+    // Skip HTML tags instantly
+    if (plain[idx] === '<') {
+      var closeIdx = plain.indexOf('>', idx);
+      if (closeIdx !== -1) {
+        idx = closeIdx + 1;
+        bub.innerHTML = plain.slice(0, idx);
+        setTimeout(nextChar, 2);
+        return;
+      }
+    }
+    idx++;
+    bub.innerHTML = plain.slice(0, idx);
+    msgs.scrollTop = msgs.scrollHeight;
+    var delay = plain[idx-1] === '.' || plain[idx-1] === '?' ? 80 :
+                plain[idx-1] === ',' ? 30 : speed;
+    setTimeout(nextChar, delay);
+  }
+  nextChar();
+}
+
+function runDemo() {
+  if (hasRun) return;
+  hasRun = true;
+  sendBtn.classList.add('sending');
+  input.style.opacity = '.5';
+
+  setTimeout(function() {
+    addUserMessage();
+    input.value = '';
+    setTimeout(function() {
+      showTyping();
+      setTimeout(function() {
+        hideTyping();
+        var bub = buildResponseBubble();
+        typeResponse(bub, RESPONSE, function() {
+          resetWrap.style.display = 'block';
+        });
+      }, 1400);
+    }, 400);
+  }, 200);
+}
+
+function resetDemo() {
+  hasRun = false;
+  sendBtn.classList.remove('sending');
+  input.style.opacity = '1';
+  input.value = 'I just scanned a rooftop carpark at golden hour. Give me a cinematic hook idea for my next Reel.';
+  typing.classList.remove('active');
+  resetWrap.style.display = 'none';
+  // Remove added messages
+  var rows = msgs.querySelectorAll('.msg-row');
+  for (var i = rows.length - 1; i >= 1; i--) {
+    rows[i].remove();
+  }
+}
+
+sendBtn.addEventListener('click', runDemo);
+resetBtn.addEventListener('click', resetDemo);
+
+// Allow keyboard on desktop
+document.getElementById('demo-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    runDemo();
+  }
+});
+
+})();
+</script>
+</body>
+</html>
