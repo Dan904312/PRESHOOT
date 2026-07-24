@@ -1,40 +1,27 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#080810">
+<meta name="theme-color" content="#161618">
 <title>PreShoot</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
+<script src="/js/kinetic-grid.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  /* Surfaces */
-  --bg:#0D0D0D;--s1:#171717;--s2:#1E1E1E;--s3:#252525;--s4:#2C2C2C;
-  /* Borders */
-  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--border3:rgba(255,255,255,.18);
-  /* Text */
-  --text:#EDEDED;--text2:#707070;--text3:#3A3A3A;
-  /* Accent - configurable */
-  --accent:#3B82F6;--accent2:#3B82F6;
-  --accent-dim:rgba(59,130,246,.10);--accent-border:rgba(59,130,246,.22);
-  /* Status */
-  --green:#22C55E;--red:#EF4444;--amber:#F59E0B;
-  /* Geometry */
-  --r:10px;--rlg:14px;--nav-h:60px;
-  --sh:0 1px 3px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.03);
-  /* Typography */
-  --fd:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',system-ui,sans-serif;
-  --fb:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',system-ui,sans-serif;
-}
-[data-theme="light"]{
-  --bg:#F2F2F2;--s1:#FFFFFF;--s2:#EBEBEB;--s3:#E0E0E0;--s4:#D5D5D5;
-  --border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.12);--border3:rgba(0,0,0,.18);
-  --text:#141414;--text2:#666666;--text3:#B8B8B8;
-  --sh:0 1px 3px rgba(0,0,0,.08),0 0 0 1px rgba(0,0,0,.04);
+  --bg:#161618;--s1:#1c1c1f;--s2:#222226;--s3:#2a2a2f;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
+  --text:#f4f4f6;--text2:rgba(244,244,246,.55);--text3:rgba(244,244,246,.32);
+  --accent:#4A9EFF;--accent2:#64D2FF;
+  --green:#34F5C5;--red:#FF4757;--amber:#FFB300;
+  --nav-h:64px;--r:14px;--rlg:20px;
+  --sh:0 2px 20px rgba(0,0,0,.45);
+  --fd:'Space Grotesk',sans-serif;--fb:'DM Sans',sans-serif;
+  --glass:rgba(22,22,24,.78);--glow:rgba(74,158,255,.4);
 }
 html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 body{font-family:var(--fb);background:var(--bg);color:var(--text);-webkit-overflow-scrolling:touch;user-select:none;-webkit-user-select:none}
@@ -43,7 +30,7 @@ button{font-family:var(--fb);cursor:pointer;border:none;background:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
-50%{box-shadow:0 0 0 20px rgba(124,77,255,0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,158,255,.35)}50%{box-shadow:0 0 0 20px rgba(74,158,255,0)}}
 
 /* SCREENS */
 .screen{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg);padding-bottom:calc(76px + env(safe-area-inset-bottom))}
@@ -53,7 +40,7 @@ button{font-family:var(--fb);cursor:pointer;border:none;background:none}
 @keyframes screenOut{0%{opacity:1}100%{opacity:0}}
 .sb{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
 
-/* Spring button press - applied globally */
+/* Spring button press — applied globally */
 .spring-btn{transition:transform .15s cubic-bezier(0.34,1.56,0.64,1)!important}
 .spring-btn:active{transform:scale(.93)!important}
 
@@ -105,18 +92,18 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 @keyframes tipIn{0%{opacity:0;transform:scale(.85) translateY(16px)}100%{opacity:1;transform:scale(1) translateY(0)}}
 
 /* ── iPhone Dock Nav ── */
-.bnav{position:fixed;bottom:0;left:0;right:0;z-index:200;height:calc(76px + env(safe-area-inset-bottom));background:rgba(14,14,24,.97);backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);border-radius:24px 24px 0 0;border:1px solid rgba(255,255,255,.09);border-bottom:none;box-shadow:0 -4px 24px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.06) inset;display:flex;align-items:flex-start;padding:0 4px;padding-bottom:env(safe-area-inset-bottom)}
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:200;height:calc(76px + env(safe-area-inset-bottom));background:rgba(22,22,24,.92);backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);border-radius:24px 24px 0 0;border:1px solid rgba(74,158,255,.12);border-bottom:none;box-shadow:0 -4px 32px rgba(0,0,0,.5),0 1px 0 rgba(74,158,255,.08) inset;display:flex;align-items:flex-start;padding:0 4px;padding-bottom:env(safe-area-inset-bottom)}
 .bni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;padding:6px 0;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
 .bni:active{transform:scale(.86)}
 .bni-ico{font-size:24px;color:rgba(255,255,255,.32);line-height:1;transition:color .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1)}
 .bni-lbl{font-size:9px;font-weight:700;letter-spacing:.5px;color:rgba(255,255,255,.28);text-transform:uppercase;transition:color .18s ease}
 .bni.active .bni-ico{color:var(--accent);transform:scale(1.1) translateY(-1px)}
 .bni.active .bni-lbl{color:var(--accent)}
-.bni-scan{width:56px;height:56px;min-width:56px;min-height:56px;flex-shrink:0;border-radius:50%;background:linear-gradient(145deg,var(--accent) 0%,var(--accent2) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px rgba(255,255,255,.18),0 6px 24px rgba(124,77,255,.55);margin-top:-20px;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s}
-.bni-scan:active{transform:scale(.88);box-shadow:0 0 0 1px rgba(255,255,255,.1),0 3px 12px rgba(124,77,255,.3)}
+.bni-scan{width:56px;height:56px;min-width:56px;min-height:56px;flex-shrink:0;border-radius:50%;background:linear-gradient(145deg,var(--accent) 0%,var(--accent2) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px rgba(255,255,255,.18),0 6px 28px var(--glow);margin-top:-20px;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s}
+.bni-scan:active{transform:scale(.88);box-shadow:0 0 0 1px rgba(255,255,255,.1),0 3px 14px rgba(74,158,255,.35)}
 
 /* ─────── ONBOARDING ─────── */
-#screen-onboard{background:#000;padding-bottom:0}
+#screen-onboard{background:#161618;padding-bottom:0}
 #screen-onboard.active ~ .bnav, .bnav.hidden{display:none!important}
 .ob-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .ob-grid-line{position:absolute;background:rgba(255,255,255,.03)}
@@ -129,7 +116,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .ob-slide#obs0{transform:translateX(0);}
 .ob-slide.prev{opacity:0;transform:translateX(-50px)}
 
-/* Slide 1 - Cinematic welcome */
+/* Slide 1 — Cinematic welcome */
 /* Hello animation */
 /* ── Hello animation ── */
 .hello-scene{
@@ -168,7 +155,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 }
 .hello-line-r{
   right:50%;width:0;
-  background:linear-gradient(270deg,rgba(124,77,255,.1),#7C4DFF);
+  background:linear-gradient(270deg,rgba(74,158,255,.1),#4A9EFF);
   animation:lineR 1.6s 2.4s cubic-bezier(.16,1,.3,1) forwards;
   animation-play-state:paused;
 }
@@ -190,7 +177,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 /* Glow */
 .hello-glow{
   position:absolute;width:320px;height:120px;
-  background:radial-gradient(ellipse,rgba(124,77,255,.3) 0%,transparent 65%);
+  background:radial-gradient(ellipse,rgba(74,158,255,.35) 0%,transparent 65%);
   border-radius:50%;
   opacity:0;
   animation:glowIn 1s 2.8s ease forwards, glowPulse 3s 3.8s ease-in-out infinite;
@@ -209,7 +196,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 }
 .hello-text .pre{color:#fff}
 .hello-text .shoot{
-  background:linear-gradient(135deg,#7C4DFF 0%,#FF5C35 100%);
+  background:linear-gradient(135deg,#4A9EFF 0%,#64D2FF 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
 }
 @keyframes titleBlast{
@@ -237,7 +224,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 }
 
 
-.ob-eyebrow{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(124,77,255,.7);margin-bottom:14px;display:block}
+.ob-eyebrow{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(74,158,255,.85);margin-bottom:14px;display:block}
 .ob-title{font-family:var(--fd);font-size:30px;font-weight:800;letter-spacing:-.5px;line-height:1.1;color:#fff;margin-bottom:12px}
 .ob-sub{font-size:14px;color:rgba(255,255,255,.45);line-height:1.75;max-width:280px;margin:0 auto}
 .ob-cards{width:100%;margin-top:20px;display:flex;flex-direction:column;gap:9px}
@@ -255,7 +242,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .ob-install-os{font-size:13px;font-weight:700;color:#fff}
 .ob-install-row{display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.45);margin-bottom:3px}
 .ob-install-row:last-child{margin-bottom:0}
-.ob-install-num{width:18px;height:18px;border-radius:5px;background:rgba(124,77,255,.3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--accent);flex-shrink:0}
+.ob-install-num{width:18px;height:18px;border-radius:5px;background:rgba(74,158,255,.25);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--accent);flex-shrink:0}
 
 /* Footer */
 .ob-dots{display:flex;gap:6px;justify-content:center;padding:10px 0 2px;position:relative;z-index:1}
@@ -268,16 +255,22 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .ob-btn-s{padding:8px;color:rgba(255,255,255,.25);font-size:13px}
 
 /* ─────── HOME ─────── */
-.home-hd{padding:56px 22px 14px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(6,6,15,1) 60%,transparent);position:relative;z-index:1}
-.home-logo{font-family:var(--fd);font-size:24px;font-weight:800;letter-spacing:-1px;color:var(--text)}
+#screen-home{position:relative;overflow:hidden}
+.home-kinetic{position:absolute;inset:0;z-index:0;pointer-events:none}
+.home-inner{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;min-height:0}
+.home-hd{padding:56px 22px 14px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(22,22,24,.95) 55%,transparent);position:relative;z-index:1}
+.home-logo{font-family:var(--fd);font-size:24px;font-weight:700;letter-spacing:-1px;color:var(--text)}
 .home-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.streak-pill{display:flex;align-items:center;gap:5px;background:var(--s2);border:1px solid rgba(255,179,0,.2);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--amber)}
-.scan-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;gap:20px}
-.scan-ring{width:176px;height:176px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(124,77,255,.18),rgba(255,92,53,.1));border:2px solid rgba(124,77,255,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 0 1px rgba(124,77,255,.1),0 0 60px rgba(124,77,255,.2),0 8px 32px rgba(0,0,0,.4)}
-.scan-ring:active{transform:scale(.92)!important;box-shadow:0 0 0 1px rgba(124,77,255,.2),0 0 30px rgba(124,77,255,.15),0 4px 16px rgba(0,0,0,.4)}
-.scan-lbl{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.5px;text-align:center;color:var(--text);margin-bottom:2px}
-.scan-sub{font-size:13px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px}
-.usage-bar{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--text);box-shadow:var(--sh)}
+.streak-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border:1px solid rgba(255,179,0,.25);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--amber);backdrop-filter:blur(8px)}
+.scan-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;gap:20px;position:relative;z-index:1}
+.scan-ring{width:176px;height:176px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(74,158,255,.2),rgba(100,210,255,.08));border:2px solid rgba(74,158,255,.4);display:flex;align-items:center;justify-content:center;animation:pulse 2.8s ease-in-out infinite;cursor:pointer;box-shadow:0 0 0 1px rgba(74,158,255,.15),0 0 60px rgba(74,158,255,.25),0 8px 32px rgba(0,0,0,.4)}
+.scan-ring:active{transform:scale(.92)!important;box-shadow:0 0 0 1px rgba(74,158,255,.25),0 0 30px rgba(74,158,255,.2),0 4px 16px rgba(0,0,0,.4)}
+.scan-lbl{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:-.5px;text-align:center;color:var(--text);margin-bottom:2px}
+.usage-bar{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--text);box-shadow:var(--sh);backdrop-filter:blur(12px)}
+.director-card{width:100%;max-width:320px;background:rgba(255,255,255,.04);border:1.5px solid rgba(74,158,255,.25);border-radius:18px;padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;backdrop-filter:blur(12px);transition:transform .15s,border-color .2s ease}
+.director-card:active{transform:scale(.97)}
+.director-card-ico{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.upload-btn{background:rgba(255,255,255,.04);border:1.5px solid var(--border);border-radius:14px;padding:12px 24px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;font-family:var(--fb);display:flex;align-items:center;gap:10px;margin-top:-8px;backdrop-filter:blur(8px)}
 .ud{width:8px;height:8px;border-radius:50%;background:var(--border2)}
 .ud.used{background:var(--accent)}
 .ud.inf{width:24px;border-radius:4px;background:var(--accent)}
@@ -295,13 +288,13 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .ideas-list{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
 
 /* IDEA CARDS */
-.ic{background:var(--s1);border:1.5px solid var(--border);border-radius:18px;overflow:hidden;cursor:pointer;position:relative;box-shadow:0 2px 20px rgba(0,0,0,.35)}
+.ic{background:rgba(255,255,255,.03);border:1.5px solid var(--border);border-radius:18px;overflow:hidden;cursor:pointer;position:relative;box-shadow:0 2px 24px rgba(0,0,0,.35);backdrop-filter:blur(8px)}
 .ic:active{transform:scale(.97)!important}
-.ic.saved{border-color:rgba(124,77,255,.4);background:rgba(124,77,255,.04)}
+.ic.saved{border-color:rgba(74,158,255,.45);background:rgba(74,158,255,.06)}
 .ic-top{padding:15px 44px 10px 15px;display:flex;align-items:flex-start;gap:10px}
 .fmt-badge{flex-shrink:0;padding:3px 9px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap}
-.fmt-trending{background:rgba(255,92,53,.15);color:var(--accent2);border:1px solid rgba(255,92,53,.25)}
-.fmt-cinematic{background:rgba(124,77,255,.15);color:#A47BFF;border:1px solid rgba(124,77,255,.25)}
+.fmt-trending{background:rgba(100,210,255,.15);color:var(--accent2);border:1px solid rgba(100,210,255,.28)}
+.fmt-cinematic{background:rgba(74,158,255,.15);color:#7CB8FF;border:1px solid rgba(74,158,255,.28)}
 .fmt-pov{background:rgba(0,229,160,.12);color:var(--green);border:1px solid rgba(0,229,160,.2)}
 .fmt-educational{background:rgba(255,179,0,.12);color:var(--amber);border:1px solid rgba(255,179,0,.2)}
 .fmt-storytelling{background:rgba(255,71,87,.12);color:#FF7080;border:1px solid rgba(255,71,87,.2)}
@@ -312,7 +305,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .ic-why{font-size:11px;color:var(--accent);margin-top:5px;font-weight:600;line-height:1.4}
 .ic-meta{padding:10px 15px 13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border)}
 .mc{display:flex;align-items:center;gap:3px;background:var(--s3);border-radius:5px;padding:3px 7px;font-size:11px;color:var(--text2)}
-.trend-badge{margin-left:auto;background:linear-gradient(135deg,rgba(255,92,53,.2),rgba(255,179,0,.15));border:1px solid rgba(255,92,53,.3);border-radius:5px;padding:3px 7px;font-size:10px;font-weight:700;color:var(--accent2)}
+.trend-badge{margin-left:auto;background:linear-gradient(135deg,rgba(74,158,255,.2),rgba(100,210,255,.15));border:1px solid rgba(74,158,255,.3);border-radius:5px;padding:3px 7px;font-size:10px;font-weight:700;color:var(--accent2)}
 .ic-save{position:absolute;top:13px;right:13px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;z-index:2;transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .15s}
 .ic-save:active{transform:scale(.85)}
 .ic-save.saved{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
@@ -331,7 +324,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .sh-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
 .hook-box{background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);padding:13px;font-size:14px;line-height:1.7;font-style:italic;color:var(--text)}
 .shot-box{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:13px;font-size:13px;line-height:1.7;color:var(--text2)}
-.why-box{background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.2);border-radius:var(--r);padding:13px;font-size:13px;line-height:1.6;color:var(--text)}
+.why-box{background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.22);border-radius:var(--r);padding:13px;font-size:13px;line-height:1.6;color:var(--text)}
 .sh-row{display:flex;gap:20px}
 .sh-actions{padding:14px 18px;display:flex;flex-direction:column;gap:9px}
 .yt-btn{display:flex;align-items:center;gap:12px;background:var(--s2);border:1.5px solid rgba(255,70,70,.2);border-radius:var(--r);padding:13px;text-decoration:none;color:var(--text)}
@@ -343,7 +336,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .cc-logo{width:22px;height:22px;border-radius:5px;background:linear-gradient(135deg,#00E0FF,#A855F7);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff}
 .act-row{display:flex;gap:9px}
 .act-btn{flex:1;padding:12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}
-.act-btn.saved-st{background:rgba(124,77,255,.12);border-color:var(--accent);color:var(--accent)}
+.act-btn.saved-st{background:rgba(74,158,255,.12);border-color:var(--accent);color:var(--accent)}
 .rate-row{display:flex;gap:9px}
 .rate-btn{flex:1;padding:10px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--s2);font-size:13px;color:var(--text2);display:flex;align-items:center;justify-content:center;gap:6px}
 
@@ -395,7 +388,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .prof-hd{padding:60px 24px 12px;display:flex;align-items:center;justify-content:space-between}
 .prof-title{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.3px;color:var(--text)}
 .prof-edit-btn{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--text)}
-.prof-hero{margin:0 20px 14px;background:linear-gradient(135deg,rgba(124,77,255,.12),rgba(255,92,53,.08));border:1px solid rgba(124,77,255,.2);border-radius:var(--rlg);padding:20px}
+.prof-hero{margin:0 20px 14px;background:linear-gradient(135deg,rgba(74,158,255,.12),rgba(100,210,255,.06));border:1px solid rgba(74,158,255,.22);border-radius:var(--rlg);padding:20px}
 .prof-av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:24px;font-weight:800;color:#fff;overflow:hidden;border:2px solid rgba(255,255,255,.15);margin-bottom:10px;cursor:pointer;position:relative}
 .prof-av img{width:100%;height:100%;object-fit:cover}
 .prof-av-badge{position:absolute;bottom:0;right:0;width:20px;height:20px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid var(--bg)}
@@ -429,13 +422,13 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .field-inp::placeholder{color:var(--text3)}
 
 /* Paywall */
-.pw-glow{width:100%;height:110px;background:radial-gradient(ellipse at 50% 0%,rgba(124,77,255,.3),transparent 70%);display:flex;align-items:center;justify-content:center;font-size:42px}
+.pw-glow{width:100%;height:110px;background:radial-gradient(ellipse at 50% 0%,rgba(74,158,255,.35),transparent 70%);display:flex;align-items:center;justify-content:center;font-size:42px}
 .pw-body{padding:0 24px}
 .pw-title{font-family:var(--fd);font-size:26px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--text)}
 .pw-sub{font-size:14px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:20px}
 .pw-feats{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
 .pw-feat{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--text)}
-.pw-feat-ico{width:32px;height:32px;border-radius:9px;background:rgba(124,77,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.pw-feat-ico{width:32px;height:32px;border-radius:9px;background:rgba(74,158,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .pw-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .pw-plan{background:var(--s2);border:2px solid var(--border);border-radius:var(--r);padding:14px;cursor:pointer;position:relative;text-align:center}
 .pw-plan.sel{border-color:var(--accent)}
@@ -443,7 +436,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .pw-price{font-family:var(--fd);font-size:26px;font-weight:700;color:var(--text)}
 .pw-period{font-size:11px;color:var(--text2)}
 .pw-save{font-size:10px;color:var(--green);font-weight:600;margin-top:4px}
-.pw-cta{width:100%;padding:16px;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-family:var(--fd);font-size:16px;font-weight:700;box-shadow:0 4px 20px rgba(124,77,255,.35)}
+.pw-cta{width:100%;padding:16px;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1628;font-family:var(--fd);font-size:16px;font-weight:700;box-shadow:0 4px 24px rgba(74,158,255,.4)}
 .pw-dismiss{width:100%;padding:11px;color:var(--text3);font-size:13px;margin-top:5px}
 
 /* Appearance */
@@ -472,15 +465,15 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .chip{padding:9px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:22px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .15s,border-color .15s,color .15s;user-select:none;font-family:var(--fb)}
 .chip:active{transform:scale(.96)}
 .chip.selected{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff}
-.chip.primary{background:rgba(124,77,255,.15);border-color:rgba(124,77,255,.3);color:var(--accent)}
+.chip.primary{background:rgba(74,158,255,.15);border-color:rgba(74,158,255,.3);color:var(--accent)}
 .chip.primary.selected{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff}
 .seg-control{display:flex;gap:6px;background:var(--s3);border-radius:12px;padding:4px;margin-bottom:16px}
 .seg-btn{flex:1;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:700;color:var(--text3);cursor:pointer;transition:all .2s;text-align:center;font-family:var(--fd)}
-.seg-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 2px 8px rgba(124,77,255,.3)}
+.seg-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 2px 8px rgba(74,158,255,.3)}
 .card-select{background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px}
 .card-select:active{transform:scale(.98)}
-.card-select.selected{border-color:rgba(124,77,255,.4);background:rgba(124,77,255,.08)}
-.card-select-ico{width:40px;height:40px;border-radius:10px;background:rgba(124,77,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.card-select.selected{border-color:rgba(74,158,255,.4);background:rgba(74,158,255,.08)}
+.card-select-ico{width:40px;height:40px;border-radius:10px;background:rgba(74,158,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .card-select.selected .card-select-ico{background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .card-select-info{flex:1;min-width:0}
 .card-select-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;font-family:var(--fd)}
@@ -490,24 +483,24 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .card-select.selected .card-select-check::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800}
 .platform-card{background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;cursor:pointer;transition:all .2s;position:relative}
 .platform-card:active{transform:scale(.98)}
-.platform-card.selected{border-color:rgba(124,77,255,.4);background:rgba(124,77,255,.08)}
-.platform-card.primary{border-color:var(--accent);background:rgba(124,77,255,.12);box-shadow:0 0 0 3px rgba(124,77,255,.1)}
+.platform-card.selected{border-color:rgba(74,158,255,.4);background:rgba(74,158,255,.08)}
+.platform-card.primary{border-color:var(--accent);background:rgba(74,158,255,.12);box-shadow:0 0 0 3px rgba(74,158,255,.1)}
 .platform-badge{position:absolute;top:8px;right:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;padding:3px 8px;border-radius:12px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .slider-wrap{margin-bottom:20px}
 .slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .slider-title{font-size:13px;font-weight:700;color:var(--text);font-family:var(--fd)}
 .slider-value{font-size:12px;font-weight:600;color:var(--accent)}
 .slider{width:100%;height:6px;border-radius:3px;background:var(--s3);appearance:none;outline:none;transition:all .2s}
-.slider::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer;box-shadow:0 2px 8px rgba(124,77,255,.4)}
-.slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer;border:none;box-shadow:0 2px 8px rgba(124,77,255,.4)}
+.slider::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer;box-shadow:0 2px 8px rgba(74,158,255,.4)}
+.slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer;border:none;box-shadow:0 2px 8px rgba(74,158,255,.4)}
 .gear-input{display:flex;gap:8px;margin-bottom:10px}
-.gear-ico{width:36px;height:36px;border-radius:8px;background:rgba(124,77,255,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.gear-ico{width:36px;height:36px;border-radius:8px;background:rgba(74,158,255,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .gear-field{flex:1;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:13px;color:var(--text);outline:none;font-family:var(--fb);transition:border-color .2s}
 .gear-field:focus{border-color:var(--accent)}
 .color-picker-wrap{display:flex;gap:8px;margin-bottom:16px}
 .color-chip{width:44px;height:44px;border-radius:10px;cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative}
 .color-chip:active{transform:scale(.92)}
-.color-chip.selected{border-color:#fff;box-shadow:0 0 0 3px rgba(124,77,255,.3)}
+.color-chip.selected{border-color:#fff;box-shadow:0 0 0 3px rgba(74,158,255,.3)}
 .color-chip.selected::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.5)}
 /* ═══ FORMAT PICKER ═══ */
 .fmt-sheet-ov{position:fixed;inset:0;z-index:450;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;opacity:0;transition:opacity .3s}
@@ -523,17 +516,17 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .fmt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 16px 0}
 .fmt-btn{background:var(--s2);border:1.5px solid var(--border);border-radius:16px;padding:16px 14px;cursor:pointer;text-align:left;position:relative;display:flex;flex-direction:column;gap:7px;box-shadow:0 2px 12px rgba(0,0,0,.2);transition:transform .18s cubic-bezier(.34,1.56,.64,1),border-color .15s,background .15s}
 .fmt-btn:active{transform:scale(.93)!important}
-.fmt-btn.selected{border-color:rgba(124,77,255,.5);background:rgba(124,77,255,.1);box-shadow:0 0 0 3px rgba(124,77,255,.15),0 2px 12px rgba(0,0,0,.2)}
-.fmt-btn.selected{border-color:var(--accent);background:rgba(124,77,255,.1);box-shadow:0 0 0 3px rgba(124,77,255,.12)}
+.fmt-btn.selected{border-color:rgba(74,158,255,.5);background:rgba(74,158,255,.1);box-shadow:0 0 0 3px rgba(74,158,255,.15),0 2px 12px rgba(0,0,0,.2)}
+.fmt-btn.selected{border-color:var(--accent);background:rgba(74,158,255,.1);box-shadow:0 0 0 3px rgba(74,158,255,.12)}
 .fmt-btn-ico{font-size:22px;line-height:1}
 .fmt-btn-label{font-family:var(--fd);font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
 .fmt-info-btn{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);cursor:pointer;z-index:2;transition:all .15s;font-style:normal;font-weight:700}
-.fmt-info-btn:active{background:rgba(124,77,255,.2);border-color:var(--accent);color:var(--accent)}
+.fmt-info-btn:active{background:rgba(74,158,255,.2);border-color:var(--accent);color:var(--accent)}
 .fmt-other-wrap{padding:10px 16px 0}
 .fmt-other-inp{width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;font-size:14px;color:var(--text);outline:none;font-family:var(--fb);transition:border-color .2s;resize:none;min-height:48px}
 .fmt-other-inp:focus{border-color:var(--accent)}
 .fmt-other-inp::placeholder{color:var(--text3)}
-.fmt-go-btn{margin:14px 16px 0;width:calc(100% - 32px);padding:15px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;transition:transform .15s;font-family:var(--fd);display:block;text-align:center;box-shadow:0 4px 20px rgba(124,77,255,.3)}
+.fmt-go-btn{margin:14px 16px 0;width:calc(100% - 32px);padding:15px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;transition:transform .15s;font-family:var(--fd);display:block;text-align:center;box-shadow:0 4px 20px rgba(74,158,255,.3)}
 .fmt-go-btn:active{transform:scale(.97)}
 /* Info Tooltip */
 .info-tip-ov{position:fixed;inset:0;z-index:600;display:none;align-items:flex-end;justify-content:center;padding:20px}
@@ -542,7 +535,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .info-tip-ico{font-size:32px;margin-bottom:10px;display:block}
 .info-tip-title{font-family:var(--fd);font-size:17px;font-weight:800;color:var(--text);margin-bottom:8px}
 .info-tip-body{font-size:13px;line-height:1.7;color:var(--text2)}
-.info-tip-ex{margin-top:10px;background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.15);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6}
+.info-tip-ex{margin-top:10px;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.15);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6}
 .info-tip-ex strong{color:var(--accent);font-weight:700}
 .info-tip-close{margin-top:14px;width:100%;padding:11px;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--fd)}
 
@@ -568,7 +561,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .menu-ico{width:36px!important;height:36px!important;border-radius:10px!important;box-shadow:none!important;font-size:17px!important}
 .fmt-badge{font-size:9px!important;font-weight:700!important;letter-spacing:.6px!important;padding:3px 7px!important;border-radius:5px!important;margin-top:1px!important}
 .ic{border-width:1px!important;border-radius:14px!important;box-shadow:0 1px 6px rgba(0,0,0,.18)!important}
-.ic.saved{border-color:rgba(124,77,255,.2)!important;background:rgba(124,77,255,.025)!important}
+.ic.saved{border-color:rgba(74,158,255,.2)!important;background:rgba(74,158,255,.025)!important}
 .ic-title{font-size:14px!important;font-weight:700!important;letter-spacing:-.1px!important;margin-bottom:4px!important}
 .ic-hook{font-size:12px!important;font-style:normal!important}
 .ic-why{font-size:11px!important;opacity:.75}
@@ -595,338 +588,6 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .lib-tab{font-size:12px!important;padding:6px 14px!important}
 .rescan-btn{background:var(--s2)!important;border-color:var(--border)!important}
 .pw-plan{font-size:14px!important;font-weight:700!important}
-
-
-/* ═══════════════════════════════════════════
-   PRESHOOT - COMPLETE VISUAL REDESIGN
-   Premium, minimal, product-designed
-═══════════════════════════════════════════ */
-
-/* ── Global reset ── */
-body{font-family:var(--fb);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
-*{-webkit-tap-highlight-color:transparent}
-::-webkit-scrollbar{width:0}
-
-/* ── Screen layout ── */
-.screen{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg);padding-bottom:calc(60px + env(safe-area-inset-bottom))!important}
-.screen.active{display:flex;animation:screenIn .22s cubic-bezier(0.4,0,.2,1) forwards}
-@keyframes screenIn{from{opacity:0}to{opacity:1}}
-.sb{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
-
-/* ── Bottom Nav - flat bar ── */
-.bnav{
-  position:fixed;bottom:0;left:0;right:0;z-index:200;
-  height:calc(60px + env(safe-area-inset-bottom));
-  background:var(--s1);
-  border-top:1px solid var(--border);
-  display:flex;align-items:flex-start;padding:0;
-  padding-bottom:env(safe-area-inset-bottom);
-  border-radius:0!important;
-  backdrop-filter:none!important;
-  -webkit-backdrop-filter:none!important;
-  box-shadow:none!important;
-}
-.bni{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;cursor:pointer;padding:10px 0 0;color:var(--text3);
-  transition:color .15s ease;
-}
-.bni:active{opacity:.6}
-.bni-ico{display:flex;align-items:center;justify-content:center;width:22px;height:22px;color:inherit}
-.bni-ico svg{transition:transform .15s ease}
-.bni-lbl{font-size:9.5px;font-weight:500;color:inherit;letter-spacing:.01em}
-.bni.active{color:var(--accent)}
-.bni.active .bni-ico svg{transform:scale(1.08)}
-.bni-scan{
-  width:44px;height:44px;border-radius:50%;
-  background:var(--text);color:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-  margin-top:-8px;
-  box-shadow:0 2px 8px rgba(0,0,0,.4);
-  transition:transform .15s ease,opacity .15s ease;
-}
-.bni-scan:active{transform:scale(.93);opacity:.85}
-
-/* ── Cards - idea cards ── */
-.ic{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;position:relative;box-shadow:none!important}
-.ic:active{background:var(--s2)}
-.ic.saved{border-color:var(--accent-border)!important;background:rgba(59,130,246,.04)!important}
-.ic-top{padding:14px 40px 10px 14px;display:flex;align-items:flex-start;gap:10px}
-.ic-title{font-size:14px!important;font-weight:600!important;line-height:1.3!important;margin-bottom:4px!important;color:var(--text)!important;letter-spacing:-.015em!important;font-family:var(--fb)!important}
-.ic-hook{font-size:12px!important;color:var(--text2)!important;line-height:1.55!important;font-style:normal!important}
-.ic-why{font-size:11px!important;color:var(--accent)!important;margin-top:4px!important;font-weight:500!important}
-.ic-meta{padding:9px 14px 12px!important;display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important;border-top:1px solid var(--border)!important}
-.ic-save{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:background .15s,border-color .15s}
-.ic-save.saved{background:var(--accent-dim)!important;border-color:var(--accent-border)!important}
-.mc{font-size:10px!important;padding:3px 8px!important;border-radius:5px!important;font-weight:500!important;letter-spacing:.01em!important}
-.trend-badge{font-size:9px!important;padding:2px 7px!important;border-radius:4px!important}
-
-/* ── Format badges ── */
-.fmt-badge{font-size:9px!important;font-weight:600!important;padding:3px 7px!important;border-radius:5px!important;letter-spacing:.04em!important;font-style:normal!important}
-.fmt-trending,.fmt-pov,.fmt-educational,.fmt-cinematic,.fmt-storytelling,.fmt-unexpected{background:var(--s3)!important;color:var(--text2)!important;border:none!important}
-
-/* ── Scan ring - home screen ── */
-.scan-ring{
-  width:156px!important;height:156px!important;
-  border-radius:50%!important;
-  background:var(--s2)!important;
-  border:1px solid var(--border2)!important;
-  animation:none!important;
-  box-shadow:0 2px 12px rgba(0,0,0,.3)!important;
-  transition:transform .15s ease,background .15s ease!important;
-}
-.scan-ring:active{transform:scale(.95)!important;background:var(--s3)!important}
-.scan-sub{font-size:13px!important;color:var(--text2)!important;font-style:normal!important}
-.scan-lbl{font-size:18px!important;font-weight:600!important;letter-spacing:-.03em!important;font-family:var(--fb)!important}
-.usage-bar{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-
-/* ── History cards - library ── */
-.hist-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.hist-card:active{background:var(--s2)!important}
-.hist-label{font-size:14px!important;font-weight:600!important;color:var(--text)!important;letter-spacing:-.01em!important}
-.hist-meta,.hist-time{font-size:11.5px!important;color:var(--text2)!important}
-.hist-thumb{border-radius:8px!important;background:var(--s3)!important}
-.hist-preview{padding:0 14px 12px!important;display:flex;flex-direction:column;gap:5px}
-.hist-prev-row{font-size:12px!important;color:var(--text2)!important;display:flex;align-items:center;gap:6px}
-
-/* ── Menu rows ── */
-.menu-sec-title{font-size:10px!important;font-weight:600!important;letter-spacing:.08em!important;text-transform:uppercase!important;color:var(--text3)!important;padding-left:2px!important;margin-bottom:6px!important}
-.menu-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important;overflow:hidden!important}
-.menu-row{padding:13px 14px!important;border-bottom:1px solid var(--border)!important;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .12s ease}
-.menu-row:last-child{border-bottom:none!important}
-.menu-row:active{background:var(--s2)!important}
-.menu-ico{width:32px!important;height:32px!important;border-radius:8px!important;background:var(--s3)!important;display:flex;align-items:center;justify-content:center;font-size:15px!important;flex-shrink:0;box-shadow:none!important}
-.menu-row-title{font-size:13.5px!important;font-weight:500!important;color:var(--text)!important;margin-bottom:1px!important;font-family:var(--fb)!important}
-.menu-row-sub{font-size:11.5px!important;color:var(--text2)!important;line-height:1.4!important}
-.menu-arrow{color:var(--text3)!important;font-size:14px!important}
-
-/* ── Modals ── */
-.modal-ov{background:rgba(0,0,0,.7)!important;backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
-.modal-sheet{background:var(--s1)!important;border-radius:16px 16px 0 0!important;box-shadow:0 -1px 0 var(--border),0 -8px 32px rgba(0,0,0,.5)!important}
-.modal-handle{width:36px!important;height:3px!important;background:var(--border2)!important;border-radius:2px!important;margin:10px auto!important}
-.modal-ttl{font-size:16px!important;font-weight:600!important;color:var(--text)!important;letter-spacing:-.015em!important}
-.modal-hd{padding:12px 18px!important;border-bottom:1px solid var(--border)!important}
-
-/* ── Inputs & textareas ── */
-input,textarea,select{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;color:var(--text)!important;font-family:var(--fb)!important;transition:border-color .15s ease}
-input:focus,textarea:focus,select:focus{border-color:var(--accent)!important;outline:none!important;box-shadow:0 0 0 2px var(--accent-dim)!important}
-input::placeholder,textarea::placeholder{color:var(--text3)!important}
-
-/* ── Chips ── */
-.chip{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:6px!important;color:var(--text2)!important;font-size:12.5px!important;font-weight:500!important;padding:7px 13px!important;transition:background .12s,border-color .12s,color .12s}
-.chip.active{background:var(--accent-dim)!important;border-color:var(--accent-border)!important;color:var(--text)!important}
-
-/* ── Primary buttons ── */
-.pw-btn,.ob-btn-p{
-  background:var(--text)!important;color:var(--bg)!important;
-  border-radius:var(--r)!important;font-weight:600!important;
-  font-size:14px!important;border:none!important;
-  box-shadow:none!important;
-  transition:opacity .15s ease,transform .12s ease!important;
-}
-.pw-btn:active,.ob-btn-p:active{opacity:.85!important;transform:scale(.98)!important}
-
-/* ── Stat cards ── */
-.stat-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.stat-val{font-size:22px!important;font-weight:700!important;letter-spacing:-.03em!important;font-family:var(--fb)!important}
-.stat-lbl{font-size:10.5px!important;font-weight:500!important;letter-spacing:.04em!important;color:var(--text2)!important}
-
-/* ── Prof / settings cards ── */
-.prof-card,.field-wrap{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.field-lbl{font-size:10.5px!important;font-weight:600!important;letter-spacing:.06em!important;color:var(--text2)!important;text-transform:uppercase!important}
-.prof-name{font-size:17px!important;font-weight:700!important;letter-spacing:-.02em!important}
-.prof-handle{font-size:12px!important;color:var(--text2)!important}
-
-/* ── Results / scan header ── */
-.res-hd{background:var(--bg)!important;border-bottom:1px solid var(--border)!important}
-.res-title{font-size:15px!important;font-weight:600!important;letter-spacing:-.01em!important}
-.rescan-btn{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:8px!important;color:var(--text2)!important;font-size:12px!important;font-weight:500!important}
-
-/* ── Format picker ── */
-.fmt-btn{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important;transition:background .12s,border-color .12s!important}
-.fmt-btn:active{background:var(--s2)!important}
-.fmt-btn.selected{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-.fmt-btn-name{font-size:13px!important;font-weight:600!important;color:var(--text)!important}
-.fmt-btn-desc{font-size:11.5px!important;color:var(--text2)!important}
-.fmt-go-btn{background:var(--text)!important;color:var(--bg)!important;border-radius:var(--r)!important;font-weight:600!important;box-shadow:none!important}
-
-/* ── Director chat ── */
-.dir-msg-ai,.dir-msg-user{border-radius:var(--r)!important;font-size:14px!important;line-height:1.6!important}
-
-/* ── Library tabs ── */
-.lib-tab{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;font-size:12px!important;font-weight:500!important;color:var(--text2)!important;padding:6px 14px!important}
-.lib-tab.active{background:var(--s2)!important;border-color:var(--border2)!important;color:var(--text)!important}
-.lib-title{font-size:20px!important;font-weight:700!important;letter-spacing:-.02em!important;font-family:var(--fb)!important}
-
-/* ── Paywall / upgrade modal ── */
-.pw-plan{font-size:13px!important;font-weight:600!important;color:var(--text)!important}
-.pw-price{font-size:32px!important;font-weight:700!important;letter-spacing:-.04em!important}
-.pw-feat{font-size:13px!important;color:var(--text2)!important}
-
-/* ── Toast ── */
-.toast{background:var(--s1)!important;border:1px solid var(--border2)!important;border-radius:var(--r)!important;box-shadow:var(--sh)!important;color:var(--text)!important;font-size:13px!important;font-weight:500!important}
-
-/* ── Back button ── */
-.back-btn{width:34px!important;height:34px!important;border-radius:8px!important;background:var(--s2)!important;border:1px solid var(--border)!important;color:var(--text2)!important;font-size:15px!important}
-.back-btn:active{background:var(--s3)!important}
-
-/* ── Streak pill ── */
-.streak-pill{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:20px!important;font-size:12px!important;color:var(--text)!important;padding:5px 12px!important;font-weight:500!important}
-
-/* ── Home logo ── */
-.home-logo{font-size:19px!important;font-weight:700!important;letter-spacing:-.03em!important;font-family:var(--fb)!important}
-.home-logo em{font-style:normal;opacity:.45}
-
-/* ── Section titles ── */
-.menu-title,.lib-count,.res-count{font-size:11px!important;font-weight:600!important;letter-spacing:.05em!important;text-transform:uppercase!important;color:var(--text2)!important}
-
-/* ── Shotlist / result detail ── */
-.sh-title{font-size:16px!important;font-weight:700!important;letter-spacing:-.015em!important}
-.sh-lbl{font-size:10px!important;font-weight:600!important;letter-spacing:.06em!important;color:var(--text2)!important;text-transform:uppercase!important}
-.hook-box{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;font-size:13.5px!important;line-height:1.6!important}
-.detail-section{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important}
-
-/* ── Suppress all gradient blob backgrounds ── */
-.home-bg,.scan-ring::before,.scan-ring::after{display:none!important}
-
-/* ── Platform cards ── */
-.platform-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.platform-card.selected{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-.card-select{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.card-select.selected{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-
-/* ── Segment buttons ── */
-.seg-btn{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;color:var(--text2)!important;font-size:12px!important;font-weight:500!important}
-.seg-btn.active{background:var(--s2)!important;border-color:var(--border2)!important;color:var(--text)!important}
-
-/* ── Theme / Accent selector (appended to menu) ── */
-.accent-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s ease,border-color .12s ease;flex-shrink:0}
-.accent-dot.active{border-color:var(--text)!important;transform:scale(1.15)}
-.accent-dot:active{transform:scale(.9)}
-.theme-toggle{width:42px;height:24px;border-radius:12px;background:var(--s3);border:1px solid var(--border2);position:relative;cursor:pointer;transition:background .2s ease;flex-shrink:0}
-.theme-toggle.on{background:var(--accent)}
-.theme-toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--text);top:2px;left:2px;transition:transform .2s ease,background .2s ease}
-.theme-toggle.on::after{transform:translateX(18px);background:#fff}
-
-/* ── Swipe-to-delete ── */
-.swipe-row{border-radius:var(--r)!important}
-.swipe-delete-bg{border-radius:0 var(--r) var(--r) 0!important;background:var(--red)!important}
-
-/* ── Micro-interaction: button spring ── */
-button:active{transform:scale(.97)}
-.fmt-btn:active{transform:scale(.97)}
-
-
-/* ════════ PRESHOOT REDESIGN ════════ */
-body{font-family:var(--fb);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
-*{-webkit-tap-highlight-color:transparent}
-
-/* ── iOS floating pill nav ── */
-.bnav{position:fixed!important;bottom:16px!important;left:14px!important;right:14px!important;height:62px!important;background:rgba(18,18,24,.94)!important;backdrop-filter:blur(32px) saturate(200%)!important;-webkit-backdrop-filter:blur(32px) saturate(200%)!important;border-radius:22px!important;border:1px solid rgba(255,255,255,.09)!important;box-shadow:0 8px 32px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.06) inset!important;display:flex!important;align-items:center!important;padding:0 6px!important}
-[data-theme="light"] .bnav{background:rgba(248,248,252,.92)!important;border-color:rgba(0,0,0,.09)!important;box-shadow:0 8px 32px rgba(0,0,0,.14),0 1px 0 rgba(255,255,255,.9) inset!important}
-.bni{flex:1!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;cursor:pointer!important;padding:8px 0!important;color:var(--text3)!important;transition:opacity .12s ease!important;transform:none!important}
-.bni:active{opacity:.5!important;transform:none!important}
-.bni.active{color:var(--accent)!important}
-.bni-ico{display:flex!important;align-items:center!important;justify-content:center!important;transform:none!important;transition:none!important}
-.bni-ico svg,.bni.active .bni-ico svg{transform:none!important;transition:none!important}
-.bni-lbl{font-size:9.5px!important;font-weight:500!important;letter-spacing:.01em!important;color:inherit!important}
-/* Scan button = accent color */
-.bni-scan{width:48px!important;height:48px!important;border-radius:50%!important;background:var(--accent)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;margin-top:-14px!important;box-shadow:0 4px 16px rgba(0,0,0,.35)!important;transition:transform .12s ease,opacity .12s ease!important;flex-shrink:0!important}
-.bni-scan:active{transform:scale(.9)!important;opacity:.85!important}
-
-/* ── Screen ── */
-.screen{position:fixed!important;inset:0!important;display:none!important;flex-direction:column!important;background:var(--bg)!important;padding-bottom:calc(62px + 16px + 10px + env(safe-area-inset-bottom))!important}
-.screen.active{display:flex!important;animation:psIn .22s cubic-bezier(0.25,0.46,0.45,0.94) forwards!important}
-@keyframes psIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.sb{flex:1!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important;min-height:0!important}
-
-/* ── Scan ring uses accent ── */
-.scan-ring{width:156px!important;height:156px!important;border-radius:50%!important;background:var(--accent-dim)!important;border:1.5px solid var(--accent-border)!important;animation:none!important;box-shadow:none!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;transition:transform .15s ease,background .15s ease!important}
-.scan-ring:active{transform:scale(.95)!important;background:rgba(59,130,246,.18)!important}
-/* ── Streak uses accent ── */
-.streak-pill{background:var(--accent-dim)!important;border:1px solid var(--accent-border)!important;color:var(--accent)!important;border-radius:20px!important;padding:4px 12px!important;font-size:12px!important;font-weight:600!important}
-
-/* ── Cards ── */
-.ic{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.ic:active{background:var(--s2)!important;transform:none!important}
-.ic.saved{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-.ic-title{font-size:14px!important;font-weight:600!important;line-height:1.3!important;margin-bottom:4px!important;letter-spacing:-.01em!important;font-family:var(--fb)!important}
-.ic-hook{font-size:12px!important;color:var(--text2)!important;font-style:normal!important;line-height:1.55!important}
-.ic-why{font-size:11px!important;color:var(--accent)!important;font-weight:500!important}
-.ic-meta{padding:9px 14px 12px!important;border-top:1px solid var(--border)!important;display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important}
-.mc{font-size:10px!important;padding:3px 8px!important;border-radius:5px!important;font-weight:500!important}
-.ic-save{position:absolute!important;top:12px!important;right:12px!important;width:28px!important;height:28px!important;border-radius:6px!important;background:transparent!important;border:1px solid var(--border)!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important}
-.ic-save.saved{background:var(--accent-dim)!important;border-color:var(--accent-border)!important}
-
-/* ── Menu ── */
-.menu-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important;overflow:hidden!important}
-.menu-row{padding:13px 14px!important;border-bottom:1px solid var(--border)!important;display:flex!important;align-items:center!important;gap:12px!important;cursor:pointer!important;transition:background .12s ease!important;transform:none!important}
-.menu-row:last-child{border-bottom:none!important}
-.menu-row:active{background:var(--s2)!important;transform:none!important}
-.menu-ico{width:32px!important;height:32px!important;border-radius:8px!important;background:var(--s3)!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:15px!important;flex-shrink:0!important;box-shadow:none!important}
-.menu-row-title{font-size:13.5px!important;font-weight:500!important;color:var(--text)!important;margin-bottom:1px!important}
-.menu-row-sub{font-size:11.5px!important;color:var(--text2)!important;line-height:1.4!important}
-.menu-sec-title{font-size:10px!important;font-weight:600!important;letter-spacing:.08em!important;text-transform:uppercase!important;color:var(--text3)!important;margin-bottom:6px!important}
-.menu-arrow{color:var(--text3)!important;font-size:14px!important}
-
-/* ── Inputs ── */
-input,textarea,select{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;color:var(--text)!important;font-family:var(--fb)!important;transition:border-color .15s!important}
-input:focus,textarea:focus,select:focus{border-color:var(--accent)!important;outline:none!important;box-shadow:0 0 0 2px var(--accent-dim)!important}
-input::placeholder,textarea::placeholder{color:var(--text3)!important}
-
-/* ── Chips ── */
-.chip{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:6px!important;color:var(--text2)!important;font-size:12.5px!important;font-weight:500!important;padding:7px 13px!important;transition:background .12s,border-color .12s,color .12s!important;cursor:pointer!important}
-.chip.selected,.chip.active{background:var(--accent-dim)!important;border-color:var(--accent-border)!important;color:var(--text)!important}
-.seg-btn{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;color:var(--text2)!important;font-size:12px!important;font-weight:500!important}
-.seg-btn.active{background:var(--s2)!important;border-color:var(--border2)!important;color:var(--text)!important}
-.platform-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important;transition:background .12s,border-color .12s!important}
-.platform-card.selected,.platform-card.active{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-.card-select{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.card-select.selected,.card-select.active{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-
-/* ── Buttons ── */
-.pw-btn,.ob-btn-p,.fmt-go-btn{background:var(--text)!important;color:var(--bg)!important;border-radius:var(--r)!important;font-weight:600!important;font-size:14px!important;border:none!important;box-shadow:none!important;transition:opacity .15s!important}
-.pw-btn:active,.ob-btn-p:active,.fmt-go-btn:active{opacity:.8!important;transform:none!important}
-.rescan-btn{background:var(--s2)!important;border:1px solid var(--border)!important;border-radius:8px!important;color:var(--text2)!important;font-size:12px!important;font-weight:500!important}
-
-/* ── Format picker ── */
-.fmt-btn{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important;transition:background .12s,border-color .12s!important}
-.fmt-btn.selected{border-color:var(--accent-border)!important;background:var(--accent-dim)!important}
-
-/* ── Modals ── */
-.modal-ov{background:rgba(0,0,0,.7)!important;backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
-.modal-sheet{background:var(--s1)!important;border-radius:16px 16px 0 0!important;box-shadow:0 -1px 0 var(--border)!important}
-.modal-handle{width:36px!important;height:3px!important;background:var(--border2)!important;border-radius:2px!important;margin:10px auto!important}
-.modal-ttl{font-size:16px!important;font-weight:600!important;letter-spacing:-.01em!important}
-
-/* ── History cards ── */
-.hist-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-.hist-card:active{background:var(--s2)!important}
-
-/* ── Toast ── */
-.toast{background:var(--s1)!important;border:1px solid var(--border2)!important;border-radius:var(--r)!important;box-shadow:var(--sh)!important;color:var(--text)!important;font-size:13px!important;font-weight:500!important;bottom:calc(62px + 16px + 14px + env(safe-area-inset-bottom))!important}
-
-/* ── Director input bar ── */
-#dir-input-bar-wrap{bottom:calc(62px + 16px + env(safe-area-inset-bottom))!important}
-
-/* ── Stats ── */
-.stat-card{background:var(--s1)!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:none!important}
-
-/* ── Back button ── */
-.back-btn{width:34px!important;height:34px!important;border-radius:8px!important;background:var(--s2)!important;border:1px solid var(--border)!important;color:var(--text2)!important;font-size:15px!important;box-shadow:none!important;transform:none!important}
-.back-btn:active{background:var(--s3)!important;transform:none!important}
-
-/* ── Remove all transforms from interactive items (fixes border moving) ── */
-button:active{transform:none!important}
-.menu-row:active,.hist-card:active,.ic:active,.chip:active,.platform-card:active,.card-select:active,.fmt-btn:active{transform:none!important}
-
-/* ── Accent picker ── */
-.accent-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s,border-color .12s;flex-shrink:0}
-.accent-dot.active{border-color:var(--text)!important;transform:scale(1.18)}
-.theme-toggle{width:42px;height:24px;border-radius:12px;background:var(--s3);border:1px solid var(--border2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
-.theme-toggle.on{background:var(--accent)}
-.theme-toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--text);top:2px;left:2px;transition:transform .2s,background .2s}
-.theme-toggle.on::after{transform:translateX(18px);background:#fff}
 
 </style>
 </head>
@@ -1191,7 +852,7 @@ button:active{transform:none!important}
     <div class="fmt-sheet-handle"></div>
     <div class="fmt-sheet-hd">
       <div class="fmt-sheet-title">What kind of video?</div>
-      <div class="fmt-sheet-sub">Choose a format - all 6 ideas will be built around it.</div>
+      <div class="fmt-sheet-sub">Choose a format — all 6 ideas will be built around it.</div>
     </div>
     <div id="fmt-preview-wrap"></div>
     <div class="fmt-grid">
@@ -1259,7 +920,7 @@ button:active{transform:none!important}
       <textarea class="fmt-other-inp" id="fmt-other-inp" placeholder="Describe the kind of video you want...&#10;e.g. Behind-the-scenes, Day in the life, Cinematic b-roll" rows="2"></textarea>
     </div>
 
-    <!-- Extra details - always visible after format selected -->
+    <!-- Extra details — always visible after format selected -->
     <div id="fmt-extra-wrap" style="display:none;padding:10px 16px 0">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">Extra Details</div>
@@ -1297,7 +958,7 @@ button:active{transform:none!important}
       <div class="pw-sub">Unlimited scans, fresh trending ideas daily, and full shot guides.</div>
       <div class="pw-feats">
         <div class="pw-feat"><div class="pw-feat-ico">♾️</div>Unlimited daily scans</div>
-        <div class="pw-feat"><div class="pw-feat-ico">🎬</div>PreShoot Director - full AI assistant</div>
+        <div class="pw-feat"><div class="pw-feat-ico">🎬</div>PreShoot Director — full AI assistant</div>
         <div class="pw-feat"><div class="pw-feat-ico">📋</div>Step-by-step shoot guide per idea</div>
         <div class="pw-feat"><div class="pw-feat-ico">🔥</div>Trending formats updated daily</div>
         <div class="pw-feat"><div class="pw-feat-ico">🧠</div>AI personalised to your niche and gear</div>
@@ -1393,8 +1054,8 @@ button:active{transform:none!important}
         <span class="ob-eyebrow">The problem</span>
         <div class="ob-title">You are somewhere interesting. But nothing comes.</div>
         <div class="ob-sub">Every creator hits this wall. You have the camera, the location, the skill. But no idea. So you film nothing.</div>
-        <div style="margin-top:20px;width:100%;background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.2);border-radius:14px;padding:16px;opacity:0;animation:fadeUp .5s .45s forwards">
-          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(124,77,255,.7);margin-bottom:8px">PreShoot fixes this</div>
+        <div style="margin-top:20px;width:100%;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);border-radius:14px;padding:16px;opacity:0;animation:fadeUp .5s .45s forwards">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(74,158,255,.85);margin-bottom:8px">PreShoot fixes this</div>
           <div style="font-size:14px;color:rgba(255,255,255,.75);line-height:1.75">Take a photo of wherever you are. PreShoot reads the scene and gives you 6 specific video ideas tailored to what is actually in front of you.</div>
         </div>
       </div>
@@ -1441,14 +1102,14 @@ button:active{transform:none!important}
           <div class="ob-install-row"><div class="ob-install-num">1</div>Open PreShoot in Safari</div>
           <div class="ob-install-row"><div class="ob-install-num">2</div>Tap the Share button at the bottom</div>
           <div class="ob-install-row"><div class="ob-install-num">3</div>Tap Add to Home Screen</div>
-          <div class="ob-install-row"><div class="ob-install-num">4</div>Tap Add - done</div>
+          <div class="ob-install-row"><div class="ob-install-num">4</div>Tap Add — done</div>
         </div>
         <div class="ob-install">
           <div class="ob-install-hd"><span style="font-size:20px">🤖</span><div class="ob-install-os">Android</div></div>
           <div class="ob-install-row"><div class="ob-install-num">1</div>Open PreShoot in Chrome</div>
           <div class="ob-install-row"><div class="ob-install-num">2</div>Tap the three dots menu top right</div>
           <div class="ob-install-row"><div class="ob-install-num">3</div>Tap Add to Home Screen</div>
-          <div class="ob-install-row"><div class="ob-install-num">4</div>Tap Add - done</div>
+          <div class="ob-install-row"><div class="ob-install-num">4</div>Tap Add — done</div>
         </div>
       </div>
 
@@ -1463,29 +1124,31 @@ button:active{transform:none!important}
 
 <!-- ═══ HOME ═══ -->
 <div class="screen" id="screen-home">
+  <div class="home-kinetic" id="home-kinetic"></div>
+  <div class="home-inner">
   <div class="home-hd">
     <div class="home-logo">Pre<span>Shoot</span></div>
     <div class="streak-pill">🔥 <span id="streak-n">0 days</span></div>
   </div>
   <div class="scan-zone">
     <div class="scan-ring" onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('cam-in').value='';document.getElementById('cam-in').click();" id="scan-ring"><span style="font-size:56px">📸</span></div>
-    <div><div class="scan-lbl">Take a photo</div><div class="scan-sub">Take a clear photo of your location - the more detail the AI can see, the better your ideas</div></div>
+    <div><div class="scan-lbl">Take a photo</div><div class="scan-sub" style="font-size:13px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px">Take a clear photo of your location — the more detail the AI can see, the better your ideas</div></div>
     
-    <!-- Camera Roll Upload Button -->
-    <button onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('gal-in').value='';document.getElementById('gal-in').click();" style="background:var(--s2);border:1.5px solid var(--border);border-radius:14px;padding:12px 24px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;font-family:var(--fb);display:flex;align-items:center;gap:10px;margin-top:-8px" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''">
+    <button class="upload-btn" onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('gal-in').value='';document.getElementById('gal-in').click();" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''">
       <span style="font-size:20px">🖼️</span>
       <span>Upload from Camera Roll</span>
     </button>
     
     <div class="usage-bar" id="usage-bar"></div>
-    <div onclick="openDirector()" style="width:100%;max-width:320px;background:var(--s2);border:1.5px solid rgba(124,77,255,.3);border-radius:16px;padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:transform .15s" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''">
-      <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🎬</div>
+    <div class="director-card" onclick="openDirector()" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''">
+      <div class="director-card-ico">🎬</div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div>
+        <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1628;padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div>
         <div style="font-size:11px;color:var(--text2);line-height:1.4">Your AI assistant for filming, editing and beyond</div>
       </div>
       <div style="color:var(--text3);font-size:16px">→</div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -1502,7 +1165,7 @@ button:active{transform:none!important}
   <div class="scene-strip" id="scene-strip"><div style="width:100%;height:100%;background:var(--s2)"></div></div>
   <div class="sb">
     <div class="ideas-list" id="ideas-list"></div>
-    <button onclick="openShotlistDirector()" style="margin:0 16px 20px;padding:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--fd);display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 20px rgba(124,77,255,.3)">
+    <button onclick="openShotlistDirector()" style="margin:0 16px 20px;padding:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1628;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--fd);display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 24px rgba(74,158,255,.35)">
       <span>🎬 Generate Shotlist</span>
       <span id="shotlist-lock" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:8px;font-weight:800">PRO</span>
     </button>
@@ -1527,7 +1190,7 @@ button:active{transform:none!important}
     <div class="menu-sec">
       <div class="menu-sec-title">Appearance</div>
       <div class="menu-card">
-        <div class="menu-row" onclick="openM('appear-modal')"><div class="menu-ico" style="background:rgba(124,77,255,.12)">🎨</div><div class="menu-info"><div class="menu-row-title">Theme and colours</div><div class="menu-row-sub">Dark, light, auto and accent colours</div></div><div class="menu-arrow">→</div></div>
+        <div class="menu-row" onclick="openM('appear-modal')"><div class="menu-ico" style="background:rgba(74,158,255,.12)">🎨</div><div class="menu-info"><div class="menu-row-title">Theme and colours</div><div class="menu-row-sub">Dark, light, auto and accent colours</div></div><div class="menu-arrow">→</div></div>
       </div>
     </div>
     <div class="menu-sec">
@@ -1544,23 +1207,23 @@ button:active{transform:none!important}
         <div class="menu-row" onclick="openNiche()"><div class="menu-ico" style="background:rgba(0,229,160,.1)">🎯</div><div class="menu-info"><div class="menu-row-title">Creator Profile & Niche</div><div class="menu-row-sub" id="niche-summary">Identity, goals, workflow</div></div><div class="menu-arrow">→</div></div>
         <div class="menu-row" onclick="openM('platform-modal');setTimeout(function(){document.querySelectorAll('#platform-modal .chip, #platform-modal .platform-card').forEach(function(el){el.classList.remove('selected','primary');var badge=el.querySelector('.platform-badge');if(badge)badge.remove();});loadPlatformUI();},50)"><div class="menu-ico" style="background:rgba(255,92,53,.1)">📱</div><div class="menu-info"><div class="menu-row-title">Platform Focus</div><div class="menu-row-sub">TikTok, Reels, YouTube, more</div></div><div class="menu-arrow">→</div></div>
         <div class="menu-row" onclick="openM('aesthetic-modal');setTimeout(function(){document.querySelectorAll('#aesthetic-modal .chip').forEach(function(el){el.classList.remove('selected');});loadAestheticUI();},50)"><div class="menu-ico" style="background:rgba(255,179,0,.1)">🎨</div><div class="menu-info"><div class="menu-row-title">Aesthetic & Style</div><div class="menu-row-sub">Visual identity, camera, editing</div></div><div class="menu-arrow">→</div></div>
-        <div class="menu-row" onclick="openM('gear-modal');setTimeout(function(){document.querySelectorAll('#gear-modal .chip').forEach(function(el){el.classList.remove('selected');});loadGearUI();},50)"><div class="menu-ico" style="background:rgba(124,77,255,.1)">📷</div><div class="menu-info"><div class="menu-row-title">Gear & Setup</div><div class="menu-row-sub">Camera, lens, editing tools</div></div><div class="menu-arrow">→</div></div>
+        <div class="menu-row" onclick="openM('gear-modal');setTimeout(function(){document.querySelectorAll('#gear-modal .chip').forEach(function(el){el.classList.remove('selected');});loadGearUI();},50)"><div class="menu-ico" style="background:rgba(74,158,255,.1)">📷</div><div class="menu-info"><div class="menu-row-title">Gear & Setup</div><div class="menu-row-sub">Camera, lens, editing tools</div></div><div class="menu-arrow">→</div></div>
       </div>
     </div>
     <div class="menu-sec">
       <div class="menu-sec-title">Data</div>
       <div class="menu-card">
-        <div class="menu-row" onclick="S.plan==='pro'?exportLib():openM('pw-modal')"><div class="menu-ico" style="background:rgba(124,77,255,.1)">📤</div><div class="menu-info"><div class="menu-row-title">Export saved ideas</div><div class="menu-row-sub">Copy all to clipboard</div></div><div class="menu-arrow">→</div></div>
+        <div class="menu-row" onclick="S.plan==='pro'?exportLib():openM('pw-modal')"><div class="menu-ico" style="background:rgba(74,158,255,.1)">📤</div><div class="menu-info"><div class="menu-row-title">Export saved ideas</div><div class="menu-row-sub">Copy all to clipboard</div></div><div class="menu-arrow">→</div></div>
         <div class="menu-row" onclick="clearHist()"><div class="menu-ico" style="background:rgba(255,71,87,.1)">🗑</div><div class="menu-info"><div class="menu-row-title">Clear scan history</div><div class="menu-row-sub">Resets anti-repetition memory</div></div><div class="menu-arrow">→</div></div>
       </div>
     </div>
     <div class="menu-sec">
       <div class="menu-sec-title">About</div>
       <div class="menu-card">
-        <div class="menu-row" onclick="showToast('PreShoot v1.0','✨')"><div class="menu-ico" style="background:rgba(124,77,255,.1)">ℹ️</div><div class="menu-info"><div class="menu-row-title">Version</div><div class="menu-row-sub">PreShoot v1.0</div></div><div class="menu-arrow" style="font-size:12px;color:var(--text2)">v2.0</div></div>
+        <div class="menu-row" onclick="showToast('PreShoot v1.0','✨')"><div class="menu-ico" style="background:rgba(74,158,255,.1)">ℹ️</div><div class="menu-info"><div class="menu-row-title">Version</div><div class="menu-row-sub">PreShoot v1.0</div></div><div class="menu-arrow" style="font-size:12px;color:var(--text2)">v2.0</div></div>
         <div class="menu-row" onclick="window.open('https://discord.gg/sjxyeGmTsH','_blank')"><div class="menu-ico" style="background:rgba(88,101,242,.15)"><span style="font-size:18px">💬</span></div><div class="menu-info"><div class="menu-row-title" style="color:var(--accent)">JOIN THE COMMUNITY!</div><div class="menu-row-sub">Chat, share ideas, get early features</div></div><div class="menu-arrow">→</div></div>
         <div class="menu-row" onclick="openM('privacy-modal')"><div class="menu-ico" style="background:rgba(0,229,160,.1)">🔒</div><div class="menu-info"><div class="menu-row-title">Privacy Policy</div><div class="menu-row-sub">How we handle your data</div></div><div class="menu-arrow">→</div></div>
-        <div class="menu-row" onclick="openM('terms-modal')"><div class="menu-ico" style="background:rgba(124,77,255,.1)">📄</div><div class="menu-info"><div class="menu-row-title">Terms of Service</div><div class="menu-row-sub">Our terms and conditions</div></div><div class="menu-arrow">→</div></div>
+        <div class="menu-row" onclick="openM('terms-modal')"><div class="menu-ico" style="background:rgba(74,158,255,.1)">📄</div><div class="menu-info"><div class="menu-row-title">Terms of Service</div><div class="menu-row-sub">Our terms and conditions</div></div><div class="menu-arrow">→</div></div>
       </div>
     </div>
     <div style="height:20px"></div>
@@ -1597,7 +1260,7 @@ button:active{transform:none!important}
   <div style="display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0" id="dir-pills"></div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px;padding-bottom:200px;display:flex;flex-direction:column;gap:12px;min-height:0" id="dir-msgs"></div>
   <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:9px;align-items:flex-end;padding-bottom:12px;flex-shrink:0;position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:0;right:0;background:rgba(6,6,15,.98);z-index:300;border-top:1px solid var(--border)">
-    <textarea id="dir-input" placeholder="Ask anything - filming, editing, gear, strategy..." style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--text);outline:none;resize:none;min-height:42px;max-height:120px;font-family:var(--fb);line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDirector()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+    <textarea id="dir-input" placeholder="Ask anything — filming, editing, gear, strategy..." style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--text);outline:none;resize:none;min-height:42px;max-height:120px;font-family:var(--fb);line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDirector()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
     <button id="dir-send-btn" onclick="sendDirector()" style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:18px;flex-shrink:0;transition:opacity .15s">→</button>
   </div>
 </div>
@@ -1798,7 +1461,7 @@ button:active{transform:none!important}
       <!-- Platform Selection -->
       <div class="pers-sec">
         <div class="pers-sec-title">Your Platforms (select all that apply)</div>
-        <div class="platform-card" data-platform="TikTok" onclick="togglePlatform(this,'tiktok')">
+        <div class="platform-card" onclick="togglePlatform(this,'tiktok')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#000,#EE1D52);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📱</div>
             <div style="flex:1">
@@ -1808,7 +1471,7 @@ button:active{transform:none!important}
           </div>
         </div>
         
-        <div class="platform-card" data-platform="Instagram Reels" onclick="togglePlatform(this,'reels')">
+        <div class="platform-card" onclick="togglePlatform(this,'reels')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#833AB4,#E1306C,#F56040);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📷</div>
             <div style="flex:1">
@@ -1818,7 +1481,7 @@ button:active{transform:none!important}
           </div>
         </div>
         
-        <div class="platform-card" data-platform="YouTube Shorts" onclick="togglePlatform(this,'shorts')">
+        <div class="platform-card" onclick="togglePlatform(this,'shorts')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#FF0000,#CC0000);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">▶️</div>
             <div style="flex:1">
@@ -1828,7 +1491,7 @@ button:active{transform:none!important}
           </div>
         </div>
         
-        <div class="platform-card" data-platform="YouTube" onclick="togglePlatform(this,'youtube')">
+        <div class="platform-card" onclick="togglePlatform(this,'youtube')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#FF0000,#880000);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🎥</div>
             <div style="flex:1">
@@ -1838,7 +1501,7 @@ button:active{transform:none!important}
           </div>
         </div>
         
-        <div class="platform-card" data-platform="Twitter/X" onclick="togglePlatform(this,'twitter')">
+        <div class="platform-card" onclick="togglePlatform(this,'twitter')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#000,#333);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">𝕏</div>
             <div style="flex:1">
@@ -1848,7 +1511,7 @@ button:active{transform:none!important}
           </div>
         </div>
         
-        <div class="platform-card" data-platform="LinkedIn" onclick="togglePlatform(this,'linkedin')">
+        <div class="platform-card" onclick="togglePlatform(this,'linkedin')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#0077B5,#005582);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">💼</div>
             <div style="flex:1">
@@ -1858,7 +1521,7 @@ button:active{transform:none!important}
           </div>
         </div>
         
-        <div class="platform-card" data-platform="Pinterest" onclick="togglePlatform(this,'pinterest')">
+        <div class="platform-card" onclick="togglePlatform(this,'pinterest')">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#E60023,#BD081C);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📌</div>
             <div style="flex:1">
@@ -2101,11 +1764,11 @@ button:active{transform:none!important}
 
 <!-- ═══ NAV ═══ -->
 <nav class="bnav hidden">
-  <div class="bni active" id="nav-home" onclick="goTab('home')"><div class="bni-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div class="bni-lbl">Home</div></div>
-  <div class="bni" id="nav-library" onclick="goTab('library')"><div class="bni-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></div><div class="bni-lbl">Library</div></div>
-  <div class="bni" id="nav-scan" onclick="openPicker()"><div class="bni-scan"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div><div class="bni-lbl">Scan</div></div>
-  <div class="bni" id="nav-menu" onclick="goTab('menu')"><div class="bni-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></div><div class="bni-lbl">Menu</div></div>
-  <div class="bni" id="nav-profile" onclick="goTab('profile')"><div class="bni-ico" id="nav-prof-ico" style="width:26px;height:26px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--s3);color:var(--text2)"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="4.5"/><path d="M3.5 21.5c0-4.694 3.806-8.5 8.5-8.5s8.5 3.806 8.5 8.5" fill="currentColor"/></svg></div><div class="bni-lbl">Profile</div></div>
+  <div class="bni active" id="nav-home" onclick="goTab('home')"><div class="bni-ico">🏠</div><div class="bni-lbl">Home</div></div>
+  <div class="bni" id="nav-library" onclick="goTab('library')"><div class="bni-ico">🔖</div><div class="bni-lbl">Library</div></div>
+  <div class="bni" id="nav-scan" onclick="openPicker()"><div class="bni-scan"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="7" stroke="#fff" stroke-width="2"/><circle cx="11" cy="11" r="3" fill="#fff"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div class="bni-lbl" style="margin-top:6px">Scan</div></div>
+  <div class="bni" id="nav-menu" onclick="goTab('menu')"><div class="bni-ico">☰</div><div class="bni-lbl">Menu</div></div>
+  <div class="bni" id="nav-profile" onclick="goTab('profile')"><div class="bni-ico" id="nav-prof-ico">👤</div><div class="bni-lbl">Profile</div></div>
 </nav>
 
 <script>
@@ -2160,7 +1823,7 @@ supa.auth.onAuthStateChange(function(event, session) {
   }
 });
 
-// Server-side plan check - replaces localStorage trust
+// Server-side plan check — replaces localStorage trust
 function checkPlanServerSide(userId, email) {
   fetch('/api/check-plan', {
     method: 'POST',
@@ -2180,11 +1843,11 @@ function checkPlanServerSide(userId, email) {
     if (dl) dl.style.display = serverPlan === 'pro' ? 'none' : 'inline';
   })
   .catch(function() {
-    // On network error - keep existing cached plan
+    // On network error — keep existing cached plan
   });
 }
 
-var FL = 1, MH = 40;
+var FL = 3, MH = 40;
 function gs(k,d){try{var v=localStorage.getItem('scout_'+k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function ss(k,v){try{localStorage.setItem('scout_'+k,JSON.stringify(v));}catch(e){}}
 
@@ -2203,7 +1866,7 @@ var S = {
   profile: gs('profile',{name:'PreShoot Creator',handle:'@creator',bio:'',avatar:null}),
   prefs: gs('prefs',{notif:false,hist:true,antirep:true}),
   theme: gs('theme','dark'),
-  accent: gs('accent','#7C4DFF'),
+  accent: gs('accent','#4A9EFF'),
   authUser: gs('auth_user',null),
   pwPlan: 'y',
   niche: gs('niche',{platform:'TikTok and Reels',contentType:'',skillLevel:'intermediate',style:'',gear:'',goals:'',extraContext:''}),
@@ -2292,7 +1955,7 @@ function goTab(tab) {
   if (dirScreen && dirScreen.classList.contains('active')) {
     dirScreen.classList.remove('active');
   }
-  // Switch screens instantly - no delays, no timing bugs
+  // Switch screens instantly — no delays, no timing bugs
   ['home','results','library','menu','profile'].forEach(function(t) {
     var sc = document.getElementById('screen-' + t);
     var ni = document.getElementById('nav-' + t);
@@ -2413,7 +2076,7 @@ function trendFmts(){var seed=Math.floor(Date.now()/(86400000*7)),sh=TRENDS.slic
 function buildPrompt(){
   var n=S.niche, ae=S.aesthetic||{}, gr=S.gear||{}, pf=S.platformFocus||{};
 
-  // Creator context - only include fields that are set
+  // Creator context — only include fields that are set
   var ctx=[];
   var niche=n.primaryNiche||n.contentType; if(niche) ctx.push('Niche: '+niche);
   if(n.secondaryNiche) ctx.push('Also: '+n.secondaryNiche);
@@ -2435,16 +2098,16 @@ function buildPrompt(){
   var creatorCtx = ctx.length ? 'CREATOR: '+ctx.join(' | ')+'\n' : '';
   var avoid = pastIdeas().length ? 'Avoid repeating: '+pastIdeas().slice(0,6).join(', ')+'.\n' : '';
 
-  // Format instructions - tight
+  // Format instructions — tight
   var fmts={
     advert:'FORMAT: Advertisement. Sell via desire, emotion, CTA. Premium, intentional, brand-driven.',
     ugc:'FORMAT: UGC. Raw, authentic, first-person. No polish. Genuine reaction, personal voice.',
     educational:'FORMAT: Educational. Teach something valuable. Clear outcome. Tutorial/explainer/tips structure.',
     viral:'FORMAT: Viral. Engineered for shares and rewatches. Pattern interrupts, surprise, emotional payoff. Use current trending structures for '+(plat||'short-form video')+'.',
-    storytelling:'FORMAT: Storytelling. Full narrative arc - setup, tension, resolution. Emotion and payoff.',
+    storytelling:'FORMAT: Storytelling. Full narrative arc — setup, tension, resolution. Emotion and payoff.',
     trialreel:'FORMAT: Trial Reel. Testing/experiencing something live. Honest, unscripted, real reaction.',
     meme:'FORMAT: Meme. Comedy-first. Relatable, trending formats, self-aware humour. Tags-a-friend energy.',
-    other:'FORMAT: '+(S.selectedFormatCustom||'Custom - apply user-described format to all ideas.')
+    other:'FORMAT: '+(S.selectedFormatCustom||'Custom — apply user-described format to all ideas.')
   };
   var formatLine = fmts[S.selectedFormat||'viral'];
   var extraLine = S.selectedFormatExtra ? 'EXTRA CONTEXT FROM CREATOR: '+S.selectedFormatExtra+'\n' : '';
@@ -2452,7 +2115,7 @@ function buildPrompt(){
   return 'You are an expert social media creative director.\n\n'+
     creatorCtx+avoid+formatLine+'\n'+extraLine+'\n'+
     'PHOTO ANALYSIS:\n'+
-    '1. Identify the PRIMARY SUBJECT - the dominant, intended focus (e.g. "matte black Lamborghini Urus"). Be specific.\n'+
+    '1. Identify the PRIMARY SUBJECT — the dominant, intended focus (e.g. "matte black Lamborghini Urus"). Be specific.\n'+
     '2. Note lighting, environment, mood, angles as supporting context only.\n'+
     '3. ALL 6 ideas must centre on the primary subject. Background elements can enhance composition but never become the focus.\n\n'+
     'GENERATE 6 ideas. Each must:\n'+
@@ -2477,7 +2140,7 @@ function startLoad(){
   var el=document.createElement('div');
   el.id='load-ov';
   el.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(8,8,16,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(10px)';
-  el.innerHTML='<div style="width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.06);border-top-color:var(--accent);border-right-color:var(--accent2);animation:spin 1s linear infinite;display:flex;align-items:center;justify-content:center"><div style="width:62px;height:62px;border-radius:50%;background:rgba(124,77,255,.1);display:flex;align-items:center;justify-content:center;font-size:26px">📸</div></div><div style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text)">Scanning...</div><div id="load-step" style="font-size:13px;color:var(--text2);text-align:center;max-width:240px;line-height:1.5">Identifying main subject...</div><div id="load-idea-count" style="display:none;background:rgba(124,77,255,.15);border:1px solid rgba(124,77,255,.25);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--accent)"></div>';
+  el.innerHTML='<div style="width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.06);border-top-color:var(--accent);border-right-color:var(--accent2);animation:spin 1s linear infinite;display:flex;align-items:center;justify-content:center"><div style="width:62px;height:62px;border-radius:50%;background:rgba(74,158,255,.1);display:flex;align-items:center;justify-content:center;font-size:26px">📸</div></div><div style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text)">Scanning...</div><div id="load-step" style="font-size:13px;color:var(--text2);text-align:center;max-width:240px;line-height:1.5">Identifying main subject...</div><div id="load-idea-count" style="display:none;background:rgba(74,158,255,.15);border:1px solid rgba(74,158,255,.25);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--accent)"></div>';
   document.body.appendChild(el);
 }
 function setLoadStep(txt){var el=document.getElementById('load-step');if(el)el.textContent=txt;}
@@ -2503,7 +2166,7 @@ function extractIdeasFromBuffer(txt){
 }
 
 function finalParse(textBuffer){
-  // If textBuffer is empty, streaming didn't work - try non-streaming fallback
+  // If textBuffer is empty, streaming didn't work — try non-streaming fallback
   if(!textBuffer||textBuffer.length<20){
     console.warn('PreShoot: textBuffer empty, falling back to non-streaming');
     stopLoad();
@@ -2537,7 +2200,7 @@ function finalParse(textBuffer){
         throw parseErr;
       }
     }
-    if(!parsed.ideas||!parsed.ideas.length){showToast('Try again - point at something interesting','⚠️');return;}
+    if(!parsed.ideas||!parsed.ideas.length){showToast('Try again — point at something interesting','⚠️');return;}
     S.ideas=parsed.ideas;
     S.sceneInfo={type:parsed.sceneType||'general',label:parsed.sceneLabel||'Your photo',mainSubject:parsed.mainSubject||''};
     if(S.prefs.hist) addHistory(S.ideas,parsed.sceneType,parsed.sceneLabel);
@@ -2548,7 +2211,7 @@ function finalParse(textBuffer){
   }catch(e){
     console.error('PreShoot finalParse error:',e.message,'buffer length:',textBuffer.length,'preview:',textBuffer.slice(0,200));
     stopLoad();
-    showToast('Error - try again','⚠️');
+    showToast('Error — try again','⚠️');
   }
 }
 
@@ -2568,17 +2231,17 @@ function startScanFallback(){
     stopLoad();
     if(data.error){showToast((data.error.message||'API error').slice(0,70),'⚠️');return;}
     var block=(data.content||[]).find(function(b){return b.type==='text';});
-    if(!block){showToast('No response - try again','⚠️');return;}
+    if(!block){showToast('No response — try again','⚠️');return;}
     finalParse(block.text||'');
   })
   .catch(function(err){
     stopLoad();
-    showToast('Network error - check connection','⚠️');
+    showToast('Network error — check connection','⚠️');
   });
 }
 
 function startScan(){
-  if(!S.scanB64||S.scanB64.length<500||S.scanB64.length>350000){showToast('Photo issue - try another','⚠️');return;}
+  if(!S.scanB64||S.scanB64.length<500||S.scanB64.length>350000){showToast('Photo issue — try another','⚠️');return;}
   startLoad();
   bumpScans();
   var tot=gs('total_scans',0)+1; ss('total_scans',tot);
@@ -2644,7 +2307,7 @@ function startScan(){
   })
   .catch(function(err){
     stopLoad();
-    showToast(err.name==='TypeError'?'Network error - check connection':'Error: '+err.message.slice(0,60),'⚠️');
+    showToast(err.name==='TypeError'?'Network error — check connection':'Error: '+err.message.slice(0,60),'⚠️');
   });
 }
 
@@ -2704,8 +2367,8 @@ function openIdea(idx,src){
   if(item.whyItWorks) h+='<div class="sh-sec"><div class="sh-lbl">Why this works</div><div class="why-box">'+(item.whyItWorks||'')+'</div></div>';
   h+='<div class="sh-sec"><div class="sh-lbl">How to film it</div><div class="shot-box">'+(item.shotAngle||'')+'</div></div>';
   if(item.editingStyle) h+='<div class="sh-sec"><div class="sh-lbl">Editing style</div><div style="font-size:14px;line-height:1.6;color:var(--text)">'+item.editingStyle+'</div></div>';
-  if(item.platformTips) h+='<div class="sh-sec"><div class="sh-lbl">Platform tips - TikTok vs Reels vs Shorts</div><div style="font-size:13px;line-height:1.7;color:var(--text2)">'+item.platformTips+'</div></div>';
-  if(item.hashtags && item.hashtags.length) h+='<div class="sh-sec"><div class="sh-lbl">Hashtags</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+item.hashtags.map(function(t){return '<span style="background:rgba(124,77,255,.1);border:1px solid rgba(124,77,255,.2);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--accent)">'+t+'</span>';}).join('')+'</div></div>';
+  if(item.platformTips) h+='<div class="sh-sec"><div class="sh-lbl">Platform tips — TikTok vs Reels vs Shorts</div><div style="font-size:13px;line-height:1.7;color:var(--text2)">'+item.platformTips+'</div></div>';
+  if(item.hashtags && item.hashtags.length) h+='<div class="sh-sec"><div class="sh-lbl">Hashtags</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+item.hashtags.map(function(t){return '<span style="background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.2);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--accent)">'+t+'</span>';}).join('')+'</div></div>';
   h+='<div class="sh-sec"><div class="sh-lbl">Audio style</div><div style="font-size:14px;line-height:1.6;color:var(--text)">'+(item.audio||'')+'</div></div>';
   h+='<div class="sh-sec"><div class="sh-row"><div style="flex:1"><div class="sh-lbl">Difficulty</div><div style="font-size:15px;font-weight:600;color:var(--text)">'+(item.difficulty||'Easy')+'</div></div><div style="flex:1"><div class="sh-lbl">Film time</div><div style="font-size:15px;font-weight:600;color:var(--text)">'+(item.filmTime||'5 mins')+'</div></div></div></div>';
   h+='<div class="sh-actions">';
@@ -2737,7 +2400,7 @@ function rateIdea(good){
   var ratings=gs('ratings',[]);
   var item=(S.activeSource==='results'?S.ideas:[])[S.activeIdea];
   if(item){ratings.push({title:item.title,good:good,ts:Date.now()});if(ratings.length>100)ratings=ratings.slice(-100);ss('ratings',ratings);}
-  showToast(good?'More like this noted':'Got it - noted');
+  showToast(good?'More like this noted':'Got it — noted');
   shCloseForce();
 }
 function shareIdea(){
@@ -2758,13 +2421,13 @@ function renderLib(){
   var countEl=document.getElementById('lib-count');
   if(S.libTab==='trending'){
     countEl.textContent='Coming soon';
-    grid.innerHTML='<div class="lib-empty"><div class="lib-empty-ico">🔥</div><div class="lib-empty-ttl">Trending</div><div style="display:inline-block;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;margin:8px 0 12px">COMING SOON</div><div class="lib-empty-sub">Real-time trending formats and sounds - updated daily.</div></div>';
+    grid.innerHTML='<div class="lib-empty"><div class="lib-empty-ico">🔥</div><div class="lib-empty-ttl">Trending</div><div style="display:inline-block;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;margin:8px 0 12px">COMING SOON</div><div class="lib-empty-sub">Real-time trending formats and sounds — updated daily.</div></div>';
     return;
   }
   if(S.libTab==='history'){
     var hist=getHistory();
     countEl.textContent=hist.length+' scans';
-    if(!hist.length){grid.innerHTML='<div class="lib-empty"><div class="lib-empty-ico">📷</div><div class="lib-empty-ttl">No scans yet</div><div class="lib-empty-sub">Take a photo to generate ideas - your scan history will appear here.</div></div>';return;}
+    if(!hist.length){grid.innerHTML='<div class="lib-empty"><div class="lib-empty-ico">📷</div><div class="lib-empty-ttl">No scans yet</div><div class="lib-empty-sub">Take a photo to generate ideas — your scan history will appear here.</div></div>';return;}
     var h='';
     hist.forEach(function(entry,i){
       var label=entry.sceneLabel||entry.sceneType||'Photo';
@@ -2814,22 +2477,11 @@ function openSession(i){
 
 // ── HOME ──
 function updateStreak(){
-  var today = new Date().toDateString();
-  var sk = gs('streak',{count:0,lastDay:'',longest:0});
-  if(sk.lastDay !== today){
-    var yesterday = new Date();
-    yesterday.setDate(yesterday.getDate()-1);
-    sk.count = (sk.lastDay === yesterday.toDateString()) ? (sk.count||0)+1 : 1;
-    sk.lastDay = today;
-    sk.longest = Math.max(sk.longest||0, sk.count);
-    ss('streak',sk);
-  }
-  S.streak = sk.count||0;
-  document.querySelectorAll('.streak-pill').forEach(function(el){
-    el.textContent = S.streak+' day'+(S.streak!==1?'s':'')+' streak';
-  });
+  var st=gs('streak',{count:0,last:''});
+  var t=new Date().toDateString(),y=new Date(Date.now()-86400000).toDateString();
+  if(st.last===t) return;
+  st.count=st.last===y?st.count+1:1; st.last=t; ss('streak',st);
 }
-
 function getStreak(){var st=gs('streak',{count:0,last:''}),t=new Date().toDateString(),y=new Date(Date.now()-86400000).toDateString();return(st.last===t||st.last===y)?st.count:0;}
 function renderHome(){
   var streak=getStreak();
@@ -2878,45 +2530,12 @@ function renderProf(){
     h+='</div>';
   }
   h+='<div class="prof-stats"><div class="prof-stat"><div class="prof-stat-num">'+total+'</div><div class="prof-stat-lbl">Scans</div></div><div class="prof-stat"><div class="prof-stat-num">'+saved+'</div><div class="prof-stat-lbl">Saved</div></div><div class="prof-stat"><div class="prof-stat-num">'+streak+'</div><div class="prof-stat-lbl">Streak</div></div></div>';
-  h+='<div class="menu-sec"><div class="menu-sec-title">Plan</div><div class="menu-card"><div class="menu-row" onclick="openM(\'pw-modal\')"><div class="menu-ico" style="background:rgba(124,77,255,.12)">✨</div><div class="menu-info"><div class="menu-row-title">'+(isPro?'PreShoot Pro - Unlimited':'Free - 1 scan/day')+'</div><div class="menu-row-sub">'+(isPro?'All features unlocked':'Tap to upgrade')+'</div></div><div class="menu-arrow">→</div></div>'+(isPro?'<div class="menu-row" onclick="manageSubscription()"><div class="menu-ico" style="background:rgba(0,229,160,.1)">💳</div><div class="menu-info"><div class="menu-row-title">Manage Subscription</div><div class="menu-row-sub">Change plan or cancel anytime</div></div><div class="menu-arrow">→</div></div>':'')+'</div></div>';
+  h+='<div class="menu-sec"><div class="menu-sec-title">Plan</div><div class="menu-card"><div class="menu-row" onclick="openM(\'pw-modal\')"><div class="menu-ico" style="background:rgba(74,158,255,.12)">✨</div><div class="menu-info"><div class="menu-row-title">'+(isPro?'PreShoot Pro — Unlimited':'Free — 3 scans/day')+'</div><div class="menu-row-sub">'+(isPro?'All features unlocked':'Tap to upgrade')+'</div></div><div class="menu-arrow">→</div></div>'+(isPro?'<div class="menu-row" onclick="manageSubscription()"><div class="menu-ico" style="background:rgba(0,229,160,.1)">💳</div><div class="menu-info"><div class="menu-row-title">Manage Subscription</div><div class="menu-row-sub">Change plan or cancel anytime</div></div><div class="menu-arrow">→</div></div>':'')+'</div></div>';
   if(user) h+='<div class="menu-sec"><div class="menu-card"><div class="menu-row" onclick="signOut()"><div class="menu-ico" style="background:rgba(255,71,87,.1)">🚪</div><div class="menu-info"><div class="menu-row-title">Sign out</div><div class="menu-row-sub">'+user.email+'</div></div><div class="menu-arrow">→</div></div></div></div>';
-  h+='<div class="menu-sec" style="padding:0 0 4px"><div class="menu-sec-title">Appearance</div><div class="menu-card">';
-  // Theme toggle row
-  var isDark = document.documentElement.getAttribute('data-theme')!=='light';
-  h+='<div class="menu-row"><div class="menu-ico">'+
-    (isDark?'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>':'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>')+
-    '</div><div class="menu-info"><div class="menu-row-title">'+(isDark?'Dark mode':'Light mode')+'</div><div class="menu-row-sub">Tap to switch</div></div><div class="theme-toggle'+(isDark?' on':'')+'" onclick="toggleTheme()"></div></div>';
-  // Accent color picker
-  var savedAccent = gs('ps_accent','blue');
-  var accents = [{k:'blue',c:'#3B82F6'},{k:'green',c:'#22C55E'},{k:'orange',c:'#F97316'},{k:'red',c:'#EF4444'},{k:'cyan',c:'#06B6D4'}];
-  h+='<div class="menu-row" style="cursor:default"><div class="menu-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></div><div class="menu-info"><div class="menu-row-title">Accent colour</div><div class="menu-row-sub">Choose your highlight colour</div></div></div>';
-  h+='<div style="display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--border)">';
-  accents.forEach(function(a){
-    h+='<div class="accent-dot'+(a.k===savedAccent?' active':'')+'" style="background:'+a.c+'" onclick="applyAccent(\''+a.k+'\');renderMenu()"></div>';
-  });
-  h+='</div></div></div>';
-  h+='<div class="menu-sec"><div class="menu-sec-title">Appearance</div><div class="menu-card">';
-  var _dark=document.documentElement.getAttribute('data-theme')!=='light';
-  h+='<div class="menu-row" style="cursor:pointer" onclick="toggleTheme()">'+
-    '<div class="menu-ico" style="background:var(--s3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(_dark?'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>':'<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>')+'</svg></div>'+
-    '<div class="menu-info"><div class="menu-row-title">'+(_dark?'Dark mode':'Light mode')+'</div><div class="menu-row-sub">Switch interface theme</div></div>'+
-    '<div class="theme-toggle'+(_dark?' on':'')+'"></div></div>';
-  var _acc=gs('ps_accent','blue');
-  var _accents=[{k:'blue',c:'#3B82F6'},{k:'green',c:'#22C55E'},{k:'orange',c:'#F97316'},{k:'red',c:'#EF4444'},{k:'cyan',c:'#06B6D4'}];
-  h+='<div class="menu-row" style="flex-direction:column;align-items:flex-start;gap:12px;cursor:default">'+
-    '<div style="display:flex;align-items:center;gap:8px"><div class="menu-ico" style="background:var(--s3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></div>'+
-    '<div class="menu-info"><div class="menu-row-title">Accent colour</div></div></div>'+
-    '<div style="display:flex;gap:10px;align-items:center">';
-  _accents.forEach(function(a){h+='<div class="accent-dot'+(_acc===a.k?' active':'')+'" style="background:'+a.c+'" onclick="applyAccent(''+a.k+'');renderMenu()"></div>';});
-  h+='</div></div>';
-  h+='</div></div>';
   h+='<div style="height:20px"></div>';
   document.getElementById('prof-sb').innerHTML=h;
   var navIco=document.getElementById('nav-prof-ico');
-  if(navIco){
-    if(p.avatar){ navIco.innerHTML='<img src="'+p.avatar+'" style="width:26px;height:26px;border-radius:50%;object-fit:cover">'; }
-    else { navIco.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="4.5"/><path d="M3.5 21.5c0-4.694 3.806-8.5 8.5-8.5s8.5 3.806 8.5 8.5" fill="currentColor"/></svg>'; }
-  }
+  if(navIco) navIco.textContent=p.avatar?'':((p.name&&p.name[0])||'👤');
 }
 function openEditProf(){
   var p=S.profile;
@@ -2962,7 +2581,7 @@ function signOut(){
 
 // ── APPEARANCE ──
 var THEMES=[{id:'dark',label:'Dark',ico:'🌙',bg:'#080810',text:'#F0F0F8'},{id:'light',label:'Light',ico:'☀️',bg:'#F0F2F5',text:'#0F1623'},{id:'auto',label:'Auto',ico:'⚡',bg:'linear-gradient(135deg,#080810 50%,#F0F2F5 50%)',text:'transparent'}];
-var ACCENTS=[{c:'#7C4DFF',n:'Purple'},{c:'#FF5C35',n:'Orange'},{c:'#00E5A0',n:'Green'},{c:'#4F8EF7',n:'Blue'},{c:'#FF2D78',n:'Pink'},{c:'#FFB300',n:'Gold'},{c:'#FF6B6B',n:'Coral'},{c:'#00D2FF',n:'Cyan'}];
+var ACCENTS=[{c:'#4A9EFF',n:'Electric Blue'},{c:'#64D2FF',n:'Cyan'},{c:'#34F5C5',n:'Mint'},{c:'#4F8EF7',n:'Blue'},{c:'#FF2D78',n:'Pink'},{c:'#FFB300',n:'Gold'},{c:'#FF6B6B',n:'Coral'},{c:'#7C4DFF',n:'Purple'}];
 function renderAppear(){
   var tg=document.getElementById('theme-grid');
   tg.innerHTML=THEMES.map(function(t){return '<div class="theme-opt'+(S.theme===t.id?' sel':'')+'" onclick="setTheme(\''+t.id+'\')">'+'<div class="theme-preview" style="background:'+t.bg+'">'+t.ico+'</div>'+'<div class="theme-lbl">'+t.label+'</div></div>';}).join('');
@@ -3021,9 +2640,9 @@ function applyPromo() {
       closeM('pw-modal');
       renderHome();
       if (typeof renderProf === 'function') renderProf();
-      showToast('Promo applied - welcome to Pro! 🎉');
+      showToast('Promo applied — welcome to Pro! 🎉');
     } else {
-      msg.textContent = 'Invalid code - try again';
+      msg.textContent = 'Invalid code — try again';
       msg.style.color = 'var(--red)';
       inp.style.borderColor = 'var(--red)';
     }
@@ -3074,10 +2693,6 @@ init();
 // =============================================
 function toggleChip(el, group) {
   el.classList.toggle('selected');
-  // Visual feedback immediate
-  el.style.transition = 'none';
-  void el.offsetWidth;
-  el.style.transition = '';
 }
 
 function setSingleChip(el, group) {
@@ -3235,32 +2850,37 @@ function loadNicheUI() {
 }
 
 function loadPlatformUI() {
-  var pf = S.platformFocus || {};
-  var platforms = pf.platforms || [];
-  // Mark selected platform cards
-  document.querySelectorAll('.platform-card').forEach(function(card) {
-    var pName = card.getAttribute('data-platform') || '';
-    if (!pName) {
-      // Derive from onclick attribute
-      var oc = card.getAttribute('onclick') || '';
-      var km = oc.match(/togglePlatform\(this,'([^']+)'\)/);
-      if (km) {
-        var keyMap={'tiktok':'TikTok','reels':'Instagram Reels','shorts':'YouTube Shorts','youtube':'YouTube','twitter':'Twitter/X','linkedin':'LinkedIn','pinterest':'Pinterest','snapchat':'Snapchat','facebook':'Facebook'};
-        pName = keyMap[km[1]] || km[1];
-        card.setAttribute('data-platform', pName);
+  var pf = S.platformFocus;
+  
+  // Load selected platforms
+  if (pf.platforms && pf.platforms.length) {
+    document.querySelectorAll('.platform-card').forEach(function(card) {
+      var title = card.querySelector('[style*="font-size:15px"]');
+      if (title) {
+        var platformName = title.textContent.trim();
+        if (pf.platforms.indexOf(platformName) !== -1) {
+          card.classList.add('selected');
+          
+          // Mark primary platform
+          if (platformName === pf.primaryPlatform) {
+            card.classList.add('primary');
+            if (!card.querySelector('.platform-badge')) {
+              var badge = document.createElement('div');
+              badge.className = 'platform-badge';
+              badge.textContent = 'PRIMARY';
+              card.appendChild(badge);
+            }
+          }
+        }
       }
-    }
-    if (pName && platforms.indexOf(pName) !== -1) {
-      card.classList.add('selected');
-    } else {
-      card.classList.remove('selected','primary');
-    }
-  });
-  // Mark selected content style chips
+    });
+  }
+  
+  // Load content styles
   if (pf.contentStyles && pf.contentStyles.length) {
     document.querySelectorAll('#content-style-chips .chip').forEach(function(chip) {
-      var txt = chip.textContent.trim().replace(/^[^a-zA-Z]+/, '');
-      if (pf.contentStyles.some(function(s){ return s.toLowerCase().includes(txt.toLowerCase()) || txt.toLowerCase().includes(s.toLowerCase()); })) {
+      var text = chip.textContent.trim();
+      if (pf.contentStyles.some(function(cs) { return text.includes(cs) || cs.includes(text); })) {
         chip.classList.add('selected');
       }
     });
@@ -3313,9 +2933,9 @@ function loadAestheticUI() {
   // Load transition style
   if (a.transitionStyle) {
     document.querySelectorAll('#transition-seg .seg-btn').forEach(function(btn) {
-      btn.classList.remove('selected');
+      btn.classList.remove('active');
       if (btn.textContent.toLowerCase() === a.transitionStyle) {
-        btn.classList.add('selected');
+        btn.classList.add('active');
       }
     });
   }
@@ -3472,36 +3092,38 @@ function saveNiche() {
   ss('niche', S.niche);
   closeM('niche-modal');
   updateNicheSummary();
-  showToast('Creator profile saved - AI personalized for you');
+  showToast('Creator profile saved — AI personalized for you');
 }
 
 function savePlatform() {
+  // Get selected platforms
   var platforms = [];
+  var primaryPlatform = '';
   document.querySelectorAll('.platform-card.selected').forEach(function(card) {
-    var pName = card.getAttribute('data-platform') || '';
-    if (!pName) {
-      var oc = card.getAttribute('onclick') || '';
-      var km = oc.match(/togglePlatform\(this,'([^']+)'\)/);
-      if (km) {
-        var keyMap2={'tiktok':'TikTok','reels':'Instagram Reels','shorts':'YouTube Shorts','youtube':'YouTube','twitter':'Twitter/X','linkedin':'LinkedIn','pinterest':'Pinterest','snapchat':'Snapchat','facebook':'Facebook'};
-        pName = keyMap2[km[1]] || km[1];
-      }
+    var title = card.querySelector('[style*="font-size:15px"]').textContent.trim();
+    platforms.push(title);
+    if (card.classList.contains('primary')) {
+      primaryPlatform = title;
     }
-    if (pName) platforms.push(pName);
   });
+  
+  // Get content styles
   var contentStyles = [];
   document.querySelectorAll('#content-style-chips .chip.selected').forEach(function(chip) {
-    contentStyles.push(chip.textContent.trim().replace(/^[^a-zA-Z]+/, ''));
+    contentStyles.push(chip.textContent.trim());
   });
+  
   S.platformFocus = {
     platforms: platforms,
-    primaryPlatform: platforms[0] || '',
+    primaryPlatform: primaryPlatform || (platforms[0] || ''),
     contentStyles: contentStyles
   };
+  
+  // Update legacy platform field
   S.niche.platform = platforms.join(', ');
+  
   ss('platform_focus', S.platformFocus);
   ss('niche', S.niche);
-  scheduleCloudSync();
   closeM('platform-modal');
   showToast('Platform focus saved');
 }
@@ -3667,49 +3289,49 @@ var FORMAT_INFO = {
   advert: {
     ico: '📢',
     title: 'Advert',
-    body: 'A polished, intentional video designed to sell a product, service or brand. Structured like a real commercial - hooks attention fast, builds desire, and ends with a clear call to action. Think Nike ads, Apple launches, or premium brand content.',
-    example: '<strong>Example:</strong> A cinematic reveal of a product sitting in your location, with dramatic lighting, music build, and a closing CTA - "Available now."'
+    body: 'A polished, intentional video designed to sell a product, service or brand. Structured like a real commercial — hooks attention fast, builds desire, and ends with a clear call to action. Think Nike ads, Apple launches, or premium brand content.',
+    example: '<strong>Example:</strong> A cinematic reveal of a product sitting in your location, with dramatic lighting, music build, and a closing CTA — "Available now."'
   },
   ugc: {
     ico: '🤳',
     title: 'UGC (User Generated Content)',
-    body: 'Raw, authentic, first-person content that feels like a real person genuinely sharing an experience - not a brand. Shot on phone, conversational tone, no heavy production. Brands pay creators specifically for this style because it converts better than polished ads.',
-    example: '<strong>Example:</strong> "I\'ve been using this for 3 weeks and honestly..." - casual talking-head, handheld, real reaction, honest review.'
+    body: 'Raw, authentic, first-person content that feels like a real person genuinely sharing an experience — not a brand. Shot on phone, conversational tone, no heavy production. Brands pay creators specifically for this style because it converts better than polished ads.',
+    example: '<strong>Example:</strong> "I\'ve been using this for 3 weeks and honestly..." — casual talking-head, handheld, real reaction, honest review.'
   },
   educational: {
     ico: '📚',
     title: 'Educational Video',
-    body: 'Teaches the viewer something genuinely useful. Every idea will have a clear learning outcome - a tip, tutorial, how-to, breakdown or explainer. The viewer leaves knowing something they didn\'t before. Best for building authority and saving/sharing behaviour.',
-    example: '<strong>Example:</strong> "3 camera angles you\'re not using" - showing each angle at your location with before/after footage.'
+    body: 'Teaches the viewer something genuinely useful. Every idea will have a clear learning outcome — a tip, tutorial, how-to, breakdown or explainer. The viewer leaves knowing something they didn\'t before. Best for building authority and saving/sharing behaviour.',
+    example: '<strong>Example:</strong> "3 camera angles you\'re not using" — showing each angle at your location with before/after footage.'
   },
   viral: {
     ico: '🔥',
     title: 'Viral Format',
-    body: 'Engineered for maximum reach - optimised to stop scrolls, get rewatches, shares and comments. Uses pattern interrupts, surprising reveals, strong emotional hooks, trending structures or controversial angles. Ideas will be built around what makes people share.',
-    example: '<strong>Example:</strong> "Nobody does this at [location] but it works every time" - curiosity hook, satisfying payoff, made to be shared.'
+    body: 'Engineered for maximum reach — optimised to stop scrolls, get rewatches, shares and comments. Uses pattern interrupts, surprising reveals, strong emotional hooks, trending structures or controversial angles. Ideas will be built around what makes people share.',
+    example: '<strong>Example:</strong> "Nobody does this at [location] but it works every time" — curiosity hook, satisfying payoff, made to be shared.'
   },
   storytelling: {
     ico: '🎭',
     title: 'Storytelling',
-    body: 'Every idea has a narrative arc - a beginning, middle and end. Character, conflict, emotion and resolution. Makes the viewer feel something. Could be a personal journey, mini-documentary, behind-the-scenes story or a cinematic narrative built around the location.',
-    example: '<strong>Example:</strong> "This place changed how I shoot forever" - building tension through the story of discovering a location, with emotional payoff at the end.'
+    body: 'Every idea has a narrative arc — a beginning, middle and end. Character, conflict, emotion and resolution. Makes the viewer feel something. Could be a personal journey, mini-documentary, behind-the-scenes story or a cinematic narrative built around the location.',
+    example: '<strong>Example:</strong> "This place changed how I shoot forever" — building tension through the story of discovering a location, with emotional payoff at the end.'
   },
   trialreel: {
     ico: '🎬',
     title: 'Trial Reel',
-    body: 'Testing or experiencing something for the first time on camera - and sharing the honest result. First impressions, product trials, location tests, gear reviews. The creator is discovering or experiencing it live. Authentic reaction-based content that feels unscripted.',
-    example: '<strong>Example:</strong> "I\'ve never shot here before - let\'s see what we get" - live exploration, genuine reactions, real results shown at the end.'
+    body: 'Testing or experiencing something for the first time on camera — and sharing the honest result. First impressions, product trials, location tests, gear reviews. The creator is discovering or experiencing it live. Authentic reaction-based content that feels unscripted.',
+    example: '<strong>Example:</strong> "I\'ve never shot here before — let\'s see what we get" — live exploration, genuine reactions, real results shown at the end.'
   },
   meme: {
     ico: '😂',
     title: 'Meme',
-    body: 'Comedy-first content. Uses relatable situations, trending meme formats, unexpected comparisons, absurd angles or self-aware humour built around what\'s in the photo. Prioritises laughs and shareability over production quality. If it makes people tag their friends - it works.',
-    example: '<strong>Example:</strong> "POV: You drove 2 hours for the perfect shot and it\'s cloudy" - relatable creator struggle, funny delivery, comment bait.'
+    body: 'Comedy-first content. Uses relatable situations, trending meme formats, unexpected comparisons, absurd angles or self-aware humour built around what\'s in the photo. Prioritises laughs and shareability over production quality. If it makes people tag their friends — it works.',
+    example: '<strong>Example:</strong> "POV: You drove 2 hours for the perfect shot and it\'s cloudy" — relatable creator struggle, funny delivery, comment bait.'
   },
   other: {
     ico: '✏️',
     title: 'Other / Custom',
-    body: 'You know your content better than anyone. Type in the kind of video you want - a specific format, style or concept - and the AI will build all 6 ideas around your exact vision.',
+    body: 'You know your content better than anyone. Type in the kind of video you want — a specific format, style or concept — and the AI will build all 6 ideas around your exact vision.',
     example: '<strong>Example:</strong> "Behind the scenes", "Day in the life", "Cinematic b-roll only", "Instagram vs Reality", "Time-lapse + voiceover"'
   }
 };
@@ -3793,7 +3415,7 @@ function selectFormat(key, el) {
     other: ''
   };
   if (extraInp) {
-    extraInp.placeholder = placeholders[key] || 'Add any extra context to help the AI - product details, audience, message, specific angle...';
+    extraInp.placeholder = placeholders[key] || 'Add any extra context to help the AI — product details, audience, message, specific angle...';
   }
   extraWrap.style.display = 'block';
 }
@@ -3883,7 +3505,7 @@ function loadCloudData(userId, callback) {
   .then(function(res) {
     if (!res.ok || !res.data) { if (callback) callback(); return; }
     var d = res.data;
-    // Merge history - cloud + local, dedup by ts
+    // Merge history — cloud + local, dedup by ts
     if (d.history && d.history.length) {
       var localH = getHistory();
       var merged = d.history.concat(localH);
@@ -3902,12 +3524,12 @@ function loadCloudData(userId, callback) {
       var localOnly = localLib.filter(function(i) { return cloudTitles.indexOf(i.title) === -1; });
       ss('library', d.library.concat(localOnly));
     }
-    // Director history - use whichever is longer
+    // Director history — use whichever is longer
     if (d.director_history && d.director_history.length > S.directorHistory.length) {
       S.directorHistory = d.director_history;
       ss('director_history', S.directorHistory);
     }
-    // Settings - cloud wins
+    // Settings — cloud wins
     if (d.niche && Object.keys(d.niche).length) { S.niche = Object.assign({}, S.niche, d.niche); ss('niche', S.niche); }
     if (d.platform_focus && Object.keys(d.platform_focus).length) { S.platformFocus = d.platform_focus; ss('platform_focus', S.platformFocus); }
     if (d.aesthetic && Object.keys(d.aesthetic).length) { S.aesthetic = d.aesthetic; ss('aesthetic', S.aesthetic); }
@@ -4114,8 +3736,8 @@ function renderDirConvList(){
   list.innerHTML=convs.map(function(c){
     var isActive=c.id===activeId;
     var d=c.createdAt?new Date(c.createdAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):'';
-    var bg=isActive?'rgba(124,77,255,.12)':'transparent';
-    var bd=isActive?'rgba(124,77,255,.2)':'transparent';
+    var bg=isActive?'rgba(74,158,255,.12)':'transparent';
+    var bd=isActive?'rgba(74,158,255,.2)':'transparent';
     var cl=isActive?'var(--accent)':'var(--text)';
     var mc=c.messages?Math.ceil(c.messages.length/2):0;
     return '<div class="dir-ci" data-id="'+c.id+'" style="padding:10px 12px;border-radius:10px;margin-bottom:2px;cursor:pointer;background:'+bg+';border:1px solid '+bd+';transition:background .15s"><div style="font-size:13px;font-weight:600;color:'+cl+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px">'+(c.title||'New chat').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div><div style="font-size:11px;color:var(--text3)">'+d+' \u00b7 '+mc+' messages</div></div>';
@@ -4152,9 +3774,9 @@ function showDirGreeting(){
   var n=S.niche;
   var g;
   if(n&&n.contentType){
-    g='Hey '+n.contentType+' creator'+(n.platform?' on '+n.platform:'')+'. Profile loaded. What are we working on?';
+    g='Hey \u2014 '+n.contentType+' creator'+(n.platform?' on '+n.platform:'')+'. Profile loaded. What are we working on?';
   } else {
-    g='Hey I am PreShoot Director. Set up your creator profile in Menu for fully personalised advice. What do you need?';
+    g='Hey \u2014 I am PreShoot Director. Set up your creator profile in Menu for fully personalised advice. What do you need?';
   }
   addDirMsg('ai',g,false);
 }
@@ -4219,7 +3841,7 @@ function sendDirector(){
   if(conv&&conv.messages&&conv.messages.length){
     history=conv.messages.slice(-14).map(function(m){return {role:m.role,content:m.content};});
   }
-  // Remove any trailing user turn - we append the fresh message below
+  // Remove any trailing user turn — we append the fresh message below
   while(history.length && history[history.length-1].role==='user') history.pop();
   history.push({role:'user',content:msg});
 
@@ -4232,7 +3854,7 @@ function sendDirector(){
   var fullText='';
   var sseBuf='';
 
-  // ── Call /api/director - NOT /api/chat ──
+  // ── Call /api/director — NOT /api/chat ──
   // director.js injects the Director™ system prompt server-side.
   // chat.js is left untouched for scan analysis.
   fetch('/api/director',{
@@ -4303,37 +3925,21 @@ function clearDirectorChat(){
   newDirConversation();
 }
 
-// ════════════════════════════════════════
-// THEME + ACCENT SYSTEM
-// ════════════════════════════════════════
-var ACCENT_PRESETS = {
-  blue:   {accent:'#3B82F6', dim:'rgba(59,130,246,.10)', border:'rgba(59,130,246,.22)'},
-  green:  {accent:'#22C55E', dim:'rgba(34,197,94,.10)',  border:'rgba(34,197,94,.22)'},
-  orange: {accent:'#F97316', dim:'rgba(249,115,22,.10)', border:'rgba(249,115,22,.22)'},
-  red:    {accent:'#EF4444', dim:'rgba(239,68,68,.10)',  border:'rgba(239,68,68,.22)'},
-  cyan:   {accent:'#06B6D4', dim:'rgba(6,182,212,.10)',  border:'rgba(6,182,212,.22)'},
-};
-
-function applyAccent(key){
-  var p = ACCENT_PRESETS[key];
-  if(!p) return;
-  var r = document.documentElement;
-  r.style.setProperty('--accent', p.accent);
-  r.style.setProperty('--accent2', p.accent);
-  r.style.setProperty('--accent-dim', p.dim);
-  r.style.setProperty('--accent-border', p.border);
-  ss('ps_accent', key);
+// ── Kinetic grid background on home screen ──
+var homeKineticGrid = null;
+function initHomeKinetic() {
+  var el = document.getElementById('home-kinetic');
+  if (!el || typeof KineticGrid === 'undefined') return;
+  if (homeKineticGrid) return;
+  homeKineticGrid = new KineticGrid(el, { fixed: false, interactive: false });
 }
 
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t || 'dark');
-  document.documentElement.style.colorScheme = (t === 'light') ? 'light' : 'dark';
-  ss('ps_theme', t);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initHomeKinetic);
+} else {
+  initHomeKinetic();
 }
 
-function toggleTheme(){
-  var cur = document.documentElement.getAttribute('data-theme')||'dark';
-  applyTheme(cur==='light'?'dark':'light');
-  renderMenu();
-}
-
+</script>
+</body>
+</html>
