@@ -1,1 +1,16 @@
-{"name": "preshoot","version": "1.0.0","private": true,"dependencies": {"next": "latest","react": "latest","react-dom": "latest","supabase-js": "latest","axios": "latest","framer-motion": "latest","recharts": "latest"}}
+{
+  "name": "preshoot",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "supabase-js": "latest",
+    "axios": "latest",
+    "framer-motion": "latest",
+    "recharts": "latest",
+    "clsx": "latest",
+    "tailwind-merge": "latest"
+  }
+}
