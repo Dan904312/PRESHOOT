@@ -175,7 +175,7 @@
       for (var i = 0; i < word.length; i++) {
         var span = document.createElement('span');
         span.className = 'ob-letter';
-        span.style.transitionDelay = (2.1 + i * 0.07) + 's';
+        span.style.transitionDelay = (0.4 + i * 0.05) + 's';
         span.textContent = word[i];
         logo.appendChild(span);
       }
@@ -455,11 +455,42 @@
     return i;
   }
 
+  function bindIntroButtons() {
+    var start = document.getElementById('ob-btn-start');
+    var login = document.getElementById('ob-btn-login');
+    function bindTouchClick(btn, fn) {
+      if (!btn) return;
+      btn.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        btn.dataset.touched = '1';
+        fn(e);
+        setTimeout(function () { btn.dataset.touched = ''; }, 350);
+      });
+      btn.addEventListener('click', function (e) {
+        if (btn.dataset.touched === '1') return;
+        e.preventDefault();
+        e.stopPropagation();
+        fn(e);
+      });
+    }
+    bindTouchClick(start, function (e) { PreShootOnboard.start(); });
+    bindTouchClick(login, function (e) { PreShootOnboard.login(); });
+    /* Fallback: if CSS animation fails, reveal buttons after 2.5s */
+    setTimeout(function () {
+      var actions = document.getElementById('ob-intro-actions');
+      if (actions) {
+        actions.style.opacity = '1';
+        actions.style.transform = 'translateY(0)';
+      }
+    }, 2500);
+  }
+
   function init() {
     S.obPhase = 'intro';
     S.obSlide = 0;
     seedDraftFromState();
     buildStaticLists();
+    bindIntroButtons();
     setPhase('intro');
     runIntroSequence();
 
@@ -543,14 +574,17 @@
   }
 
   function start() {
+    if (!S || typeof S !== 'object') { showToast('App is still loading', ''); return; }
     seedDraftFromState();
     setPhase('flow');
     showPage(0, 1);
   }
 
   function login() {
+    if (!S || typeof S !== 'object') { showToast('App is still loading', ''); return; }
     ss('ob_oauth_resume', { from: 'intro-login', ts: Date.now() });
     if (typeof authWith === 'function') authWith('google');
+    else showToast('Sign in is not ready yet', '');
   }
 
   function connectGoogle() {
