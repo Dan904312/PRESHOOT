@@ -1,5 +1,5 @@
 /**
- * KineticGrid â€” vanilla JS port of the 21st.dev React component.
+ * KineticGrid — vanilla JS port of the 21st.dev React component.
  * Interactive warping grid background with cursor ripples.
  */
 (function (global) {
