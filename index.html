@@ -49,12 +49,13 @@ nav.visible{transform:translateY(0);opacity:1}
 .hero-h1 .line:nth-child(1) .inner{animation:lineUp .85s .25s var(--ease) forwards}
 .hero-h1 .line:nth-child(2) .inner{animation:lineUp .85s .38s var(--ease) forwards}
 .hero-h1 .line:nth-child(3) .inner{animation:lineUp .85s .51s var(--ease) forwards}
-.anything{ display:inline-block; font-size:1.06em; font-weight:800; letter-spacing:-1px; margin:0 .01em 0 .08em; background:linear-gradient(105deg, var(--txt) 0%, var(--txt) 32%, var(--accent) 44%, var(--cyan) 52%, #9BD8FF 56%, var(--txt) 70%, var(--txt) 100%); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:anyPulse 5.5s cubic-bezier(.45,0,.25,1) infinite; transform-origin:50% 60%; will-change:background-position,transform;
+.anything{ display:inline-block; font-size:1.06em; font-weight:800; letter-spacing:-1px; margin:0 .01em 0 .08em; background:linear-gradient(105deg, var(--txt) 0%, var(--txt) 32%, var(--accent) 44%, var(--cyan) 52%, #9BD8FF 56%, var(--txt) 70%, var(--txt) 100%); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:anyPulse 5.5s linear infinite; transform-origin:50% 60%; will-change:background-position,transform;
 }
-/* One unified cycle: wipe + scale share timing, easing, and peak at mid-pass */
+/* Wipe and scale share one timeline: inflate as wipe enters, hold while it crosses, deflate the instant it exits */
 @keyframes anyPulse{
   0%{background-position:135% 0;transform:scale(1)}
-  50%{background-position:-15% 0;transform:scale(1.045)}
+  8%{background-position:111% 0;transform:scale(1.05)}
+  92%{background-position:-141% 0;transform:scale(1.05)}
   100%{background-position:-165% 0;transform:scale(1)}
 }
 @media (prefers-reduced-motion:reduce){ .anything{animation:none;background-position:50% 0;transform:none}
