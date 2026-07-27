@@ -291,7 +291,9 @@
     GEAR_SECTIONS.forEach(function (sec) {
       var items = (d.gear && d.gear[sec.key]) || [];
       html += '<div class="ob-gear-sec" data-key="' + sec.key + '" data-cat="' + sec.cat + '">';
-      html += '<div class="ob-gear-label">' + sec.label + '</div>';
+      html += '<div class="ob-gear-label">';
+      if (typeof ICO !== 'undefined') html += '<span class="ob-gear-ico">' + ICO.gear(sec.cat, 16) + '</span>';
+      html += sec.label + '</div>';
       html += '<div class="ob-gear-search-wrap">';
       html += '<input class="ob-gear-search" type="text" placeholder="Search or type ' + sec.label.toLowerCase() + '" data-key="' + sec.key + '" data-cat="' + sec.cat + '" autocomplete="off">';
       html += '<div class="ob-gear-suggest" hidden></div>';
@@ -303,7 +305,9 @@
       html += '</div></div>';
     });
     html += '<div class="ob-gear-sec" data-key="editingSoftware">';
-    html += '<div class="ob-gear-label">Editing Software</div>';
+    html += '<div class="ob-gear-label">';
+    if (typeof ICO !== 'undefined') html += '<span class="ob-gear-ico">' + ICO.html('film', 16) + '</span>';
+    html += 'Editing Software</div>';
     html += '<div class="ob-soft-grid">';
     SOFTWARE.forEach(function (sw) {
       var on = ((d.gear && d.gear.editingSoftware) || []).indexOf(sw) !== -1 ? ' selected' : '';
