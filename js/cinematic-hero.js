@@ -9,6 +9,13 @@
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  function getViewportHeight() {
+    if (window.visualViewport && window.visualViewport.height) {
+      return window.visualViewport.height;
+    }
+    return window.innerHeight;
+  }
+
   function runAnythingSync(el) {
     if (!el || prefersReducedMotion()) return function () {};
 
@@ -69,7 +76,7 @@
 
     if (prefersReducedMotion()) {
       gsap.set('.text-track, .text-days', { autoAlpha: 1, y: 0, scale: 1, filter: 'none', clipPath: 'none', rotationX: 0 });
-      gsap.set('.main-card', { y: 0, autoAlpha: 1, width: '92vw', height: '85vh' });
+      gsap.set('.main-card', { y: 0, autoAlpha: 1, width: '92%', height: '92%' });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 1 });
       gsap.set('.cta-wrapper', { autoAlpha: 0 });
       gsap.set('.hero-text-wrapper', { autoAlpha: 1 });
@@ -82,7 +89,7 @@
 
     // Mouse sheen + 3D phone tilt
     function onMouseMove(e) {
-      if (window.scrollY > window.innerHeight * 2.5) return;
+      if (window.scrollY > getViewportHeight() * 2.5) return;
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(function () {
         if (mainCard) {
@@ -92,7 +99,7 @@
         }
         if (mockup) {
           var xVal = (e.clientX / window.innerWidth - 0.5) * 2;
-          var yVal = (e.clientY / window.innerHeight - 0.5) * 2;
+          var yVal = (e.clientY / getViewportHeight() - 0.5) * 2;
           gsap.to(mockup, {
             rotationY: xVal * 12,
             rotationX: -yVal * 12,
@@ -110,7 +117,7 @@
     var ctx = gsap.context(function () {
       gsap.set('.text-track', { autoAlpha: 0, y: 60, scale: 0.85, filter: 'blur(20px)', rotationX: -20 });
       gsap.set('.text-days', { autoAlpha: 1, clipPath: 'inset(0 100% 0 0)' });
-      gsap.set('.main-card', { y: window.innerHeight + 200, autoAlpha: 1 });
+      gsap.set('.main-card', { y: getViewportHeight() + 200, autoAlpha: 1 });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 0 });
       gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, filter: 'blur(30px)' });
 
@@ -130,14 +137,21 @@
           end: '+=7000',
           pin: true,
           scrub: 1,
-          anticipatePin: 1
+          anticipatePin: 1,
+          invalidateOnRefresh: true
         }
       });
 
       scrollTl
         .to(['.hero-text-wrapper', '.bg-grid-theme'], { scale: 1.15, filter: 'blur(20px)', opacity: 0.2, ease: 'power2.inOut', duration: 2 }, 0)
         .to('.main-card', { y: 0, ease: 'power3.inOut', duration: 2 }, 0)
-        .to('.main-card', { width: '100%', height: '100%', borderRadius: '0px', ease: 'power3.inOut', duration: 1.5 })
+        .to('.main-card', {
+          width: function () { return root.clientWidth; },
+          height: function () { return root.clientHeight; },
+          borderRadius: '0px',
+          ease: 'power3.inOut',
+          duration: 1.5
+        })
         .fromTo('.mockup-scroll-wrapper',
           { y: 300, z: -500, rotationX: 50, rotationY: -30, autoAlpha: 0, scale: 0.6 },
           { y: 0, z: 0, rotationX: 0, rotationY: 0, autoAlpha: 1, scale: 1, ease: 'expo.out', duration: 2.5 }, '-=0.8'
@@ -156,18 +170,34 @@
           scale: 0.9, y: -40, z: -200, autoAlpha: 0, ease: 'power3.in', duration: 1.2, stagger: 0.05
         })
         .to('.main-card', {
-          width: isMobile ? '92vw' : '85vw',
-          height: isMobile ? '92vh' : '85vh',
+          width: function () { return isMobile ? window.innerWidth * 0.92 : window.innerWidth * 0.85; },
+          height: function () { return getViewportHeight() * (isMobile ? 0.92 : 0.85); },
           borderRadius: isMobile ? '32px' : '40px',
           ease: 'expo.inOut',
           duration: 1.8
         }, 'pullback')
         .to('.cta-wrapper', { scale: 1, filter: 'blur(0px)', ease: 'expo.inOut', duration: 1.8 }, 'pullback')
-        .to('.main-card', { y: -window.innerHeight - 300, ease: 'power3.in', duration: 1.5 });
+        .to('.main-card', {
+          y: function () { return -getViewportHeight() - 300; },
+          ease: 'power3.in',
+          duration: 1.5
+        });
     }, root);
+
+    function onViewportChange() {
+      if (global.ScrollTrigger) global.ScrollTrigger.refresh();
+    }
+    window.addEventListener('resize', onViewportChange, { passive: true });
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', onViewportChange, { passive: true });
+    }
 
     root._cinematicCleanup = function () {
       window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('resize', onViewportChange);
+      if (window.visualViewport) {
+        visualViewport.removeEventListener('resize', onViewportChange);
+      }
       cancelAnimationFrame(rafId);
       if (stopAnything) stopAnything();
       ctx.revert();
