@@ -134,6 +134,25 @@ nav.visible{transform:translateY(0);opacity:1}
 .hero-text-wrapper{position:absolute;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;width:100vw;padding:0 16px;will-change:transform;transform-style:preserve-3d}
 .hero-text-wrapper h1{font-family:var(--fd);font-size:clamp(2.75rem,8vw,6rem);font-weight:700;letter-spacing:-.04em;line-height:1.05}
 .hero-text-wrapper .text-days{font-weight:800;letter-spacing:-.06em;margin-top:.15em}
+.hero-text-wrapper .anything{
+  display:inline-block;font-size:1.06em;font-weight:800;letter-spacing:-.02em;margin:0 .01em 0 .06em;
+  --w:-0.25;--glow:0;
+  background:linear-gradient(100deg,
+    var(--txt) 0%,
+    var(--txt) calc(var(--w) * 100% - 18%),
+    var(--accent) calc(var(--w) * 100% - 5%),
+    var(--cyan) calc(var(--w) * 100%),
+    #9BD8FF calc(var(--w) * 100% + 5%),
+    var(--txt) calc(var(--w) * 100% + 18%),
+    var(--txt) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  text-shadow:none;transform:scale(1);transform-origin:50% 60%;
+  filter:drop-shadow(0 0 calc(var(--glow) * 16px) rgba(100,210,255,calc(var(--glow) * .45)));
+  will-change:transform,filter;
+}
+@media (prefers-reduced-motion:reduce){
+  .hero-text-wrapper .anything{--w:.5;--glow:0;transform:none;filter:none;will-change:auto}
+}
 .cta-wrapper{position:absolute;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;width:100vw;padding:0 16px;pointer-events:auto;will-change:transform}
 .cta-wrapper h2{font-family:var(--fd);font-size:clamp(2rem,6vw,4.5rem);font-weight:700;letter-spacing:-.04em;margin-bottom:1.25rem}
 .cta-wrapper p{color:var(--txt-2);font-size:clamp(1rem,2vw,1.25rem);margin-bottom:2.5rem;max-width:36rem;font-weight:300;line-height:1.7}
@@ -388,7 +407,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px clamp(20px,4vw,40px
       <div class="bg-grid-theme" style="position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5" aria-hidden="true"></div>
 
       <div class="hero-text-wrapper">
-        <h1 class="text-track gsap-reveal text-3d-matte">Scan anything,</h1>
+        <h1 class="text-track gsap-reveal text-3d-matte">Scan <span class="anything">ANYTHING</span>,</h1>
         <h1 class="text-days gsap-reveal text-silver-matte">film ready ideas.</h1>
       </div>
 
