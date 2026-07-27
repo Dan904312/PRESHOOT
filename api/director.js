@@ -179,7 +179,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { messages, context, stream } = req.body || {};
+    const { messages, context, stream, image } = req.body || {};
 
     if (!messages || !Array.isArray(messages) || !messages.length) {
       return res.status(400).json({ error: 'messages array required' });
@@ -196,15 +196,46 @@ export default async function handler(req, res) {
 
     // ── Sanitize messages — only user/assistant roles ────
     // Remove any accidental system messages the frontend may have sent
+    const hasText = (c) => {
+      if (typeof c === 'string') return !!c.trim();
+      if (Array.isArray(c)) return c.some((p) => p && (p.type === 'text' ? !!(p.text || '').trim() : true));
+      return false;
+    };
+
     const safeMessages = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .filter(m => m.content && m.content.trim())
-      .slice(-30); // cap conversation length
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .filter((m) => hasText(m.content))
+      .slice(-30)
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    // Attach scan image to the latest user turn when provided (idea → Director handoff)
+    if (image && image.data && safeMessages.length) {
+      const last = safeMessages[safeMessages.length - 1];
+      if (last.role === 'user') {
+        const text =
+          typeof last.content === 'string'
+            ? last.content
+            : Array.isArray(last.content)
+              ? last.content.map((p) => (p.type === 'text' ? p.text : '')).join('\n')
+              : '';
+        last.content = [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: image.mime || 'image/jpeg',
+              data: image.data
+            }
+          },
+          { type: 'text', text: text || 'Use this scanned scene as visual reference.' }
+        ];
+      }
+    }
 
     // ── Build Anthropic request ──────────────────────────
     const anthropicBody = {
       model: 'claude-sonnet-4-6',
-      max_tokens: 800,
+      max_tokens: image ? 1600 : 1000,
       system: systemPrompt,
       messages: safeMessages,
       stream: !!stream
@@ -246,5 +277,5 @@ export default async function handler(req, res) {
 }
 
 export const config = {
-  api: { bodyParser: { sizeLimit: '2mb' }, responseLimit: false }
+  api: { bodyParser: { sizeLimit: '4mb' }, responseLimit: false }
 };
