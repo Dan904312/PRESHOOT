@@ -12,13 +12,13 @@
   function runAnythingSync(el) {
     if (!el || prefersReducedMotion()) return function () {};
 
-    var CYCLE_MS = 5600;
-    var PAUSE_BEFORE = 0.2;
-    var WIPE_SPAN = 0.48;
+    var CYCLE_MS = 2800;
+    var PAUSE_BEFORE = 0.12;
+    var WIPE_SPAN = 0.38;
     var W_START = -0.2;
     var W_END = 1.2;
     var SCALE_MAX = 1.05;
-    var EDGE = 0.08;
+    var EDGE = 0.1;
     var t0 = performance.now();
     var raf = 0;
     var stopped = false;
