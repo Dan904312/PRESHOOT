@@ -872,8 +872,112 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 </div> <!-- PLATFORM FOCUS MODAL -->
 <div class="modal-ov" id="platform-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Platform Focus</div><div class="modal-x" onclick="closeM('platform-modal')">X</div></div> <div class="modal-body" style="overflow-y:auto;max-height:70vh"> <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Select your platforms and set a primary focus. The AI will adapt ideas for each platform's unique style and algorithm.</div> <!-- Platform Selection --> <div class="pers-sec"> <div class="pers-sec-title">Your Platforms (select all that apply)</div> <div class="platform-card" onclick="togglePlatform(this,'tiktok')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0"></div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">TikTok</div> <div style="font-size:12px;color:var(--text2)">Strong hooks, fast retention, trending sounds</div> </div> </div> </div> <div class="platform-card" onclick="togglePlatform(this,'reels')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0"></div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">Instagram Reels</div> <div style="font-size:12px;color:var(--text2)">Aesthetic visuals, polished edits, trending audio</div> </div> </div> </div> <div class="platform-card" onclick="togglePlatform(this,'shorts')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0"></div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">YouTube Shorts</div> <div style="font-size:12px;color:var(--text2)">Discovery-focused, quick value, broad reach</div> </div> </div> </div> <div class="platform-card" onclick="togglePlatform(this,'youtube')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0"></div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">YouTube Longform</div> <div style="font-size:12px;color:var(--text2)">Deep storytelling, watch time, subscriber focus</div> </div> </div> </div> <div class="platform-card" onclick="togglePlatform(this,'twitter')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">𝕏</div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">X / Twitter</div> <div style="font-size:12px;color:var(--text2)">Short, punchy, conversation-starter content</div> </div> </div> </div> <div class="platform-card" onclick="togglePlatform(this,'linkedin')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0"></div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">LinkedIn</div> <div style="font-size:12px;color:var(--text2)">Professional authority, thought leadership</div> </div> </div> </div> <div class="platform-card" onclick="togglePlatform(this,'pinterest')"> <div style="display:flex;align-items:center;gap:12px"> <div style="width:48px;height:48px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0"></div> <div style="flex:1"> <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fd)">Pinterest</div> <div style="font-size:12px;color:var(--text2)">Visual discovery, evergreen content</div> </div> </div> </div> </div> <!-- Content Style Preference --> <div class="pers-sec"> <div class="pers-sec-title">Content Style Preference</div> <div class="chip-grid" id="content-style-chips"> <div class="chip" onclick="toggleChip(this,'content-style')">Hook-Heavy</div> <div class="chip" onclick="toggleChip(this,'content-style')">Educational</div> <div class="chip" onclick="toggleChip(this,'content-style')">Viral/Trendy</div> <div class="chip" onclick="toggleChip(this,'content-style')">Cinematic</div> <div class="chip" onclick="toggleChip(this,'content-style')">Documentary</div> <div class="chip" onclick="toggleChip(this,'content-style')">Personal Brand</div> <div class="chip" onclick="toggleChip(this,'content-style')">Product-Focused</div> </div> </div> <button onclick="savePlatform()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Platform Focus</button> </div> </div>
 </div> <!-- AESTHETIC STYLE MODAL -->
-<div class="modal-ov" id="aesthetic-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Aesthetic & Style</div><div class="modal-x" onclick="closeM('aesthetic-modal')">X</div></div> <div class="modal-body" style="overflow-y:auto;max-height:70vh"> <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Define your visual identity. This shapes the AI's creative direction for camera work, color grading, and editing recommendations.</div> <!-- Visual Aesthetic --> <div class="pers-sec"> <div class="pers-sec-title">Visual Aesthetic (select all that fit)</div> <div class="chip-grid" id="aesthetic-chips"> <div class="chip" onclick="toggleChip(this,'aesthetic')">Cinematic</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Dark & Moody</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Clean Minimal</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Luxury</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Documentary</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Fast-Paced Edits</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Tech Creator</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Anime Inspired</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Analog/Film</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Neon</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Corporate</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Nature/Adventure</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">High Energy</div> <div class="chip" onclick="toggleChip(this,'aesthetic')">Calm & Ambient</div> </div> </div> <!-- Color Palette --> <div class="pers-sec"> <div class="pers-sec-title">Preferred Color Palette</div> <div class="color-picker-wrap"> <div class="color-chip" onclick="toggleColorChip(this)" style="background:#FFFFFF" style="width:100%;padding:14px;background:var(--accent);color:#fff;border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Aesthetic & Style</button> </div> </div>
-</div> <!-- GEAR & SETUP MODAL -->
+<div class="modal-ov" id="aesthetic-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-hd"><div class="modal-ttl">Aesthetic & Style</div><div class="modal-x" onclick="closeM('aesthetic-modal')">&#x2715;</div></div>
+    <div class="modal-body" style="overflow-y:auto;max-height:70vh">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Define your visual identity. This shapes the AI's creative direction for camera work, color grading, and editing recommendations.</div>
+      
+      <!-- Visual Aesthetic -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Visual Aesthetic (select all that fit)</div>
+        <div class="chip-grid" id="aesthetic-chips">
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🎬 Cinematic</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🌑 Dark & Moody</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">⚪ Clean Minimal</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">💎 Luxury</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">📽️ Documentary</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">⚡ Fast-Paced Edits</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">💻 Tech Creator</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🎌 Anime Inspired</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">📷 Analog/Film</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🌈 Neon</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">💼 Corporate</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🏔️ Nature/Adventure</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🔋 High Energy</div>
+          <div class="chip" onclick="toggleChip(this,'aesthetic')">🌊 Calm & Ambient</div>
+        </div>
+      </div>
+      
+      <!-- Color Palette -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Preferred Color Palette</div>
+        <div class="color-picker-wrap">
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#FFFFFF"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#E8E8E8"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#B0B0B0"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#6B6B6B"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#2A2A2A"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#000000"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#1a1a1a"></div>
+          class="color-chip" onclick="toggleColorChip(this)" style="background:#4A9EFF"></div>
+        </div>
+      </div>
+      
+      <!-- Lighting Style -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Lighting Style</div>
+        <div class="chip-grid" id="lighting-chips">
+          <div class="chip" onclick="setSingleChip(this,'lighting')">Natural Light</div>
+          <div class="chip selected" onclick="setSingleChip(this,'lighting')">Mixed Lighting</div>
+          <div class="chip" onclick="setSingleChip(this,'lighting')">Studio Lit</div>
+          <div class="chip" onclick="setSingleChip(this,'lighting')">Moody/Dramatic</div>
+          <div class="chip" onclick="setSingleChip(this,'lighting')">Bright & Airy</div>
+        </div>
+      </div>
+      
+      <!-- Camera Movement -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Camera Movement Preference</div>
+        <div class="chip-grid" id="camera-movement-chips">
+          <div class="chip" onclick="toggleChip(this,'camera-movement')">🤳 Handheld</div>
+          <div class="chip" onclick="toggleChip(this,'camera-movement')">🎥 Tripod</div>
+          <div class="chip" onclick="toggleChip(this,'camera-movement')">📹 Gimbal</div>
+          <div class="chip" onclick="toggleChip(this,'camera-movement')">🚁 Drone</div>
+          <div class="chip" onclick="toggleChip(this,'camera-movement')">🚗 Car Mounted</div>
+        </div>
+      </div>
+      
+      <!-- Shot Style -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Shot Style</div>
+        <div class="chip-grid" id="shot-style-chips">
+          <div class="chip" onclick="toggleChip(this,'shot-style')">👁️ POV</div>
+          <div class="chip" onclick="toggleChip(this,'shot-style')">🌄 Wide Cinematic</div>
+          <div class="chip" onclick="toggleChip(this,'shot-style')">🔍 Close Detail Shots</div>
+          <div class="chip" onclick="toggleChip(this,'shot-style')">📖 Storytelling</div>
+          <div class="chip" onclick="toggleChip(this,'shot-style')">🎞️ Montage</div>
+        </div>
+      </div>
+      
+      <!-- Transition Style -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Transition Style</div>
+        <div class="seg-control" id="transition-seg">
+          <div class="seg-btn" onclick="setSeg(this,'transition','minimal')">Minimal</div>
+          <div class="seg-btn active" onclick="setSeg(this,'transition','balanced')">Balanced</div>
+          <div class="seg-btn" onclick="setSeg(this,'transition','creative')">Creative</div>
+        </div>
+      </div>
+      
+      <!-- Pacing -->
+      <div class="pers-sec">
+        <div class="pers-sec-title">Overall Pacing</div>
+        <div class="chip-grid" id="pacing-chips">
+          <div class="chip" onclick="setSingleChip(this,'pacing')">🐢 Slow & Breathable</div>
+          <div class="chip selected" onclick="setSingleChip(this,'pacing')">⚖️ Balanced</div>
+          <div class="chip" onclick="setSingleChip(this,'pacing')">🚀 Fast & Energetic</div>
+          <div class="chip" onclick="setSingleChip(this,'pacing')">⚡ Hyper-Fast</div>
+        </div>
+      </div>
+      
+      <button onclick="saveAesthetic()" style="width:100%;padding:14px;background:var(--text);color:var(--bg);border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Aesthetic & Style</button>
+    </div>
+  </div>
+</div>
+
+<!-- GEAR & SETUP MODAL -->
 <div class="modal-ov" id="gear-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Gear & Setup</div><div class="modal-x" onclick="closeM('gear-modal')">X</div></div> <div class="modal-body" style="overflow-y:auto;max-height:70vh"> <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Tell the AI exactly what equipment you have. Ideas will be tailored to what you can actually shoot with.</div> <!-- Camera Body --> <div class="pers-sec"> <div class="pers-sec-title">Camera Body</div> <div class="gear-input"> <div class="gear-ico"></div> <input class="gear-field" id="gear-camera" placeholder="e.g. Sony A7IV, Canon R5, iPhone 15 Pro"> </div> </div> <!-- Lens --> <div class="pers-sec"> <div class="pers-sec-title">Lens / Focal Length</div> <div class="gear-input"> <div class="gear-ico"></div> <input class="gear-field" id="gear-lens" placeholder="e.g. 24-70mm f/2.8, 50mm f/1.8"> </div> </div> <!-- Drone --> <div class="pers-sec"> <div class="pers-sec-title">Drone (if any)</div> <div class="gear-input"> <div class="gear-ico"></div> <input class="gear-field" id="gear-drone" placeholder="e.g. DJI Mini 4 Pro, Mavic 3"> </div> </div> <!-- Microphone --> <div class="pers-sec"> <div class="pers-sec-title">Microphone</div> <div class="gear-input"> <div class="gear-ico"></div> <input class="gear-field" id="gear-mic" placeholder="e.g. Rode VideoMic, Wireless Go II"> </div> </div> <!-- Lighting --> <div class="pers-sec"> <div class="pers-sec-title">Lighting Setup</div> <div class="gear-input"> <div class="gear-ico"></div> <input class="gear-field" id="gear-lights" placeholder="e.g. Aputure 120D, Godox SL60W, Natural only"> </div> </div> <!-- Stabilizer/Gimbal --> <div class="pers-sec"> <div class="pers-sec-title">Stabilizer / Gimbal</div> <div class="gear-input"> <div class="gear-ico"></div> <input class="gear-field" id="gear-gimbal" placeholder="e.g. DJI RS4, Zhiyun Crane, Handheld only"> </div> </div> <!-- Editing Software --> <div class="pers-sec"> <div class="pers-sec-title">Editing Software</div> <div class="chip-grid" id="editing-software-chips"> <div class="chip" onclick="toggleChip(this,'editing-software')">CapCut</div> <div class="chip" onclick="toggleChip(this,'editing-software')">Premiere Pro</div> <div class="chip" onclick="toggleChip(this,'editing-software')">Final Cut Pro</div> <div class="chip" onclick="toggleChip(this,'editing-software')">DaVinci Resolve</div> <div class="chip" onclick="toggleChip(this,'editing-software')">After Effects</div> <div class="chip" onclick="toggleChip(this,'editing-software')">iMovie</div> </div> </div> <!-- Editing Device --> <div class="pers-sec"> <div class="pers-sec-title">Editing Device</div> <div class="chip-grid" id="editing-device-chips"> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Phone Only</div> <div class="chip selected" onclick="setSingleChip(this,'editing-device')"> Laptop</div> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Desktop PC</div> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Mac</div> </div> </div> <!-- Shooting Environment --> <div class="pers-sec"> <div class="pers-sec-title">Typical Shooting Environment</div> <div class="chip-grid" id="shooting-env-chips"> <div class="chip" onclick="toggleChip(this,'shooting-env')">Indoor/Studio</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Urban/Street</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Outdoor/Nature</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Gym/Fitness</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Automotive</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Corporate/Office</div> </div> </div> <button onclick="saveGear()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Gear & Setup</button> </div> </div>
 </div> <!-- ═══ NAV ═══ -->
 <nav class="bnav hidden"> <div class="bni active" id="nav-home" onclick="goTab('home')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg></div><div class="bni-lbl">Home</div></div> <div class="bni" id="nav-library" onclick="goTab('library')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v16l-5-3-5 3V4z"/></svg></div><div class="bni-lbl">Library</div></div> <div class="bni" id="nav-scan" onclick="openPicker()"><div class="bni-scan"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="7" stroke="#fff" stroke-width="2"/><circle cx="11" cy="11" r="3" fill="#fff"/><path d="M11 2v2M11 18v2M2 11h2M18 11h2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div class="bni-lbl" style="margin-top:6px">Scan</div></div> <div class="bni" id="nav-menu" onclick="goTab('menu')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></div><div class="bni-lbl">Menu</div></div> <div class="bni" id="nav-profile" onclick="goTab('profile')"><div class="bni-ico" id="nav-prof-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div><div class="bni-lbl">Profile</div></div>
@@ -903,7 +1007,7 @@ function showMain() { document.getElementById('screen-onboard').classList.remove
 } /* ── NAV ── */
 function goTab(tab) { /* Close director if open */
 var dirScreen = document.getElementById('screen-director'); if (dirScreen && dirScreen.classList.contains('active')) { dirScreen.classList.remove('active'); } /* Switch screens instantly, no delays, no timing bugs */
-['home','results','library','menu','profile'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); var sc = document.getElementById('screen-' + tab); var ni = document.getElementById('nav-' + tab); if (sc) sc.classList.add('active'); if (ni) ni.classList.add('active'); S.tab = tab; if (tab === 'library') renderLib(); if (tab === 'profile') renderProf(); if (tab === 'menu') renderMenu(); if (tab === 'home') renderHome(); 
+['home','results','library','menu','profile'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); var sc = document.getElementById('screen-' + tab); var ni = document.getElementById('nav-' + tab); if (sc) sc.classList.add('active'); if (ni) ni.classList.add('active'); S.tab = tab; if (tab === 'library') renderLib(); if (tab === 'profile') renderProf(); if (tab === 'menu') renderMenu(); if (tab === 'home') renderHome(); var bn=document.querySelector('.bnav'); if(bn) bn.classList.remove('hidden');
 } /* ── PICKER ── */
 function openPicker() { if (!canScan()) { openM('pw-modal'); return; } var mob = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); if (mob) { var ov = document.getElementById('picker-ov'); var sh = document.getElementById('picker-sh'); ov.classList.add('open'); sh.style.transform = 'translateY(100%)'; sh.style.transition = 'none'; setTimeout(function(){sh.style.transition='transform .38s cubic-bezier(.4,0,.2,1)';sh.style.transform='translateY(0)';},10); } else { document.getElementById('cam-in').value=''; document.getElementById('cam-in').click(); }
 }
