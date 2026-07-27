@@ -163,18 +163,23 @@ var FRAG = /* glsl */ `
   }
 `;
 
-function hexToHue(hex) {
-  if (!hex || typeof hex !== 'string') return 240;
+/* Shader baseColor1 RGB(0.612, 0.263, 0.996) ≈ HSL hue 269°.
+   The `hue` uniform is a RELATIVE rotation from that base — not an absolute HSL hue.
+   Passing absolute accent hue (e.g. blue 212°) was rotating purple into green/yellow. */
+var ORB_BASE_HUE = 269;
+
+function hexToAbsoluteHue(hex) {
+  if (!hex || typeof hex !== 'string') return 212; /* #4A9EFF */
   var h = hex.replace('#', '').trim();
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-  if (h.length !== 6) return 240;
+  if (h.length !== 6) return 212;
   var r = parseInt(h.slice(0, 2), 16) / 255;
   var g = parseInt(h.slice(2, 4), 16) / 255;
   var b = parseInt(h.slice(4, 6), 16) / 255;
   var max = Math.max(r, g, b);
   var min = Math.min(r, g, b);
   var d = max - min;
-  if (d < 1e-6) return 240;
+  if (d < 1e-6) return 212;
   var hue;
   if (max === r) hue = ((g - b) / d) % 6;
   else if (max === g) hue = (b - r) / d + 2;
@@ -184,11 +189,15 @@ function hexToHue(hex) {
   return hue;
 }
 
+function hexToHue(hex) {
+  return hexToAbsoluteHue(hex) - ORB_BASE_HUE;
+}
+
 function createOrb(container, options) {
   options = options || {};
   if (!container) return null;
 
-  var hue = options.hue != null ? options.hue : 240;
+  var hue = options.hue != null ? options.hue : hexToHue('#4A9EFF');
   var hoverIntensity = options.hoverIntensity != null ? options.hoverIntensity : 0.6;
   var rotateOnHover = options.rotateOnHover !== false;
   var forceHoverState = !!options.forceHoverState;
