@@ -9,6 +9,51 @@
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  function runAnythingSync(el) {
+    if (!el || prefersReducedMotion()) return function () {};
+
+    var CYCLE_MS = 5600;
+    var PAUSE_BEFORE = 0.2;
+    var WIPE_SPAN = 0.48;
+    var W_START = -0.2;
+    var W_END = 1.2;
+    var SCALE_MAX = 1.05;
+    var EDGE = 0.08;
+    var t0 = performance.now();
+    var raf = 0;
+    var stopped = false;
+
+    function tick(now) {
+      if (stopped) return;
+      var u = ((now - t0) % CYCLE_MS) / CYCLE_MS;
+      var w = W_START;
+      var scale = 1;
+      var glow = 0;
+      if (u >= PAUSE_BEFORE && u < PAUSE_BEFORE + WIPE_SPAN) {
+        var t = (u - PAUSE_BEFORE) / WIPE_SPAN;
+        w = W_START + (W_END - W_START) * t;
+        if (t < EDGE) {
+          scale = 1 + (SCALE_MAX - 1) * (t / EDGE);
+        } else if (t > 1 - EDGE) {
+          scale = 1 + (SCALE_MAX - 1) * ((1 - t) / EDGE);
+        } else {
+          scale = SCALE_MAX;
+        }
+        glow = scale > 1 ? (scale - 1) / (SCALE_MAX - 1) : 0;
+      }
+      el.style.setProperty('--w', w.toFixed(4));
+      el.style.setProperty('--glow', glow.toFixed(3));
+      el.style.transform = 'scale(' + scale.toFixed(4) + ')';
+      raf = requestAnimationFrame(tick);
+    }
+
+    raf = requestAnimationFrame(tick);
+    return function stop() {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
+  }
+
   function initCinematicHero(root) {
     if (!root || !global.gsap || !global.ScrollTrigger) return;
 
@@ -17,8 +62,10 @@
 
     var mainCard = root.querySelector('.main-card');
     var mockup = root.querySelector('.iphone-mockup');
+    var anythingEl = root.querySelector('.text-track .anything');
     var metricValue = parseInt(root.getAttribute('data-metric') || '6', 10);
     var rafId = 0;
+    var stopAnything = null;
 
     if (prefersReducedMotion()) {
       gsap.set('.text-track, .text-days', { autoAlpha: 1, y: 0, scale: 1, filter: 'none', clipPath: 'none', rotationX: 0 });
@@ -70,7 +117,11 @@
       var introTl = gsap.timeline({ delay: 0.3 });
       introTl
         .to('.text-track', { duration: 1.8, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' })
-        .to('.text-days', { duration: 1.4, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=1.0');
+        .to('.text-days', { duration: 1.4, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=1.0')
+        .add(function () {
+          gsap.set('.text-track', { clearProps: 'filter' });
+          if (!stopAnything) stopAnything = runAnythingSync(anythingEl);
+        });
 
       var scrollTl = gsap.timeline({
         scrollTrigger: {
@@ -118,6 +169,7 @@
     root._cinematicCleanup = function () {
       window.removeEventListener('mousemove', onMouseMove);
       cancelAnimationFrame(rafId);
+      if (stopAnything) stopAnything();
       ctx.revert();
     };
   }
