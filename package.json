@@ -11,6 +11,7 @@
     "framer-motion": "latest",
     "recharts": "latest",
     "clsx": "latest",
-    "tailwind-merge": "latest"
+    "tailwind-merge": "latest",
+    "ogl": "^1.0.11"
   }
 }

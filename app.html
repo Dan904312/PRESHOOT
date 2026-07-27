@@ -35,6 +35,7 @@
 <script src="/js/icons.js"></script>
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/onboard.js"></script>
+<script type="module" src="/js/orb.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -238,7 +239,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .home-logo span{color:var(--text);background:none;-webkit-text-fill-color:var(--text)}
 .streak-pill{display:flex;align-items:center;gap:5px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:500;color:var(--text2);backdrop-filter:none}
 .scan-zone-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px,1.8vh,18px);width:100%;min-height:0}.scan-zone-foot{display:flex;flex-direction:column;align-items:center;gap:clamp(10px,1.5vh,16px);width:100%;flex-shrink:0;padding-bottom:2px}.scan-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:clamp(6px,1.5vh,18px) clamp(16px,5vw,28px) clamp(6px,1.2vh,14px);gap:clamp(10px,1.8vh,18px);position:relative;z-index:1;min-height:0;width:100%;box-sizing:border-box;overflow:hidden}
-.scan-ring{width:clamp(128px,34vw,176px);height:clamp(128px,34vw,176px);flex-shrink:0;border-radius:50%;background:var(--s1);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;animation:none;cursor:pointer;box-shadow:none;color:var(--text)}.scan-ring .ico-svg{width:32%;height:32%;color:var(--text)}
+.scan-ring{width:clamp(128px,34vw,176px);height:clamp(128px,34vw,176px);flex-shrink:0;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;animation:none;cursor:pointer;box-shadow:none;color:#fff;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent}.scan-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;z-index:0}.scan-orb canvas{display:block;width:100%!important;height:100%!important}.scan-ring-cam,.scan-ring .ico-svg{position:relative;z-index:1;width:32%;height:32%;color:#fff!important;stroke:#fff!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none}
 .scan-ring:active{transform:scale(.92)!important;box-shadow:none}
 .scan-lbl{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:-.5px;text-align:center;color:var(--text);margin-bottom:2px}
 .usage-bar{display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--text);box-shadow:var(--sh);backdrop-filter:blur(12px);width:100%;max-width:320px;box-sizing:border-box;flex-shrink:0}
@@ -552,13 +553,13 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .streak-pill .ico-svg{color:var(--text2)!important}
 .scan-zone{padding:clamp(8px,2vh,18px) var(--pad-x) clamp(8px,1.5vh,14px);gap:clamp(12px,2vh,18px)}
 .scan-ring{
-  border:1px solid var(--border2)!important;
-  background:var(--s1)!important;
+  border:none!important;
+  background:transparent!important;
   box-shadow:none!important;
   animation:none!important;
-  color:var(--text);
+  color:#fff;
 }
-.scan-ring .ico-svg{color:var(--text)!important}
+.scan-ring .ico-svg,.scan-ring-cam{color:#fff!important;stroke:#fff!important}
 .scan-ring:active{box-shadow:none!important}
 .scan-ring-label{color:var(--text3)!important}
 .upload-btn,.rescan-btn,.ob-btn-primary,.ob-btn-ghost,.ob-btn-google,.ob-nav-next,.ob-nav-back,.pw-cta,.act-btn,.fmt-go-btn,.lib-tab,.chip,.auth-btn{
@@ -722,7 +723,7 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .bni-ico{color:rgba(255,255,255,.38)}
 .bni.active .bni-ico{color:var(--accent)}
 .bni.active .bni-ico .ico-svg{color:var(--accent)}
-.scan-ring .ico-svg{width:56px;height:56px;color:var(--accent)}
+.scan-ring .ico-svg,.scan-ring-cam{width:56px;height:56px;color:#fff!important;stroke:#fff!important}
 .scan-ring-label{display:none}
 .community-name .ico-svg{margin-right:8px;color:var(--accent)}
 .pf-check{color:var(--text)}
@@ -854,7 +855,7 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 </div> <!-- ═══ HOME ═══ -->
 
 <div class="screen" id="screen-home"> <div class="home-kinetic" id="home-kinetic"></div> <div class="home-inner"> <div class="home-hd"> <div class="home-logo">Pre<span>Shoot</span></div> <div class="streak-pill"><svg class="ico-svg" width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s5 4.5 5 9a5 5 0 1 1-10 0c0-2.5 1.8-4.5 3-6 0 2 1 3 2 3z"/></svg> <span id="streak-n">0 days</span></div> </div> <div class="scan-zone">
- <div class="scan-zone-main"> <div class="scan-ring" onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('cam-in').value='';document.getElementById('cam-in').click();" id="scan-ring"><svg class="ico-svg" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div> <div><div class="scan-lbl">Take a photo</div><div class="scan-sub" style="font-size:13px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px">Take a clear photo of your location. The more detail the AI can see, the better your ideas</div></div> <button class="upload-btn" onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('gal-in').value='';document.getElementById('gal-in').click();" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4-3 3 2 4-4 5 5"/></svg> <span>Upload from Camera Roll</span> </button> </div>
+ <div class="scan-zone-main"> <div class="scan-ring" role="button" aria-label="Take a photo" onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('cam-in').value='';document.getElementById('cam-in').click();" id="scan-ring"><div class="scan-orb" id="scan-orb" aria-hidden="true"></div><svg class="ico-svg scan-ring-cam" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div> <div><div class="scan-lbl">Take a photo</div><div class="scan-sub" style="font-size:13px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px">Take a clear photo of your location. The more detail the AI can see, the better your ideas</div></div> <button class="upload-btn" onclick="if(!canScan()){openM('pw-modal');return;}document.getElementById('gal-in').value='';document.getElementById('gal-in').click();" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4-3 3 2 4-4 5 5"/></svg> <span>Upload from Camera Roll</span> </button> </div>
  <div class="scan-zone-foot"> <div class="usage-bar" id="usage-bar"></div> <div class="director-card" onclick="openDirector()" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"> <div class="director-card-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg></div> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:var(--accent);color:var(--on-accent);padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div> <div style="font-size:11px;color:var(--text2);line-height:1.4">Your AI assistant for filming, editing and beyond</div> </div> <div style="color:var(--text3);font-size:16px"></div> </div> </div> </div>
  </div>
 </div> <!-- ═══ RESULTS ═══ -->
@@ -1154,6 +1155,7 @@ function syncAccentTokens(c){
   r.style.setProperty('--accent-soft','rgba('+rr+','+gg+','+bb+',.1)');
   r.style.setProperty('--border-hover',hex);
   r.style.setProperty('--on-accent','#000000');
+  if(window.PreShootOrb&&PreShootOrb.setAccent)PreShootOrb.setAccent(hex);
 }
 function setAccent(c){S.accent=c;ss('accent',c);syncAccentTokens(c);renderAppear();} /* ── PAYWALL ── */
 var STRIPE_LINKS = { m: 'https://buy.stripe.com/28EaEXa574Y9esvaEWa7C00', y: 'https://buy.stripe.com/dRm5kD0ux62d2JN00ia7C01'
