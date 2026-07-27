@@ -80,6 +80,7 @@ button{font-family:var(--fb);cursor:pointer;border:none;background:none}
 .screen.exit{animation:screenOut .2s cubic-bezier(0.4,0,1,1) forwards;pointer-events:none}
 @keyframes screenIn{0%{opacity:0}100%{opacity:1}}
 @keyframes screenOut{0%{opacity:1}100%{opacity:0}}
+.screen.active.no-anim{animation:none!important}
 .sb{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0} /* Spring button press, applied globally */
 .spring-btn{transition:transform .15s cubic-bezier(0.34,1.56,0.64,1)!important}
 .spring-btn:active{transform:scale(.93)!important} /* All buttons and interactive elements */
@@ -341,11 +342,11 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .menu-row-title{font-size:14px;font-weight:600;color:var(--text)}
 .menu-row-sub{font-size:12px;color:var(--text2);margin-top:1px}
 .menu-arrow{color:var(--text3);font-size:14px}
-.tgl{position:relative;width:44px;height:24px;flex-shrink:0}
+.tgl{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .tgl input{opacity:0;width:0;height:0;position:absolute}
-.tgl-s{position:absolute;inset:0;background:var(--s3);border-radius:24px;transition:.2s;cursor:pointer;border:1px solid var(--border)}
-.tgl-s::before{content:'';position:absolute;width:18px;height:18px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s}
-.tgl input:checked+.tgl-s{background:var(--accent);border-color:var(--accent)}
+.tgl-s{position:absolute;inset:0;background:var(--s3);border-radius:24px;transition:.2s;cursor:pointer;border:1px solid var(--border);touch-action:manipulation}
+.tgl-s::before{content:'';position:absolute;width:18px;height:18px;left:2px;top:2px;background:#ffffff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tgl input:checked+.tgl-s{background:var(--accent);border-color:var(--accent);box-shadow:none}
 .tgl input:checked+.tgl-s::before{transform:translateX(20px)} /* ─────── PROFILE ─────── */
 .prof-hd{padding:60px 24px 12px;display:flex;align-items:center;justify-content:space-between}
 .prof-title{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.3px;color:var(--text)}
@@ -633,8 +634,8 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .ob-progress-fill{background:var(--accent)!important}
 .ob-kicker{color:var(--text3)}
 .ob-light-streak{background:var(--text)!important;filter:none!important}
-.tgl-s{background:var(--s3);border:1px solid var(--border);border-radius:999px;box-shadow:none!important}
-.tgl input:checked+.tgl-s{background:var(--accent);border-color:var(--accent);box-shadow:none!important}
+/* tgl-s styles consolidated above */
+/* tgl checked styles consolidated above */
 .slider::-webkit-slider-thumb,.slider::-moz-range-thumb{background:var(--accent)!important;box-shadow:none!important}
 .slider-value{color:var(--accent)}
 
@@ -904,14 +905,14 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
       <div class="pers-sec">
         <div class="pers-sec-title">Preferred Color Palette</div>
         <div class="color-picker-wrap">
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#FFFFFF"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#E8E8E8"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#B0B0B0"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#6B6B6B"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#2A2A2A"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#000000"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#1a1a1a"></div>
-          class="color-chip" onclick="toggleColorChip(this)" style="background:#4A9EFF"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#FFFFFF"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#E8E8E8"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#B0B0B0"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#6B6B6B"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#2A2A2A"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#000000"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#1a1a1a"></div>
+          <div class="color-chip" onclick="toggleColorChip(this)" style="background:#4A9EFF"></div>
         </div>
       </div>
       
@@ -1007,7 +1008,7 @@ function showMain() { document.getElementById('screen-onboard').classList.remove
 } /* ── NAV ── */
 function goTab(tab) { /* Close director if open */
 var dirScreen = document.getElementById('screen-director'); if (dirScreen && dirScreen.classList.contains('active')) { dirScreen.classList.remove('active'); } /* Switch screens instantly, no delays, no timing bugs */
-['home','results','library','menu','profile'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); var sc = document.getElementById('screen-' + tab); var ni = document.getElementById('nav-' + tab); if (sc) sc.classList.add('active'); if (ni) ni.classList.add('active'); S.tab = tab; if (tab === 'library') renderLib(); if (tab === 'profile') renderProf(); if (tab === 'menu') renderMenu(); if (tab === 'home') renderHome(); var bn=document.querySelector('.bnav'); if(bn) bn.classList.remove('hidden');
+['home','results','library','menu','profile'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); var sc = document.getElementById('screen-' + tab); var ni = document.getElementById('nav-' + tab); if (sc) { sc.classList.add('no-anim'); sc.classList.add('active'); } if (ni) ni.classList.add('active'); S.tab = tab; if (tab === 'library') renderLib(); if (tab === 'profile') renderProf(); if (tab === 'menu') renderMenu(); if (tab === 'home') renderHome(); var bn=document.querySelector('.bnav'); if(bn) bn.classList.remove('hidden');
 } /* ── PICKER ── */
 function openPicker() { if (!canScan()) { openM('pw-modal'); return; } var mob = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); if (mob) { var ov = document.getElementById('picker-ov'); var sh = document.getElementById('picker-sh'); ov.classList.add('open'); sh.style.transform = 'translateY(100%)'; sh.style.transition = 'none'; setTimeout(function(){sh.style.transition='transform .38s cubic-bezier(.4,0,.2,1)';sh.style.transform='translateY(0)';},10); } else { document.getElementById('cam-in').value=''; document.getElementById('cam-in').click(); }
 }
