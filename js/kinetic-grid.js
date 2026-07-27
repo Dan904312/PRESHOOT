@@ -60,7 +60,7 @@
       'position:' + (this.fixed ? 'fixed' : 'absolute') +
       ';inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;';
 
-    var theme = this.globalColor === 'monochrome' ? '#000000' : '#161618';
+    var theme = this.globalColor === 'monochrome' ? '#000000' : '#121314';
     this.container.style.background = theme;
 
     if (this.container.firstChild) {
@@ -88,7 +88,7 @@
       };
     }
     return {
-      bg: '#161618',
+      bg: '#121314',
       lineActive: { r: 74, g: 158, b: 255, a: 0.9 },
       nodeActive: { r: 74, g: 158, b: 255, a: 1.0 },
       glow: '74,158,255',
