@@ -60,7 +60,7 @@
       'position:' + (this.fixed ? 'fixed' : 'absolute') +
       ';inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;';
 
-    var theme = this.globalColor === 'monochrome' ? '#000000' : '#121314';
+    var theme = '#000000';
     this.container.style.background = theme;
 
     if (this.container.firstChild) {
@@ -88,11 +88,11 @@
       };
     }
     return {
-      bg: '#121314',
-      lineActive: { r: 74, g: 158, b: 255, a: 0.9 },
-      nodeActive: { r: 74, g: 158, b: 255, a: 1.0 },
-      glow: '74,158,255',
-      ripple: '100,180,255'
+      bg: '#000000',
+      lineActive: { r: 255, g: 255, b: 255, a: 0.55 },
+      nodeActive: { r: 255, g: 255, b: 255, a: 0.85 },
+      glow: '255,255,255',
+      ripple: '255,255,255'
     };
   };
 
