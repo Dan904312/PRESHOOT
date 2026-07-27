@@ -269,17 +269,27 @@
     this.raf = requestAnimationFrame(this._animate);
   };
 
+  KineticGrid.prototype._pointerLocal = function (e) {
+    if (this.fixed) {
+      return { x: e.clientX, y: e.clientY };
+    }
+    var rect = this.container.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
   KineticGrid.prototype._onMouseMove = function (e) {
     if (!this.interactive) return;
-    this.targetMouse.x = e.clientX;
-    this.targetMouse.y = e.clientY;
+    var p = this._pointerLocal(e);
+    this.targetMouse.x = p.x;
+    this.targetMouse.y = p.y;
   };
 
   KineticGrid.prototype._onClick = function (e) {
     if (!this.interactive) return;
+    var p = this._pointerLocal(e);
     this.ripples.push({
-      x: e.clientX,
-      y: e.clientY,
+      x: p.x,
+      y: p.y,
       radius: 0,
       opacity: 1,
       born: performance.now()
