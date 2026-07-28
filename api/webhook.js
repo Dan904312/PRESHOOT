@@ -76,19 +76,25 @@ export default async function handler(req, res) {
     switch (event.type) {
 
       case 'checkout.session.completed': {
-        const userId = obj.client_reference_id;
-        const email = obj.customer_email || obj.customer_details?.email;
+        const userId = obj.client_reference_id || null;
+        const email = obj.customer_email || obj.customer_details?.email || null;
         const amountTotal = obj.amount_total ? obj.amount_total / 100 : null;
+        /* Prefer binding by authenticated client_reference_id; fall back to email-only row key */
+        const bindId = userId || (email ? ('email:' + email.toLowerCase()) : null);
+        if (!bindId) {
+          console.error('checkout.session.completed missing user binding', event.id);
+          break;
+        }
         await supaUpsert(SUPA_URL, SUPA_KEY, 'subscriptions', {
-          user_id: userId, email,
+          user_id: bindId, email,
           stripe_customer_id: obj.customer,
           stripe_subscription_id: obj.subscription,
           plan: 'pro', status: 'active',
           started_at: now, updated_at: now
         }, 'user_id');
         await supaUpsert(SUPA_URL, SUPA_KEY, 'subscription_events', {
-          user_id: userId, email, event_type: 'checkout.completed',
-          payload: { customer: obj.customer, subscription: obj.subscription },
+          user_id: userId || null, email, event_type: 'checkout.completed',
+          payload: { customer: obj.customer, subscription: obj.subscription, client_reference_id: userId },
           amount: amountTotal,
           stripe_event_id: event.id
         });

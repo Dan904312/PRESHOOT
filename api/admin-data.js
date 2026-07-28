@@ -1,28 +1,42 @@
 // api/admin-data.js
+import {
+  setCors,
+  handleOptions,
+  timingSafeEqualStr,
+  sanitizePostgrestSearch,
+  rateLimit,
+  clientIp
+} from '../lib/security.js';
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  setCors(req, res);
+  if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  if (!rateLimit('admin:' + clientIp(req), 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+
   const adminKey = req.headers['x-admin-key'];
-  if (!adminKey || adminKey !== process.env.ADMIN_SECRET) {
+  const secret = process.env.ADMIN_SECRET || '';
+  if (!secret || !timingSafeEqualStr(adminKey, secret)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const SUPA_URL = process.env.SUPABASE_URL;
   const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY;
+  if (!SUPA_URL || !SUPA_KEY) return res.status(500).json({ error: 'DB not configured' });
+
   const h = {
     'Content-Type': 'application/json',
-    'apikey': SUPA_KEY,
-    'Authorization': 'Bearer ' + SUPA_KEY,
-    'Prefer': 'return=representation'
+    apikey: SUPA_KEY,
+    Authorization: 'Bearer ' + SUPA_KEY,
+    Prefer: 'return=representation'
   };
 
   const { action, user_id, email, reason, search, days, plan_filter } = req.body || {};
+  const safeSearch = sanitizePostgrestSearch(search);
 
-  // Helper: build a map of date string -> count for the last N days
   function buildDailyBuckets(numDays) {
     const buckets = {};
     const today = new Date();
@@ -37,8 +51,6 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
-
-      // ── OVERVIEW STATS — much richer than before ──
       case 'overview_stats': {
         const [usersR, subsR, eventsR] = await Promise.all([
           fetch(`${SUPA_URL}/rest/v1/users?select=user_id,first_seen,last_seen,total_scans`, { headers: h }),
@@ -50,7 +62,7 @@ export default async function handler(req, res) {
         const events = await eventsR.json();
 
         if (!Array.isArray(users) || !Array.isArray(subs)) {
-          return res.status(200).json({ error: 'DB error', usersRaw: users, subsRaw: subs });
+          return res.status(200).json({ error: 'DB error' });
         }
 
         const now = new Date();
@@ -76,11 +88,10 @@ export default async function handler(req, res) {
         const mrr = (monthly * 10) + (yearly * (60/12));
         const arr = mrr * 12;
 
-        // Total revenue ever collected (sum of amount on payment events, Array safe)
         const revenueEvents = Array.isArray(events) ? events.filter(e => (e.event_type === 'checkout.completed' || e.event_type === 'payment.succeeded') && e.amount) : [];
         const totalRevenue = revenueEvents.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
         const revenueThisMonth = revenueEvents.filter(e => new Date(e.created_at) >= monthAgo).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-        const revenueToday = revenueEvents.filter(e => e.created_at.slice(0,10) === todayStr).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+        const revenueToday = revenueEvents.filter(e => e.created_at && e.created_at.slice(0,10) === todayStr).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
 
         const conversionRate = totalUsers > 0 ? ((activeSubs.length / totalUsers) * 100).toFixed(1) : '0.0';
         const churnedCount = cancelled + revoked;
@@ -90,29 +101,23 @@ export default async function handler(req, res) {
         const avgScansPerUser = totalUsers > 0 ? (totalScansAllUsers / totalUsers).toFixed(1) : '0.0';
 
         return res.status(200).json({
-          // Users
           totalUsers, newToday, newThisWeek, newThisMonth,
           activeToday, activeThisWeek,
           freeUsers: totalUsers - activeSubs.length,
           proUsers: activeSubs.length,
-          // Subscriptions
           monthly, yearly, promo: promoCount, cancelled, revoked, past_due: pastDue,
-          // Revenue
           mrr: Math.round(mrr * 100) / 100,
           arr: Math.round(arr * 100) / 100,
           totalRevenue: Math.round(totalRevenue * 100) / 100,
           revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
           revenueToday: Math.round(revenueToday * 100) / 100,
-          // Rates
           conversionRate, churnRate, avgRevenuePerUser,
-          // Usage
           totalScansAllUsers, avgScansPerUser
         });
       }
 
-      // ── SIGNUPS CHART — daily new users for last N days ──
       case 'signups_chart': {
-        const numDays = days || 30;
+        const numDays = Math.min(Math.max(parseInt(days, 10) || 30, 1), 90);
         const since = new Date();
         since.setDate(since.getDate() - numDays);
         const r = await fetch(`${SUPA_URL}/rest/v1/users?select=first_seen&first_seen=gte.${since.toISOString()}`, { headers: h });
@@ -130,9 +135,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // ── REVENUE CHART — daily revenue for last N days ──
       case 'revenue_chart': {
-        const numDays = days || 30;
+        const numDays = Math.min(Math.max(parseInt(days, 10) || 30, 1), 90);
         const since = new Date();
         since.setDate(since.getDate() - numDays);
         const r = await fetch(`${SUPA_URL}/rest/v1/subscription_events?select=created_at,amount,event_type&created_at=gte.${since.toISOString()}`, { headers: h });
@@ -152,10 +156,11 @@ export default async function handler(req, res) {
         });
       }
 
-      // ── ALL USERS — free + pro, joined with subscription data ──
       case 'users_list': {
         let usersUrl = `${SUPA_URL}/rest/v1/users?select=*&order=first_seen.desc&limit=500`;
-        if (search) usersUrl += `&or=(email.ilike.*${encodeURIComponent(search)}*,name.ilike.*${encodeURIComponent(search)}*,user_id.ilike.*${encodeURIComponent(search)}*)`;
+        if (safeSearch) {
+          usersUrl += `&or=(email.ilike.*${encodeURIComponent(safeSearch)}*,name.ilike.*${encodeURIComponent(safeSearch)}*,user_id.ilike.*${encodeURIComponent(safeSearch)}*)`;
+        }
 
         const [usersR, subsR] = await Promise.all([
           fetch(usersUrl, { headers: h }),
@@ -164,7 +169,7 @@ export default async function handler(req, res) {
         const users = await usersR.json();
         const subs = await subsR.json();
 
-        if (!Array.isArray(users)) return res.status(200).json({ error: 'DB error', raw: users });
+        if (!Array.isArray(users)) return res.status(200).json({ error: 'DB error' });
 
         const subsByUserId = {};
         const subsByEmail = {};
@@ -194,7 +199,6 @@ export default async function handler(req, res) {
           };
         });
 
-        // Also include subscribers who paid but somehow aren't in `users` table yet (edge case safety)
         const seenIds = new Set(users.map(u => u.user_id));
         const seenEmails = new Set(users.map(u => u.email).filter(Boolean));
         if (Array.isArray(subs)) {
@@ -218,10 +222,9 @@ export default async function handler(req, res) {
         return res.status(200).json({ users: merged });
       }
 
-      // ── Legacy: paying subscribers only (kept for compatibility) ──
       case 'list': {
         let url = `${SUPA_URL}/rest/v1/subscriptions?select=*&order=created_at.desc&limit=200`;
-        if (search) url += `&or=(email.ilike.*${encodeURIComponent(search)}*,user_id.ilike.*${encodeURIComponent(search)}*)`;
+        if (safeSearch) url += `&or=(email.ilike.*${encodeURIComponent(safeSearch)}*,user_id.ilike.*${encodeURIComponent(safeSearch)}*)`;
         const r = await fetch(url, { headers: h });
         const data = await r.json();
         return res.status(200).json({ subscribers: Array.isArray(data) ? data : [] });
@@ -230,7 +233,7 @@ export default async function handler(req, res) {
       case 'stats': {
         const r = await fetch(`${SUPA_URL}/rest/v1/subscriptions?select=plan,status,billing_interval`, { headers: h });
         const data = await r.json();
-        if (!Array.isArray(data)) return res.status(200).json({ error: 'DB error', raw: data });
+        if (!Array.isArray(data)) return res.status(200).json({ error: 'DB error' });
         const active = data.filter(d => d.plan === 'pro' && ['active','promo','trialing'].includes(d.status));
         const monthly = active.filter(d => d.billing_interval === 'monthly').length;
         const yearly = active.filter(d => d.billing_interval === 'yearly').length;
@@ -259,20 +262,20 @@ export default async function handler(req, res) {
       }
 
       case 'revoke': {
-        if (!user_id) return res.status(400).json({ error: 'user_id required' });
+        if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
         await fetch(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
           method: 'PATCH', headers: h,
-          body: JSON.stringify({ plan: 'free', status: 'revoked', revoked_at: new Date().toISOString(), revoked_reason: reason || 'Admin revoke', updated_at: new Date().toISOString() })
+          body: JSON.stringify({ plan: 'free', status: 'revoked', revoked_at: new Date().toISOString(), revoked_reason: String(reason || 'Admin revoke').slice(0, 500), updated_at: new Date().toISOString() })
         });
         await fetch(`${SUPA_URL}/rest/v1/subscription_events`, {
           method: 'POST', headers: h,
-          body: JSON.stringify({ user_id, event_type: 'admin.revoked', payload: { reason: reason || 'Admin revoke' } })
+          body: JSON.stringify({ user_id, event_type: 'admin.revoked', payload: { reason: String(reason || 'Admin revoke').slice(0, 500) } })
         });
         return res.status(200).json({ success: true });
       }
 
       case 'restore': {
-        if (!user_id) return res.status(400).json({ error: 'user_id required' });
+        if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
         await fetch(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
           method: 'PATCH', headers: h,
           body: JSON.stringify({ plan: 'pro', status: 'active', revoked_at: null, revoked_reason: null, updated_at: new Date().toISOString() })
@@ -285,25 +288,25 @@ export default async function handler(req, res) {
       }
 
       case 'grant': {
-        if (!email) return res.status(400).json({ error: 'email required' });
-        const uid = user_id || ('manual_' + Date.now());
+        if (!email || typeof email !== 'string') return res.status(400).json({ error: 'email required' });
+        const uid = (typeof user_id === 'string' && user_id) ? user_id : ('manual_' + Date.now());
         await fetch(`${SUPA_URL}/rest/v1/subscriptions`, {
           method: 'POST',
-          headers: { ...h, 'Prefer': 'resolution=merge-duplicates' },
-          body: JSON.stringify({ user_id: uid, email, plan: 'pro', status: 'promo', started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          headers: { ...h, Prefer: 'resolution=merge-duplicates' },
+          body: JSON.stringify({ user_id: uid, email: email.slice(0, 320), plan: 'pro', status: 'promo', started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         });
         await fetch(`${SUPA_URL}/rest/v1/subscription_events`, {
           method: 'POST', headers: h,
-          body: JSON.stringify({ user_id: uid, email, event_type: 'admin.granted', payload: { reason: reason || 'Manual grant' } })
+          body: JSON.stringify({ user_id: uid, email: email.slice(0, 320), event_type: 'admin.granted', payload: { reason: String(reason || 'Manual grant').slice(0, 500) } })
         });
         return res.status(200).json({ success: true });
       }
 
       case 'note': {
-        if (!user_id) return res.status(400).json({ error: 'user_id required' });
+        if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
         await fetch(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
           method: 'PATCH', headers: h,
-          body: JSON.stringify({ notes: reason, updated_at: new Date().toISOString() })
+          body: JSON.stringify({ notes: String(reason || '').slice(0, 2000), updated_at: new Date().toISOString() })
         });
         return res.status(200).json({ success: true });
       }
@@ -313,6 +316,6 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('Admin error:', err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'admin_failed' });
   }
 }

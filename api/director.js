@@ -1,21 +1,16 @@
 // api/director.js
 // Dedicated endpoint for Director™ AI — PreShoot's embedded creative director.
-// Keeps the system prompt server-side and never exposes it to the client.
-// Supports streaming (stream: true) and non-streaming responses.
-//
-// Request body:
-//   messages:  array of { role: 'user' | 'assistant', content: string }
-//   context:   optional string — creator profile injected by the frontend
-//   stream:    optional boolean — enables SSE streaming
-//
-// Future scalability hooks (marked with FUTURE):
-//   - Supabase user profile fetch (replace context string with DB lookup)
-//   - Per-user memory / previous projects
-//   - Analytics feedback loop
+import {
+  setCors,
+  handleOptions,
+  requireUser,
+  requireDirectorAccess,
+  rateLimit,
+  clientIp,
+  sanitizeContext,
+  sanitizeImage
+} from '../lib/security.js';
 
-// ─────────────────────────────────────────────────────────
-// DIRECTOR™ SYSTEM PROMPT
-// ─────────────────────────────────────────────────────────
 const DIRECTOR_SYSTEM = `DIRECTOR™ — PRESHOOT CORE SYSTEM
 
 IDENTITY
@@ -172,11 +167,33 @@ Only mention "created by Daniel Liu" when the user specifically asks who made yo
 // HANDLER
 // ─────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  setCors(req, res);
+  if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (!rateLimit('director:' + clientIp(req), 40, 60 * 1000)) {
+    return res.status(429).json({ error: { message: 'Too many requests' } });
+  }
+
+  const auth = await requireUser(req);
+  if (auth.error) {
+    return res.status(auth.status).json({ error: { message: auth.error } });
+  }
+
+  const access = await requireDirectorAccess(auth.user);
+  if (!access.ok) {
+    const msg =
+      access.error === 'pro_required'
+        ? 'Director requires PreShoot Pro'
+        : access.error === 'quota_exceeded'
+          ? 'Director daily message limit reached'
+          : access.error || 'Access denied';
+    return res.status(access.status || 403).json({ error: { message: msg } });
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: { message: 'AI not configured' } });
+  }
 
   try {
     const { messages, context, stream, image } = req.body || {};
@@ -185,17 +202,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'messages array required' });
     }
 
-    // ── Build the system prompt ──────────────────────────
-    // FUTURE: replace `context` string with a Supabase profile fetch here.
-    // e.g. const profile = await fetchSupabaseProfile(req.body.user_id);
-    //      const context = buildContextFromProfile(profile);
     let systemPrompt = DIRECTOR_SYSTEM;
-    if (context && context.trim()) {
-      systemPrompt += '\n\n---\nCREATOR CONTEXT\n' + context.trim();
+    const safeCtx = sanitizeContext(context);
+    if (safeCtx) {
+      systemPrompt += '\n\n---\nCREATOR CONTEXT\n' + safeCtx;
     }
 
-    // ── Sanitize messages — only user/assistant roles ────
-    // Remove any accidental system messages the frontend may have sent
     const hasText = (c) => {
       if (typeof c === 'string') return !!c.trim();
       if (Array.isArray(c)) return c.some((p) => p && (p.type === 'text' ? !!(p.text || '').trim() : true));
@@ -206,10 +218,21 @@ export default async function handler(req, res) {
       .filter((m) => m.role === 'user' || m.role === 'assistant')
       .filter((m) => hasText(m.content))
       .slice(-30)
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => {
+        let content = m.content;
+        if (typeof content === 'string') content = content.slice(0, 8000);
+        else if (Array.isArray(content)) {
+          content = content.slice(0, 8).map((p) => {
+            if (!p || typeof p !== 'object') return null;
+            if (p.type === 'text') return { type: 'text', text: String(p.text || '').slice(0, 8000) };
+            return null;
+          }).filter(Boolean);
+        }
+        return { role: m.role, content };
+      });
 
-    // Attach scan image to the latest user turn when provided (idea → Director handoff)
-    if (image && image.data && safeMessages.length) {
+    const safeImage = sanitizeImage(image);
+    if (safeImage && safeMessages.length) {
       const last = safeMessages[safeMessages.length - 1];
       if (last.role === 'user') {
         const text =
@@ -223,8 +246,8 @@ export default async function handler(req, res) {
             type: 'image',
             source: {
               type: 'base64',
-              media_type: image.mime || 'image/jpeg',
-              data: image.data
+              media_type: safeImage.mime,
+              data: safeImage.data
             }
           },
           { type: 'text', text: text || 'Use this scanned scene as visual reference.' }
@@ -232,10 +255,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── Build Anthropic request ──────────────────────────
     const anthropicBody = {
       model: 'claude-sonnet-4-6',
-      max_tokens: image ? 1600 : 1000,
+      max_tokens: safeImage ? 1600 : 1000,
       system: systemPrompt,
       messages: safeMessages,
       stream: !!stream
@@ -251,7 +273,6 @@ export default async function handler(req, res) {
       body: JSON.stringify(anthropicBody)
     });
 
-    // ── Streaming response ───────────────────────────────
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -266,13 +287,12 @@ export default async function handler(req, res) {
       return;
     }
 
-    // ── Non-streaming response ───────────────────────────
     const data = await response.json();
     return res.status(response.status).json(data);
 
   } catch (error) {
     console.error('Director API error:', error);
-    return res.status(500).json({ error: { message: error.message } });
+    return res.status(500).json({ error: { message: 'Upstream error' } });
   }
 }
 

@@ -1,26 +1,39 @@
-// api/sync.js — cross-device data sync
-// POST { action: 'load', user_id }
-// POST { action: 'save', user_id, data: {...} }
+// api/sync.js — cross-device data sync (JWT-bound)
+import {
+  setCors,
+  handleOptions,
+  requireUser,
+  rateLimit,
+  clientIp,
+  serviceHeaders
+} from '../lib/security.js';
+
+const MAX_JSON = 900_000; // ~0.9MB serialized payload guard
+
+function clipArray(arr, n) {
+  return Array.isArray(arr) ? arr.slice(0, n) : [];
+}
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  setCors(req, res);
+  if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action, user_id, data } = req.body || {};
-  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  if (!rateLimit('sync:' + clientIp(req), 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+
+  const auth = await requireUser(req);
+  if (auth.error) return res.status(auth.status).json({ error: auth.error });
+
+  const user_id = auth.user.id;
+  const { action, data } = req.body || {};
 
   const SUPA_URL = process.env.SUPABASE_URL;
   const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY;
   if (!SUPA_URL || !SUPA_KEY) return res.status(200).json({ ok: false, error: 'no_config' });
 
-  const h = {
-    'Content-Type': 'application/json',
-    'apikey': SUPA_KEY,
-    'Authorization': 'Bearer ' + SUPA_KEY
-  };
+  const h = serviceHeaders();
 
   try {
     if (action === 'load') {
@@ -34,26 +47,44 @@ export default async function handler(req, res) {
     }
 
     if (action === 'save') {
-      if (!data) return res.status(400).json({ error: 'data required' });
-      const historyClean = (data.history || []).map(function(h) {
-        return { sceneType: h.sceneType, sceneLabel: h.sceneLabel, ideas: h.ideas, ts: h.ts };
+      if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data required' });
+
+      const historyClean = clipArray(data.history, 100).map(function (item) {
+        return {
+          sceneType: item.sceneType,
+          sceneLabel: item.sceneLabel,
+          ideas: item.ideas,
+          ts: item.ts,
+          image: typeof item.image === 'string' && item.image.length < 200000 ? item.image : null
+        };
       });
+
       const payload = {
         user_id,
         history: historyClean,
-        library: data.library || [],
-        director_history: (data.director_history || []).slice(-30),
-        niche: data.niche || {},
-        platform_focus: data.platform_focus || {},
-        aesthetic: data.aesthetic || {},
-        gear: data.gear || {},
-        profile: data.profile || {},
-        prefs: data.prefs || {},
+        library: clipArray(data.library, 200),
+        director_history: clipArray(data.director_history, 30),
+        niche: data.niche && typeof data.niche === 'object' ? data.niche : {},
+        platform_focus:
+          data.platform_focus && typeof data.platform_focus === 'object'
+            ? data.platform_focus
+            : {},
+        aesthetic: data.aesthetic && typeof data.aesthetic === 'object' ? data.aesthetic : {},
+        gear: data.gear && typeof data.gear === 'object' ? data.gear : {},
+        profile: data.profile && typeof data.profile === 'object' ? data.profile : {},
+        prefs: data.prefs && typeof data.prefs === 'object' ? data.prefs : {},
         updated_at: new Date().toISOString()
       };
+
+      const serialized = JSON.stringify(payload);
+      if (serialized.length > MAX_JSON) {
+        /* Drop images from history if over size */
+        payload.history = historyClean.map((item) => ({ ...item, image: null }));
+      }
+
       await fetch(`${SUPA_URL}/rest/v1/user_data`, {
         method: 'POST',
-        headers: { ...h, 'Prefer': 'resolution=merge-duplicates' },
+        headers: { ...h, Prefer: 'resolution=merge-duplicates' },
         body: JSON.stringify(payload)
       });
       return res.status(200).json({ ok: true });
@@ -62,6 +93,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'unknown action' });
   } catch (err) {
     console.error('sync error:', err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'sync_failed' });
   }
 }

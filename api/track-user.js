@@ -1,51 +1,77 @@
-// api/track-user.js
-// Called on every sign-in. Upserts into `users` table so EVERY user
-// is tracked, not just paying subscribers.
-// POST { user_id, email, name, avatar, provider }
+// api/track-user.js — upsert signed-in user profile (JWT-bound)
+import {
+  setCors,
+  handleOptions,
+  requireUser,
+  rateLimit,
+  clientIp,
+  serviceHeaders
+} from '../lib/security.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  setCors(req, res);
+  if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { user_id, email, name, avatar, provider } = req.body || {};
-  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  if (!rateLimit('track:' + clientIp(req), 30, 60 * 1000)) {
+    return res.status(429).json({ ok: false });
+  }
+
+  const auth = await requireUser(req);
+  if (auth.error) return res.status(auth.status).json({ ok: false, error: auth.error });
+
+  const user_id = auth.user.id;
+  const email = auth.user.email;
+  const body = req.body || {};
+  /* Only accept display fields from client; identity from JWT */
+  const name =
+    typeof body.name === 'string' ? body.name.slice(0, 120) : auth.user.name;
+  const avatar =
+    typeof body.avatar === 'string' && body.avatar.length < 500000
+      ? body.avatar
+      : auth.user.avatar;
+  const provider =
+    typeof body.provider === 'string'
+      ? body.provider.slice(0, 40)
+      : auth.user.provider || 'google';
 
   const SUPA_URL = process.env.SUPABASE_URL;
   const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY;
   if (!SUPA_URL || !SUPA_KEY) return res.status(200).json({ ok: false });
 
-  const h = {
-    'Content-Type': 'application/json',
-    'apikey': SUPA_KEY,
-    'Authorization': 'Bearer ' + SUPA_KEY
-  };
+  const h = serviceHeaders();
 
   try {
-    // Check if user already exists — only set first_seen on first insert
-    const checkR = await fetch(`${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(user_id)}&select=user_id&limit=1`, { headers: h });
+    const checkR = await fetch(
+      `${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(user_id)}&select=user_id&limit=1`,
+      { headers: h }
+    );
     const existing = await checkR.json();
 
     if (Array.isArray(existing) && existing.length > 0) {
-      // Existing user — just bump last_seen
-      await fetch(`${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(user_id)}`, {
-        method: 'PATCH',
-        headers: h,
-        body: JSON.stringify({
-          last_seen: new Date().toISOString(),
-          email, name, avatar
-        })
-      });
+      await fetch(
+        `${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(user_id)}`,
+        {
+          method: 'PATCH',
+          headers: h,
+          body: JSON.stringify({
+            last_seen: new Date().toISOString(),
+            email,
+            name,
+            avatar
+          })
+        }
+      );
     } else {
-      // New user — insert with first_seen = now
       await fetch(`${SUPA_URL}/rest/v1/users`, {
         method: 'POST',
-        headers: { ...h, 'Prefer': 'resolution=merge-duplicates' },
+        headers: { ...h, Prefer: 'resolution=merge-duplicates' },
         body: JSON.stringify({
-          user_id, email, name, avatar,
-          provider: provider || 'google',
+          user_id,
+          email,
+          name,
+          avatar,
+          provider,
           first_seen: new Date().toISOString(),
           last_seen: new Date().toISOString()
         })
