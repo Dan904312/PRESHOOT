@@ -464,26 +464,27 @@ function renderUsers(users) {
   tbody.innerHTML=users.map(function(u){
     var canRevoke=u.plan==='pro';
     var canRestore=u.status==='revoked'||u.status==='cancelled';
-    var init=(u.name||u.email||'?')[0].toUpperCase();
-    var av=u.avatar?'<img class="avatar-img" src="'+u.avatar+'" onerror="this.style.display=\'none\'">':'<div class="avatar-init">'+init+'</div>';
+    var init=esc((u.name||u.email||'?')[0].toUpperCase());
+    var avUrl = u.avatar && /^https?:\/\//i.test(u.avatar) ? esc(u.avatar) : '';
+    var av=avUrl?'<img class="avatar-img" src="'+avUrl+'" onerror="this.style.display=\'none\'">':'<div class="avatar-init">'+init+'</div>';
     return '<tr>'+
       '<td><div class="email-cell">'+av+
-      '<div><div>'+(u.name||u.email||'Unknown')+'</div>'+
-      (u.name?'<div style="font-size:11px;color:var(--text3)">'+(u.email||'')+'</div>':'')+
+      '<div><div>'+esc(u.name||u.email||'Unknown')+'</div>'+
+      (u.name?'<div style="font-size:11px;color:var(--text3)">'+esc(u.email||'')+'</div>':'')+
       '</div></div></td>'+
-      '<td><span class="badge '+(u.plan||'free')+'">'+(u.plan||'FREE').toUpperCase()+'</span></td>'+
-      '<td><span class="badge '+(u.status||'none')+'">'+(u.status||'none')+'</span></td>'+
+      '<td><span class="badge '+(u.plan||'free')+'">'+esc((u.plan||'FREE').toUpperCase())+'</span></td>'+
+      '<td><span class="badge '+(u.status||'none')+'">'+esc(u.status||'none')+'</span></td>'+
       '<td style="font-weight:700">'+(u.total_scans||0)+'</td>'+
       '<td class="date-cell">'+(u.first_seen?new Date(u.first_seen).toLocaleDateString():'—')+'</td>'+
       '<td class="date-cell">'+(u.last_seen?timeAgo(u.last_seen):'—')+'</td>'+
       '<td><div class="act-row">'+
-      (canRevoke?'<button class="act-btn revoke" onclick="doRevoke(\''+u.user_id+'\',\''+esc(u.email||'')+'\')">Revoke</button>':'')+
-      (canRestore?'<button class="act-btn restore" onclick="doRestore(\''+u.user_id+'\',\''+esc(u.email||'')+'\')">Restore</button>':'')+
+      (canRevoke?'<button class="act-btn revoke" data-uid="'+esc(u.user_id)+'" data-email="'+esc(u.email||'')+'" onclick="doRevoke(this.dataset.uid,this.dataset.email)">Revoke</button>':'')+
+      (canRestore?'<button class="act-btn restore" data-uid="'+esc(u.user_id)+'" data-email="'+esc(u.email||'')+'" onclick="doRestore(this.dataset.uid,this.dataset.email)">Restore</button>':'')+
       '</div></td></tr>';
   }).join('');
 }
 
-function esc(s){return s.replace(/'/g,"\\'");}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function timeAgo(ds){
   var diff=Date.now()-new Date(ds).getTime();
   var m=Math.floor(diff/60000);
@@ -534,8 +535,8 @@ function loadEvents(){
     el.innerHTML=evts.map(function(e){
       return '<div class="event-row">'+
         '<div class="event-ico">'+(EV_ICO[e.event_type]||'📌')+'</div>'+
-        '<div class="event-info"><div class="event-type">'+e.event_type+'</div>'+
-        '<div class="event-meta">'+(e.email||e.user_id||'Unknown')+' &mdash; '+new Date(e.created_at).toLocaleString()+'</div></div>'+
+        '<div class="event-info"><div class="event-type">'+esc(e.event_type)+'</div>'+
+        '<div class="event-meta">'+esc(e.email||e.user_id||'Unknown')+' &mdash; '+esc(new Date(e.created_at).toLocaleString())+'</div></div>'+
         (e.amount?'<div class="event-amount">'+money(e.amount)+'</div>':'')+
         '</div>';
     }).join('');
@@ -551,10 +552,10 @@ function loadPromo(){
     if(!usage.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">No promo codes redeemed yet</td></tr>';return;}
     tbody.innerHTML=usage.map(function(u){
       return '<tr>'+
-        '<td><span style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700">'+u.code+'</span></td>'+
-        '<td>'+(u.email||'—')+'</td>'+
-        '<td class="mono">'+(u.user_id||'—')+'</td>'+
-        '<td class="date-cell">'+new Date(u.used_at).toLocaleString()+'</td></tr>';
+        '<td><span style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700">'+esc(u.code)+'</span></td>'+
+        '<td>'+esc(u.email||'—')+'</td>'+
+        '<td class="mono">'+esc(u.user_id||'—')+'</td>'+
+        '<td class="date-cell">'+esc(new Date(u.used_at).toLocaleString())+'</td></tr>';
     }).join('');
   });
 }
