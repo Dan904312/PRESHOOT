@@ -80,6 +80,7 @@
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 1 });
       gsap.set('.cta-wrapper', { autoAlpha: 0 });
       gsap.set('.hero-text-wrapper', { autoAlpha: 1 });
+      gsap.set('.hero-first-frame', { autoAlpha: 0 });
       var counter = root.querySelector('.counter-val');
       if (counter) counter.textContent = String(metricValue);
       var ring = root.querySelector('.progress-ring');
@@ -115,16 +116,20 @@
 
     var isMobile = window.innerWidth < 768;
     var ctx = gsap.context(function () {
-      gsap.set('.text-track', { autoAlpha: 0, y: 60, scale: 0.85, filter: 'blur(20px)', rotationX: -20 });
+      /* First paint already shows brand + value via .hero-first-frame (CSS).
+         Keep headline mostly ready — shorter motion, no empty loading feel. */
+      gsap.set('.hero-first-frame', { autoAlpha: 1 });
+      gsap.set('.text-track', { autoAlpha: 0, y: 28, scale: 0.96, filter: 'blur(8px)', rotationX: -8 });
       gsap.set('.text-days', { autoAlpha: 1, clipPath: 'inset(0 100% 0 0)' });
       gsap.set('.main-card', { y: getViewportHeight() + 200, autoAlpha: 1 });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 0 });
       gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, filter: 'blur(30px)' });
 
-      var introTl = gsap.timeline({ delay: 0.3 });
+      var introTl = gsap.timeline({ delay: 0.05 });
       introTl
-        .to('.text-track', { duration: 1.8, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' })
-        .to('.text-days', { duration: 1.4, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=1.0')
+        .to('.hero-first-frame', { duration: 0.55, autoAlpha: 0, y: -12, ease: 'power2.in' }, 0)
+        .to('.text-track', { duration: 1.05, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' }, 0.12)
+        .to('.text-days', { duration: 0.95, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=0.65')
         .add(function () {
           gsap.set('.text-track', { clearProps: 'filter' });
           if (!stopAnything) stopAnything = runAnythingSync(anythingEl);
