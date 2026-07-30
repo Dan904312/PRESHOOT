@@ -7,7 +7,8 @@
   'use strict';
 
   var STORAGE_KEY = 'studio';
-  var VERSION = 1;
+  var VERSION = 2;
+  var DIRTY_KEY = 'studio_dirty';
 
   var STATUSES = [
     { id: 'planning', label: 'Planning', order: 0 },
@@ -53,7 +54,48 @@
   }
 
   function emptyStore() {
-    return { version: VERSION, projects: [], continueProductionId: null, updatedAt: now() };
+    /* updatedAt:0 so a fresh device never looks "newer" than cloud */
+    return { version: VERSION, projects: [], continueProductionId: null, updatedAt: 0 };
+  }
+
+  function hasPersistedStore() {
+    try {
+      return localStorage.getItem('scout_' + STORAGE_KEY) != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function defaultWorkspace() {
+    return {
+      overview: { summary: '', goal: '', platform: '', format: '' },
+      shotList: [],
+      script: { body: '' },
+      references: { youtube: [], capcut: [], uploads: [] },
+      assets: []
+    };
+  }
+
+  function ensureWorkspace(prod) {
+    if (!prod || typeof prod !== 'object') return prod;
+    if (!prod.workspace || typeof prod.workspace !== 'object') {
+      prod.workspace = defaultWorkspace();
+    } else {
+      var d = defaultWorkspace();
+      prod.workspace.overview = Object.assign({}, d.overview, prod.workspace.overview || {});
+      if (!Array.isArray(prod.workspace.shotList)) prod.workspace.shotList = [];
+      prod.workspace.script = Object.assign({}, d.script, prod.workspace.script || {});
+      prod.workspace.references = Object.assign(
+        {},
+        d.references,
+        prod.workspace.references || {}
+      );
+      if (!Array.isArray(prod.workspace.references.youtube)) prod.workspace.references.youtube = [];
+      if (!Array.isArray(prod.workspace.references.capcut)) prod.workspace.references.capcut = [];
+      if (!Array.isArray(prod.workspace.references.uploads)) prod.workspace.references.uploads = [];
+      if (!Array.isArray(prod.workspace.assets)) prod.workspace.assets = [];
+    }
+    return prod;
   }
 
   function getStore() {
@@ -62,14 +104,32 @@
       return emptyStore();
     }
     raw.version = VERSION;
+    (raw.projects || []).forEach(function (p) {
+      (p.productions || []).forEach(ensureWorkspace);
+    });
     return raw;
+  }
+
+  function markDirty() {
+    ss(DIRTY_KEY, true);
+  }
+
+  function clearDirty() {
+    ss(DIRTY_KEY, false);
+  }
+
+  function isDirty() {
+    return gs(DIRTY_KEY, false) === true;
   }
 
   function saveStore(store, opts) {
     opts = opts || {};
     store = store || getStore();
-    store.updatedAt = now();
+    if (!opts.keepUpdatedAt) store.updatedAt = now();
     store.version = VERSION;
+    (store.projects || []).forEach(function (p) {
+      (p.productions || []).forEach(ensureWorkspace);
+    });
     ss(STORAGE_KEY, store);
     if (global.S) {
       global.S.studio = store;
@@ -78,33 +138,170 @@
         ss('prefs', global.S.prefs);
       }
     }
-    if (!opts.silent && typeof global.scheduleCloudSync === 'function') {
-      global.scheduleCloudSync();
+    if (!opts.silent) {
+      markDirty();
+      if (typeof global.scheduleCloudSync === 'function') global.scheduleCloudSync();
     }
     return store;
   }
 
-  function hydrateFromPrefs(prefs) {
-    if (!prefs || !prefs.studio || !Array.isArray(prefs.studio.projects)) return;
-    var local = getStore();
-    var cloud = prefs.studio;
-    var localTs = local.updatedAt || 0;
-    var cloudTs = cloud.updatedAt || 0;
-    if (cloudTs >= localTs) {
-      saveStore(
-        {
-          version: VERSION,
-          projects: cloud.projects || [],
-          continueProductionId: cloud.continueProductionId || null,
-          updatedAt: cloudTs
+  function pickNewer(a, b) {
+    var at = (a && a.updatedAt) || 0;
+    var bt = (b && b.updatedAt) || 0;
+    if (bt > at) return b;
+    if (at > bt) return a;
+    return a || b;
+  }
+
+  function mergeProduction(localP, cloudP) {
+    var base = pickNewer(localP, cloudP);
+    var other = base === localP ? cloudP : localP;
+    var out = Object.assign({}, other || {}, base || {});
+    ensureWorkspace(out);
+    if (localP && localP.workspace && cloudP && cloudP.workspace) {
+      var lw = localP.workspace;
+      var cw = cloudP.workspace;
+      var newerWs = ((localP.updatedAt || 0) >= (cloudP.updatedAt || 0) ? lw : cw) || {};
+      var olderWs = newerWs === lw ? cw : lw;
+      out.workspace = {
+        overview: Object.assign({}, olderWs.overview || {}, newerWs.overview || {}),
+        shotList:
+          (newerWs.shotList && newerWs.shotList.length ? newerWs.shotList : olderWs.shotList) || [],
+        script: Object.assign({}, olderWs.script || {}, newerWs.script || {}),
+        references: {
+          youtube: (newerWs.references && newerWs.references.youtube) ||
+            (olderWs.references && olderWs.references.youtube) ||
+            [],
+          capcut: (newerWs.references && newerWs.references.capcut) ||
+            (olderWs.references && olderWs.references.capcut) ||
+            [],
+          uploads: (newerWs.references && newerWs.references.uploads) ||
+            (olderWs.references && olderWs.references.uploads) ||
+            []
         },
-        { silent: true }
-      );
+        assets: (newerWs.assets && newerWs.assets.length ? newerWs.assets : olderWs.assets) || []
+      };
     }
+    out.updatedAt = Math.max(localP && localP.updatedAt || 0, cloudP && cloudP.updatedAt || 0);
+    return out;
+  }
+
+  function mergeProject(localProj, cloudProj) {
+    var base = pickNewer(localProj, cloudProj);
+    var other = base === localProj ? cloudProj : localProj;
+    var out = Object.assign({}, other || {}, base || {});
+    var map = {};
+    ((localProj && localProj.productions) || []).forEach(function (p) {
+      map[p.id] = p;
+    });
+    ((cloudProj && cloudProj.productions) || []).forEach(function (p) {
+      map[p.id] = map[p.id] ? mergeProduction(map[p.id], p) : p;
+    });
+    out.productions = Object.keys(map)
+      .map(function (id) {
+        return ensureWorkspace(map[id]);
+      })
+      .sort(function (a, b) {
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      });
+    out.updatedAt = Math.max(
+      (localProj && localProj.updatedAt) || 0,
+      (cloudProj && cloudProj.updatedAt) || 0
+    );
+    return out;
+  }
+
+  function mergeStudioStores(local, cloud) {
+    local = local && typeof local === 'object' ? local : emptyStore();
+    cloud = cloud && typeof cloud === 'object' ? cloud : emptyStore();
+    var localProjects = Array.isArray(local.projects) ? local.projects : [];
+    var cloudProjects = Array.isArray(cloud.projects) ? cloud.projects : [];
+    var localEmpty = !localProjects.length;
+    var cloudEmpty = !cloudProjects.length;
+    var persisted = hasPersistedStore();
+
+    if (!persisted || (localEmpty && !cloudEmpty)) {
+      return {
+        version: VERSION,
+        projects: cloudProjects,
+        continueProductionId: cloud.continueProductionId || null,
+        updatedAt: cloud.updatedAt || now()
+      };
+    }
+    if (cloudEmpty && !localEmpty) {
+      return {
+        version: VERSION,
+        projects: localProjects,
+        continueProductionId: local.continueProductionId || null,
+        updatedAt: local.updatedAt || now()
+      };
+    }
+
+    var map = {};
+    localProjects.forEach(function (p) {
+      map[p.id] = p;
+    });
+    cloudProjects.forEach(function (p) {
+      map[p.id] = map[p.id] ? mergeProject(map[p.id], p) : p;
+    });
+    var projects = Object.keys(map)
+      .map(function (id) {
+        return map[id];
+      })
+      .sort(function (a, b) {
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      });
+
+    var continueId = null;
+    var localCont = local.continueProductionId;
+    var cloudCont = cloud.continueProductionId;
+    if ((local.updatedAt || 0) >= (cloud.updatedAt || 0)) {
+      continueId = localCont || cloudCont || null;
+    } else {
+      continueId = cloudCont || localCont || null;
+    }
+
+    return {
+      version: VERSION,
+      projects: projects,
+      continueProductionId: continueId,
+      updatedAt: Math.max(local.updatedAt || 0, cloud.updatedAt || 0)
+    };
+  }
+
+  function hydrateFromPrefs(prefs) {
+    if (!prefs || !prefs.studio || !Array.isArray(prefs.studio.projects)) return getStore();
+    var local = hasPersistedStore() ? getStore() : emptyStore();
+    var merged = mergeStudioStores(local, prefs.studio);
+    saveStore(merged, { silent: true, keepUpdatedAt: true });
+    return merged;
+  }
+
+  function applyCloudStudio(cloudStudio) {
+    if (!cloudStudio || typeof cloudStudio !== 'object') return getStore();
+    var local = hasPersistedStore() ? getStore() : emptyStore();
+    var merged = mergeStudioStores(local, cloudStudio);
+    saveStore(merged, { silent: true, keepUpdatedAt: true });
+    return merged;
   }
 
   function exportForSync() {
-    return getStore();
+    var store = getStore();
+    /* Slim cover images for sync payload size */
+    try {
+      var slim = JSON.parse(JSON.stringify(store));
+      (slim.projects || []).forEach(function (p) {
+        if (typeof p.coverImage === 'string' && p.coverImage.length > 180000) p.coverImage = null;
+        (p.productions || []).forEach(function (prod) {
+          if (typeof prod.coverImage === 'string' && prod.coverImage.length > 180000) {
+            prod.coverImage = null;
+          }
+        });
+      });
+      return slim;
+    } catch (e) {
+      return store;
+    }
   }
 
   function findProject(store, projectId) {
@@ -251,10 +448,12 @@
       ideaSnapshot: input.ideaSnapshot || null,
       scanRef: input.scanRef || null,
       coverImage: input.coverImage || null,
+      workspace: input.workspace || defaultWorkspace(),
       archived: false,
       createdAt: now(),
       updatedAt: now()
     };
+    ensureWorkspace(production);
     if (!Array.isArray(project.productions)) project.productions = [];
     project.productions.unshift(production);
     project.updatedAt = now();
@@ -530,7 +729,15 @@
     getStore: getStore,
     saveStore: saveStore,
     hydrateFromPrefs: hydrateFromPrefs,
+    applyCloudStudio: applyCloudStudio,
+    mergeStudioStores: mergeStudioStores,
     exportForSync: exportForSync,
+    hasPersistedStore: hasPersistedStore,
+    isDirty: isDirty,
+    markDirty: markDirty,
+    clearDirty: clearDirty,
+    defaultWorkspace: defaultWorkspace,
+    ensureWorkspace: ensureWorkspace,
     listProjects: listProjects,
     findProject: function (id) {
       return findProject(getStore(), id);
@@ -560,6 +767,16 @@
     suggestProjectName: suggestProjectName,
     productionFromIdea: productionFromIdea,
     getDirectorCapabilityManifest: getDirectorCapabilityManifest,
-    handleDirectorAction: handleDirectorAction
+    handleDirectorAction: handleDirectorAction,
+    getDirectorContext: function (productionId) {
+      var found = productionId ? findProduction(getStore(), productionId) : null;
+      return {
+        phase: 3,
+        studio: exportForSync(),
+        project: found ? found.project : null,
+        production: found ? ensureWorkspace(found.production) : null,
+        actions: DIRECTOR_ACTIONS
+      };
+    }
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
