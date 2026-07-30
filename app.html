@@ -37,8 +37,8 @@
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/hook-engine.js"></script>
 <script src="/js/creative-research.js"></script>
-<script src="/js/studio.js?v=250"></script>
-<script src="/js/studio-ui.js?v=250"></script>
+<script src="/js/studio.js?v=260"></script>
+<script src="/js/studio-ui.js?v=260"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -812,63 +812,120 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .bni-scan svg,.bni-scan .ico-svg{color:#fff;stroke:#fff}
 
 
-/* ── Studio (Phase 1) ── */
-.studio-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:56px 16px 8px}
-.studio-title{font-family:var(--fd);font-size:28px;font-weight:700;color:var(--text)}
-.studio-sub{font-size:13px;color:var(--text2);margin-top:4px;line-height:1.4}
-.studio-toolbar{padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap}
-.studio-btn{appearance:none;border:none;background:var(--text);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;font-family:var(--fd);cursor:pointer}
-.studio-btn.ghost{background:var(--s2);color:var(--text);border:1px solid var(--border)}
-.studio-btn.danger{color:#ff6b6b}
-.studio-empty{margin:24px 16px;padding:28px 18px;text-align:center;border:1px dashed var(--border);border-radius:14px}
-.studio-empty-t{font-family:var(--fd);font-weight:700;font-size:16px;margin-bottom:6px}
-.studio-empty-s{font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px}
-.studio-grid{padding:0 16px 120px;display:flex;flex-direction:column;gap:12px}
-.st-card{display:flex;gap:12px;align-items:stretch;background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;text-align:left}
-.st-cover{width:88px;min-height:88px;object-fit:cover;flex-shrink:0;background:var(--s2)}
-.st-cover.ph{background:linear-gradient(135deg,var(--s2),var(--s3,var(--s2)))}
-.st-card-body{padding:12px 12px 12px 0;min-width:0;flex:1}
-.st-card-title{font-family:var(--fd);font-weight:700;font-size:16px;color:var(--text);margin-bottom:4px}
-.st-card-meta{font-size:12px;color:var(--text2);margin-bottom:6px}
-.st-card-sum{font-size:12px;color:var(--text3);line-height:1.4}
-.studio-detail-hd{display:flex;align-items:flex-start;gap:10px;padding:56px 16px 10px}
-.studio-back{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:16px;cursor:pointer;flex-shrink:0}
-.studio-actions-row{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px}
-.st-prod-list{padding:0 16px 120px;display:flex;flex-direction:column;gap:8px}
-.st-prod-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--s1);cursor:pointer;text-align:left}
+/* ── Studio (Phase 2) ── */
+#screen-studio{background:var(--bg);position:relative}
+.studio-shell{padding-bottom:120px}
+.studio-fade{animation:studioIn .32s cubic-bezier(.22,1,.36,1) both}
+@keyframes studioIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.studio-hd,.studio-detail-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:56px 20px 14px;position:relative}
+.studio-hd-text{flex:1;min-width:0}
+.studio-title{font-family:var(--fd);font-size:30px;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.studio-sub{font-size:13px;color:var(--text2);margin-top:4px;line-height:1.45}
+.studio-btn{appearance:none;border:none;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;font-family:var(--fd);cursor:pointer;transition:transform .15s ease,opacity .15s ease,background .15s ease}
+.studio-btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.studio-btn.ghost{background:var(--s2);color:var(--text)}
+.studio-btn.danger,.studio-btn.ghost.danger{color:#ff7b7b}
+.studio-btn.sm{padding:7px 10px;font-size:12px;border-radius:10px}
+.studio-btn.block{width:100%;margin-top:8px}
+.studio-btn:active{transform:scale(.97)}
+.studio-back,.studio-icon-btn{width:38px;height:38px;border-radius:12px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:22px;line-height:1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.studio-icon-btn{font-size:18px;letter-spacing:1px}
+.studio-empty{margin:18px 20px;padding:36px 20px;text-align:center;border:1px dashed rgba(255,255,255,.12);border-radius:20px;background:rgba(255,255,255,.02)}
+.studio-empty.compact{padding:28px 18px}
+.studio-empty-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:16px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.studio-empty-t{font-family:var(--fd);font-weight:700;font-size:18px;margin-bottom:8px;color:var(--text)}
+.studio-empty-s{font-size:13px;color:var(--text2);line-height:1.55;margin:0 auto 18px;max-width:280px}
+.studio-grid{padding:0 20px;display:grid;grid-template-columns:1fr;gap:12px}
+.studio-grid-arch{opacity:.92;margin-bottom:24px}
+.studio-section-label{padding:22px 20px 10px;font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
+.studio-section-label.tight{padding:8px 0}
+.studio-section-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 20px 10px}
+.st-project-card,.st-prod-card,.st-panel,.continue-card{background:var(--s1);border:1px solid var(--border);border-radius:18px}
+.st-project-card{display:flex;gap:14px;align-items:stretch;overflow:hidden;cursor:pointer;text-align:left;padding:0;animation:studioIn .4s cubic-bezier(.22,1,.36,1) both;transition:border-color .18s ease,transform .18s ease}
+.st-project-card:active{transform:scale(.985)}
+.st-project-card.is-archived{opacity:.72}
+.st-cover{width:96px;min-height:118px;object-fit:cover;flex-shrink:0;background:var(--s2)}
+.st-cover.ph{display:flex;align-items:center;justify-content:center;background:var(--s2);color:var(--text3);font-family:var(--fd);font-size:28px;font-weight:700}
+.st-card-body{padding:14px 14px 14px 0;min-width:0;flex:1;display:flex;flex-direction:column;gap:6px}
+.st-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.st-card-title{font-family:var(--fd);font-weight:700;font-size:17px;color:var(--text);letter-spacing:-.01em}
+.st-card-chev{color:var(--text3);font-size:20px;line-height:1;margin-top:1px}
+.st-card-meta{font-size:12px;color:var(--text2)}
+.st-card-progress-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);margin-top:2px}
+.st-card-progress-row strong{color:var(--text);font-size:12px}
+.st-progress{height:4px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:4px}
+.st-progress-fill{height:100%;border-radius:inherit;background:var(--text);transition:width .35s cubic-bezier(.22,1,.36,1)}
+.st-card-sum{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.st-sum-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--border)}
+.st-sum-empty{font-size:11px;color:var(--text3)}
+.st-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85;flex-shrink:0}
+.st-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.st-chip.st-planning,.st-status-btn.st-planning,.st-sum-pill.st-planning{color:#b8c0d0;background:rgba(255,255,255,.05)}
+.st-chip.st-ready,.st-status-btn.st-ready,.st-sum-pill.st-ready{color:#9bb7a8;background:rgba(155,183,168,.1)}
+.st-chip.st-filming,.st-status-btn.st-filming,.st-sum-pill.st-filming{color:#d2b48c;background:rgba(210,180,140,.1)}
+.st-chip.st-editing,.st-status-btn.st-editing,.st-sum-pill.st-editing{color:#b4b4c8;background:rgba(180,180,200,.1)}
+.st-chip.st-posted,.st-status-btn.st-posted,.st-sum-pill.st-posted{color:#a8c4a8;background:rgba(168,196,168,.1)}
+.st-chip.st-archived{color:var(--text3);background:var(--s2)}
+.st-project-hero{margin:0 20px 12px;border-radius:18px;overflow:hidden;border:1px solid var(--border);aspect-ratio:16/9;background:var(--s2)}
+.st-project-hero img{width:100%;height:100%;object-fit:cover;display:block}
+.st-project-desc{margin:0 20px 12px;font-size:14px;line-height:1.55;color:var(--text2)}
+.st-panel{margin:0 20px 12px;padding:14px}
+.st-progress-panel{padding:16px}
+.st-prod-list{padding:0 20px 8px;display:flex;flex-direction:column;gap:10px}
+.st-prod-card{width:100%;padding:14px 15px;cursor:pointer;text-align:left;animation:studioIn .35s cubic-bezier(.22,1,.36,1) both;transition:transform .15s ease,border-color .15s ease}
+.st-prod-card:active{transform:scale(.985)}
+.st-prod-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
 .st-prod-name{font-weight:700;font-family:var(--fd);font-size:15px;color:var(--text)}
-.st-prod-meta{font-size:12px;color:var(--text2);margin-top:3px}
-.st-chip{font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap}
-.st-chip.st-planning,.st-status-btn.st-planning{background:rgba(120,140,255,.15);color:#9db0ff}
-.st-chip.st-ready,.st-status-btn.st-ready{background:rgba(80,200,160,.15);color:#6fd6b5}
-.st-chip.st-filming,.st-status-btn.st-filming{background:rgba(255,170,70,.15);color:#ffb84d}
-.st-chip.st-editing,.st-status-btn.st-editing{background:rgba(180,120,255,.15);color:#c9a0ff}
-.st-chip.st-posted,.st-status-btn.st-posted{background:rgba(90,200,90,.15);color:#7ed67e}
-.st-chip.st-archived{background:var(--s2);color:var(--text3)}
-.st-status-row{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px}
-.st-status-btn{border:1px solid var(--border);background:var(--s2);color:var(--text2);border-radius:999px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer}
-.st-status-btn.sel{border-color:var(--text);color:var(--text)}
-.st-panel{margin:0 16px 14px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--s1)}
+.st-prod-card-mid{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text2);margin-bottom:6px}
+.st-prod-card-mid strong{color:var(--text);font-size:13px}
+.st-prod-updated{color:var(--text3)}
+.st-status-row{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 14px}
+.st-status-btn{border:1px solid var(--border);background:var(--s2);color:var(--text2);border-radius:999px;padding:8px 11px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.st-status-btn.sel{border-color:rgba(255,255,255,.35);color:var(--text);background:rgba(255,255,255,.08)}
 .st-label{display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin:0 0 6px}
-.st-input{width:100%;box-sizing:border-box;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--fb);margin-bottom:12px}
-.st-notes{min-height:110px;resize:vertical}
+.st-input{width:100%;box-sizing:border-box;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:15px;font-family:var(--fb);margin-bottom:12px}
+.st-notes{min-height:110px;resize:vertical;line-height:1.5}
 .st-idea-t{font-weight:700;font-family:var(--fd);margin-bottom:6px}
 .st-idea-h{font-size:13px;color:var(--text2);line-height:1.5}
-.continue-working{padding:0 16px 10px}
-.continue-card{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:1px solid var(--border);background:var(--s1)}
-.continue-kicker{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.continue-title{font-family:var(--fd);font-weight:700;font-size:15px;color:var(--text)}
-.continue-meta{font-size:12px;color:var(--text2);margin-top:3px}
+.studio-actions-row{display:flex;flex-wrap:wrap;gap:8px;padding:4px 20px 14px}
+.studio-inline-actions{display:flex;gap:8px;margin-top:8px}
+.st-overflow-menu{position:absolute;right:20px;margin-top:-6px;z-index:5;min-width:160px;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,.45);display:flex;flex-direction:column}
+.st-overflow-menu[hidden]{display:none!important}
+.st-overflow-menu button{appearance:none;border:none;background:transparent;color:var(--text);text-align:left;padding:11px 12px;border-radius:10px;font-size:14px;font-weight:600;font-family:var(--fb);cursor:pointer}
+.st-overflow-menu button:active{background:var(--s2)}
+.st-overflow-menu button.danger{color:#ff7b7b}
+.studio-director-placeholder{margin:8px 20px 24px;width:calc(100% - 40px);box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:16px;border:1px dashed rgba(255,255,255,.14);background:transparent;color:var(--text2);font-size:13px;font-weight:600;font-family:var(--fb);cursor:pointer}
+.st-soon{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);border:1px solid var(--border);border-radius:999px;padding:3px 8px}
+.continue-working{padding:0 16px 12px}
+.continue-card{width:100%;display:flex;align-items:center;gap:14px;padding:16px;cursor:pointer;text-align:left;transition:transform .15s ease,border-color .15s ease}
+.continue-card:active{transform:scale(.985)}
+.continue-kicker{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.55px;margin-bottom:6px}
+.continue-project{font-size:12px;color:var(--text2);margin-bottom:2px}
+.continue-title{font-family:var(--fd);font-weight:700;font-size:16px;color:var(--text);margin-bottom:8px}
+.continue-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.continue-pct{font-size:12px;font-weight:700;color:var(--text2)}
 .continue-body{flex:1;min-width:0}
-@media (min-width:900px){
-  .studio-grid{max-width:720px;margin:0 auto}
-  .studio-hd,.studio-toolbar,.studio-detail-hd,.studio-actions-row,.st-prod-list,.st-status-row,.st-panel,.continue-working{max-width:720px;margin-left:auto;margin-right:auto}
-}
-
-
-.bni-studio{/* Studio center control — same elevated treatment as former Scan */}
+.continue-cta{flex-shrink:0;font-size:13px;font-weight:700;font-family:var(--fd);color:var(--text);white-space:nowrap}
+.st-steps{display:flex;gap:6px;margin-bottom:18px}
+.st-step{flex:1;height:3px;border-radius:999px;background:rgba(255,255,255,.1)}
+.st-step.on,.st-step.done{background:var(--text)}
+.st-step-title{font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:4px}
+.st-step-sub{font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.45}
+.st-wizard-nav{display:flex;gap:8px;margin-top:4px}
+.st-wizard-nav .studio-btn{flex:1}
+.st-cover-pick{display:flex;align-items:center;justify-content:center;min-height:140px;border-radius:16px;border:1px dashed rgba(255,255,255,.16);background:var(--s2);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;overflow:hidden;margin-bottom:10px}
+.st-cover-pick img{width:100%;height:140px;object-fit:cover;display:block}
+.bni-studio{}
 .bni#nav-studio.active .bni-lbl,.bni#nav-studio .bni-lbl{color:var(--accent)}
-#screen-studio{background:var(--bg)}
+@media (min-width:700px){
+  .studio-grid{grid-template-columns:1fr 1fr;max-width:920px;margin:0 auto}
+  .studio-hd,.studio-detail-hd,.studio-section-row,.studio-section-label,.st-prod-list,.st-status-row,.st-panel,.st-project-hero,.st-project-desc,.studio-actions-row,.studio-director-placeholder,.studio-empty,.continue-working{max-width:920px;margin-left:auto;margin-right:auto}
+  .studio-director-placeholder{width:calc(100% - 40px)}
+}
+@media (min-width:1100px){
+  .studio-grid{grid-template-columns:1fr 1fr 1fr;max-width:1100px}
+  .studio-hd,.studio-detail-hd,.studio-section-row,.studio-section-label,.st-prod-list,.st-status-row,.st-panel,.st-project-hero,.st-project-desc,.studio-actions-row,.studio-director-placeholder,.studio-empty,.continue-working{max-width:1100px}
+}
 
 </style>
 </head>
@@ -1003,7 +1060,7 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 <div class="screen" id="screen-library"> <div class="lib-hd"><div class="lib-title">Library</div><div class="lib-count" id="lib-count">0</div></div> <div class="lib-tabs"><button class="lib-tab active" onclick="libTab('history',this)">History</button> <button class="lib-tab" onclick="libTab('saved',this)">Saved</button> <button class="lib-tab" onclick="libTab('trending',this)">Trending</button> </div> <div class="sb"><div class="lib-grid" id="lib-grid"></div></div>
 </div> <!-- ═══ STUDIO ═══ -->
 <div class="screen" id="screen-studio"><div class="sb" id="studio-root">
-<div class="studio-hd"><div><div class="studio-title">Studio</div><div class="studio-sub">Projects you are producing</div></div>
+<div class="studio-hd"><div><div class="studio-title">Studio</div><div class="studio-sub">Your creative workspace</div></div>
 <button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProject()">New Project</button></div>
 <div class="studio-empty"><div class="studio-empty-t">Loading Studio…</div></div>
 </div></div> <!-- ═══ MENU ═══ -->
@@ -1133,8 +1190,8 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 <div class="modal-ov" id="gear-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Gear & Setup</div><div class="modal-x" onclick="closeM('gear-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" style="overflow-y:auto;max-height:70vh"> <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Tell the AI exactly what equipment you have. Ideas will be tailored to what you can actually shoot with.</div> <!-- Camera Body --> <div class="pers-sec"> <div class="pers-sec-title">Camera Body</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="camera" data-ico-size="18"></div> <input class="gear-field" id="gear-camera" placeholder="e.g. Sony A7IV, Canon R5, iPhone 15 Pro"> </div> </div> <!-- Lens --> <div class="pers-sec"> <div class="pers-sec-title">Lens / Focal Length</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="lens" data-ico-size="18"></div> <input class="gear-field" id="gear-lens" placeholder="e.g. 24-70mm f/2.8, 50mm f/1.8"> </div> </div> <!-- Drone --> <div class="pers-sec"> <div class="pers-sec-title">Drone (if any)</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="drone" data-ico-size="18"></div> <input class="gear-field" id="gear-drone" placeholder="e.g. DJI Mini 4 Pro, Mavic 3"> </div> </div> <!-- Microphone --> <div class="pers-sec"> <div class="pers-sec-title">Microphone</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="mic" data-ico-size="18"></div> <input class="gear-field" id="gear-mic" placeholder="e.g. Rode VideoMic, Wireless Go II"> </div> </div> <!-- Lighting --> <div class="pers-sec"> <div class="pers-sec-title">Lighting Setup</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="light" data-ico-size="18"></div> <input class="gear-field" id="gear-lights" placeholder="e.g. Aputure 120D, Godox SL60W, Natural only"> </div> </div> <!-- Stabilizer/Gimbal --> <div class="pers-sec"> <div class="pers-sec-title">Stabilizer / Gimbal</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="gimbal" data-ico-size="18"></div> <input class="gear-field" id="gear-gimbal" placeholder="e.g. DJI RS4, Zhiyun Crane, Handheld only"> </div> </div> <!-- Editing Software --> <div class="pers-sec"> <div class="pers-sec-title">Editing Software</div> <div class="chip-grid" id="editing-software-chips"> <div class="chip" onclick="toggleChip(this,'editing-software')">CapCut</div> <div class="chip" onclick="toggleChip(this,'editing-software')">Premiere Pro</div> <div class="chip" onclick="toggleChip(this,'editing-software')">Final Cut Pro</div> <div class="chip" onclick="toggleChip(this,'editing-software')">DaVinci Resolve</div> <div class="chip" onclick="toggleChip(this,'editing-software')">After Effects</div> <div class="chip" onclick="toggleChip(this,'editing-software')">iMovie</div> </div> </div> <!-- Editing Device --> <div class="pers-sec"> <div class="pers-sec-title">Editing Device</div> <div class="chip-grid" id="editing-device-chips"> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Phone Only</div> <div class="chip selected" onclick="setSingleChip(this,'editing-device')"> Laptop</div> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Desktop PC</div> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Mac</div> </div> </div> <!-- Shooting Environment --> <div class="pers-sec"> <div class="pers-sec-title">Typical Shooting Environment</div> <div class="chip-grid" id="shooting-env-chips"> <div class="chip" onclick="toggleChip(this,'shooting-env')">Indoor/Studio</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Urban/Street</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Outdoor/Nature</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Gym/Fitness</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Automotive</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Corporate/Office</div> </div> </div> <button onclick="saveGear()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Gear & Setup</button> </div> </div>
 </div>
 <!-- STUDIO MODALS -->
-<div class="modal-ov" id="studio-project-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">New Project</div><div class="modal-x" onclick="closeM('studio-project-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body"> <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5">Projects organize your productions. You can rename or archive anytime.</div> <label class="st-label">Project name</label> <input class="st-input" id="st-new-project-name" placeholder="e.g. Cafe Launch"> <label class="st-label">Notes (optional)</label> <textarea class="st-input st-notes" id="st-new-project-notes" placeholder="Optional context"></textarea> <button class="studio-btn" style="width:100%" onclick="PreShootStudioUI.confirmCreateProject()">Create Project</button> </div> </div> </div>
-<div class="modal-ov" id="studio-blank-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Blank Production</div><div class="modal-x" onclick="closeM('studio-blank-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body"> <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5">Create an empty workspace. No scan required.</div> <label class="st-label">Project</label> <select class="st-input" id="st-blank-project"></select> <label class="st-label">Production name</label> <input class="st-input" id="st-blank-name" placeholder="Production name"> <label class="st-label">Notes (optional)</label> <textarea class="st-input st-notes" id="st-blank-notes" placeholder="Optional notes"></textarea> <button class="studio-btn" style="width:100%" onclick="PreShootStudioUI.confirmBlankProduction()">Done</button> </div> </div> </div>
+<div class="modal-ov" id="studio-project-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">New Project</div><div class="modal-x" onclick="closeM('studio-project-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" id="st-project-wizard"></div> </div> </div>
+<div class="modal-ov" id="studio-blank-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl" id="st-blank-modal-ttl">New Production</div><div class="modal-x" onclick="closeM('studio-blank-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body"> <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5">Create an empty workspace. No scan required.</div> <div id="st-blank-project-wrap"><label class="st-label">Project</label> <select class="st-input" id="st-blank-project"></select></div> <label class="st-label">Production name</label> <input class="st-input" id="st-blank-name" placeholder="e.g. Porsche Cinematic Reel"> <label class="st-label">Notes (optional)</label> <textarea class="st-input st-notes" id="st-blank-notes" placeholder="e.g. Need aggressive racing style shots"></textarea> <button class="studio-btn primary" style="width:100%" onclick="PreShootStudioUI.confirmBlankProduction()">Create</button> </div> </div> </div>
 <div class="modal-ov" id="studio-send-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Send to Studio</div><div class="modal-x" onclick="closeM('studio-send-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body"> <div id="st-send-reason" style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5"></div> <button type="button" class="studio-btn" id="st-send-suggested" style="width:100%;margin-bottom:10px">Use Suggested Project</button> <label class="st-label">Choose existing project</label> <select class="st-input" id="st-send-existing"></select> <button type="button" class="studio-btn ghost" style="width:100%;margin-bottom:14px" onclick="PreShootStudioUI.confirmSend('existing')">Use Selected Project</button> <label class="st-label">Or create new project</label> <input class="st-input" id="st-send-new-name" placeholder="New project name"> <button type="button" class="studio-btn" style="width:100%" onclick="PreShootStudioUI.confirmSend('new')">Create New Project</button> <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.4">Nothing moves until you confirm.</div> </div> </div> </div>
  <!-- ═══ NAV ═══ -->
 <nav class="bnav hidden"> <div class="bni active" id="nav-home" onclick="goTab('home')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg></div><div class="bni-lbl">Home</div></div> <div class="bni" id="nav-library" onclick="goTab('library')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v16l-5-3-5 3V4z"/></svg></div><div class="bni-lbl">Library</div></div> <div class="bni" id="nav-studio" onclick="goTab('studio')" aria-label="Studio"><div class="bni-scan bni-studio" title="Studio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/></svg></div><div class="bni-lbl" style="margin-top:6px">Studio</div></div> <div class="bni" id="nav-menu" onclick="goTab('menu')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></div><div class="bni-lbl">Menu</div></div> <div class="bni" id="nav-profile" onclick="goTab('profile')"><div class="bni-ico" id="nav-prof-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div><div class="bni-lbl">Profile</div></div>
