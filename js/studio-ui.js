@@ -27,7 +27,7 @@
       var n = summary && summary[id] ? summary[id] : 0;
       if (!n) return;
       var label = (Studio().STATUS_MAP[id] && Studio().STATUS_MAP[id].label) || id;
-      parts.push(n + ' ' + label);
+      parts.push(label + ': ' + n);
     });
     return parts.length ? parts.join(' · ') : 'No productions yet';
   }
