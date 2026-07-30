@@ -59,6 +59,14 @@ export default async function handler(req, res) {
         };
       });
 
+      /* Studio (Phase 1) syncs via prefs.studio — works on existing DBs with no ALTER.
+         Optional top-level `studio` column can be added later (see supabase_setup.sql). */
+      const prefs =
+        data.prefs && typeof data.prefs === 'object' ? Object.assign({}, data.prefs) : {};
+      if (data.studio && typeof data.studio === 'object' && !prefs.studio) {
+        prefs.studio = data.studio;
+      }
+
       const payload = {
         user_id,
         history: historyClean,
@@ -72,7 +80,7 @@ export default async function handler(req, res) {
         aesthetic: data.aesthetic && typeof data.aesthetic === 'object' ? data.aesthetic : {},
         gear: data.gear && typeof data.gear === 'object' ? data.gear : {},
         profile: data.profile && typeof data.profile === 'object' ? data.profile : {},
-        prefs: data.prefs && typeof data.prefs === 'object' ? data.prefs : {},
+        prefs,
         updated_at: new Date().toISOString()
       };
 
