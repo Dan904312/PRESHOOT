@@ -37,8 +37,9 @@
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/hook-engine.js"></script>
 <script src="/js/creative-research.js"></script>
-<script src="/js/studio.js?v=260"></script>
-<script src="/js/studio-ui.js?v=260"></script>
+<script src="/js/studio.js?v=270"></script>
+<script src="/js/studio-sync.js?v=270"></script>
+<script src="/js/studio-ui.js?v=270"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -927,6 +928,31 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
   .studio-hd,.studio-detail-hd,.studio-section-row,.studio-section-label,.st-prod-list,.st-status-row,.st-panel,.st-project-hero,.st-project-desc,.studio-actions-row,.studio-director-placeholder,.studio-empty,.continue-working{max-width:1100px}
 }
 
+
+.studio-eyebrow{font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;margin-bottom:4px}
+.st-stage-rail{display:flex;gap:4px;padding:0 20px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.st-stage{flex:1;min-width:72px;appearance:none;border:none;background:transparent;color:var(--text3);padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px}
+.st-stage-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.18);position:relative}
+.st-stage.done .st-stage-dot,.st-stage.on .st-stage-dot{background:var(--text)}
+.st-stage.on{color:var(--text)}
+.st-stage-lbl{font-size:10px;font-weight:700;white-space:nowrap}
+.st-linked{margin:0 20px 12px;display:flex;gap:12px;padding:12px;border-radius:16px;border:1px solid var(--border);background:var(--s1)}
+.st-linked-img{width:72px;height:72px;border-radius:12px;object-fit:cover;flex-shrink:0;background:var(--s2)}
+.st-linked-body{min-width:0;flex:1}
+.st-linked-scan{font-size:12px;color:var(--text3);margin-top:6px}
+.st-tabs{display:flex;gap:6px;padding:4px 20px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.st-tab{appearance:none;border:1px solid var(--border);background:var(--s2);color:var(--text2);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;font-family:var(--fb);cursor:pointer;white-space:nowrap}
+.st-tab.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.st-section{padding-bottom:4px}
+.st-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.st-script{min-height:220px}
+@media (min-width:700px){
+  .st-stage-rail,.st-tabs,.st-linked{max-width:920px;margin-left:auto;margin-right:auto}
+}
+@media (min-width:1100px){
+  .st-stage-rail,.st-tabs,.st-linked{max-width:1100px}
+}
+
 </style>
 </head>
 <body> <!-- PRIVACY POLICY MODAL -->
@@ -1200,7 +1226,7 @@ var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 var supa = supabase.createClient(SUPA_URL, SUPA_KEY); /* Listen for auth state changes */
 supa.auth.onAuthStateChange(function(event, session) { if (session && session.user) { var u = session.user; S.authUser = { id: u.id, name: u.user_metadata.full_name || u.email.split('@')[0], email: u.email, avatar: u.user_metadata.avatar_url || null, provider: u.app_metadata.provider || 'google' }; S.profile.name = S.profile.name === 'PreShoot Creator' ? S.authUser.name : S.profile.name; if (!S.profile.avatar && S.authUser.avatar) S.profile.avatar = S.authUser.avatar; ss('auth_user', S.authUser); ss('profile', S.profile); /* Track this user in the all-users  table (free + pro, everyone) */
 apiFetch('/api/track-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: S.authUser.id, email: S.authUser.email, name: S.authUser.name, avatar: S.authUser.avatar, provider: S.authUser.provider }) }).catch(function() {}); /* Verify plan server-side on every sign-in */
-checkPlanServerSide(S.authUser.id, S.authUser.email); loadCloudData(S.authUser.id, function() { var handled = (window.PreShootOnboard && PreShootOnboard.onAuthResolved) ? PreShootOnboard.onAuthResolved() : false; if (S.tab === 'library') renderLib(); if (S.tab === 'profile') renderProf(); renderHome(); if (!handled && document.getElementById('screen-onboard') && document.getElementById('screen-onboard').classList.contains('active') === false) { /* stay */ } }); showToast('Signed in as ' + S.authUser.name); } else if (event === 'SIGNED_OUT') { S.authUser = null; S.plan = 'free'; ss('auth_user', null); ss('plan', 'free'); ss('plan_checked', 0); if (S.tab === 'profile') renderProf(); renderHome(); } 
+checkPlanServerSide(S.authUser.id, S.authUser.email); loadCloudData(S.authUser.id, function() { if (window.PreShootStudioSync) PreShootStudioSync.onAuthReady(); var handled = (window.PreShootOnboard && PreShootOnboard.onAuthResolved) ? PreShootOnboard.onAuthResolved() : false; if (S.tab === 'library') renderLib(); if (S.tab === 'profile') renderProf(); if (S.tab === 'studio' && window.PreShootStudioUI) PreShootStudioUI.renderStudio(); renderHome(); if (!handled && document.getElementById('screen-onboard') && document.getElementById('screen-onboard').classList.contains('active') === false) { /* stay */ } }); showToast('Signed in as ' + S.authUser.name); } else if (event === 'SIGNED_OUT') { S.authUser = null; S.plan = 'free'; ss('auth_user', null); ss('plan', 'free'); ss('plan_checked', 0); if (S.tab === 'profile') renderProf(); renderHome(); } 
 }); /* Server-side plan check, replaces localStorage trust */
 function checkPlanServerSide(userId, email) { apiFetch('/api/check-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, email: email }) }) .then(function(r) { return r.json(); }) .then(function(data) { var serverPlan = data.plan || 'free'; S.plan = serverPlan; ss('plan', serverPlan); ss('plan_checked', Date.now()); renderHome(); if (S.tab === 'profile') renderProf(); /* Update director lock icon */
 var dl = document.getElementById('dir-lock'); if (dl) dl.style.display = serverPlan === 'pro' ? 'none' : 'inline'; }) .catch(function() { /* On network error, keep existing cached plan */
@@ -1574,13 +1600,13 @@ function manageSubscription() { if(!requireAuthOrPrompt('Sign in to manage billi
 } /* ════════════════════════════════════════ */
 /* CLOUD SYNC */
 /* ════════════════════════════════════════ */
-var _syncTimer = null; function scheduleCloudSync() { if (!S.authUser) return; clearTimeout(_syncTimer); _syncTimer = setTimeout(saveToCloud, 4000);
-} function saveToCloud() { if (!S.authUser) return; if (window.PreShootStudio) { try { var st = PreShootStudio.exportForSync(); S.studio = st; if (!S.prefs) S.prefs = {}; S.prefs.studio = st; ss('prefs', S.prefs); } catch (e) {} } var data = { history: getHistory().map(function(h) { return { sceneType: h.sceneType, sceneLabel: h.sceneLabel, image: h.image||null, ideas: h.ideas, ts: h.ts }; }), library: getLib(), director_history: S.directorHistory.slice(-30), niche: S.niche, platform_focus: S.platformFocus, aesthetic: S.aesthetic, gear: S.gear, profile: { name: S.profile.name, handle: S.profile.handle, bio: S.profile.bio }, prefs: S.prefs, connected_accounts: (window.PreShootResearch&&PreShootResearch.getConnectedAccounts)?PreShootResearch.getConnectedAccounts():(S.connectedAccounts||{}) }; apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save', user_id: S.authUser.id, data: data }) }).catch(function() {});
+var _syncTimer = null; function scheduleCloudSync() { if (!S.authUser) return; if (window.PreShootStudio) PreShootStudio.markDirty(); clearTimeout(_syncTimer); _syncTimer = setTimeout(function(){ saveToCloud(); }, 1200);
+} function saveToCloud() { if (!S.authUser) return; if (window.PreShootStudioSync && PreShootStudioSync.pushNow) return PreShootStudioSync.pushNow(); if (window.PreShootStudio) { try { var st = PreShootStudio.exportForSync(); S.studio = st; if (!S.prefs) S.prefs = {}; S.prefs.studio = st; ss('prefs', S.prefs); } catch (e) {} } var data = { history: getHistory().map(function(h) { return { sceneType: h.sceneType, sceneLabel: h.sceneLabel, image: h.image||null, ideas: h.ideas, ts: h.ts }; }), library: getLib(), director_history: S.directorHistory.slice(-30), niche: S.niche, platform_focus: S.platformFocus, aesthetic: S.aesthetic, gear: S.gear, profile: { name: S.profile.name, handle: S.profile.handle, bio: S.profile.bio }, prefs: S.prefs, studio: (window.PreShootStudio&&PreShootStudio.exportForSync)?PreShootStudio.exportForSync():null, connected_accounts: (window.PreShootResearch&&PreShootResearch.getConnectedAccounts)?PreShootResearch.getConnectedAccounts():(S.connectedAccounts||{}) }; return apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save', user_id: S.authUser.id, data: data }) }).then(function(r){return r.json();}).then(function(res){ if(res&&res.ok&&window.PreShootStudio) PreShootStudio.clearDirty(); }).catch(function(){ if(window.PreShootStudio) PreShootStudio.markDirty(); });
 } function loadCloudData(userId, callback) { apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'load', user_id: userId }) }) .then(function(r) { return r.json(); }) .then(function(res) { if (!res.ok || !res.data) { if (callback) callback(); return; } var d = res.data; /* Merge history, cloud + local, dedup by ts */
 if (d.history && d.history.length) { var localH = getHistory(); var localByTs = {}; localH.forEach(function(h){ if(h&&h.ts) localByTs[h.ts]=h; }); var cloudMapped = d.history.map(function(h){ var loc=localByTs[h.ts]; if(loc&&loc.image&&!h.image) h=Object.assign({},h,{image:loc.image}); return h; }); var merged = cloudMapped.concat(localH); var seen = {}; merged = merged.filter(function(h) { if (!h||!h.ts) return false; if (seen[h.ts]) { /* prefer entry that still has image */ if(h.image&&!seen[h.ts].image){ seen[h.ts]=h; return true; } return false; } seen[h.ts]=h; return true; }); /* rebuild unique preferring image-bearing */ var uniq=[]; var seen2={}; merged.forEach(function(h){ if(!h||!h.ts) return; if(!seen2[h.ts]){ seen2[h.ts]=h; uniq.push(h);} else if(h.image&&!seen2[h.ts].image){ var ix=uniq.indexOf(seen2[h.ts]); seen2[h.ts]=h; if(ix>=0) uniq[ix]=h; } }); uniq.sort(function(a, b) { return b.ts - a.ts; }); ss('history', uniq.slice(0, MH)); } /* Merge library */
 if (d.library && d.library.length) { var localLib = getLib(); var cloudTitles = d.library.map(function(i) { return i.title; }); var localOnly = localLib.filter(function(i) { return cloudTitles.indexOf(i.title) === -1; }); ss('library', d.library.concat(localOnly)); } /* Director history, use whichever is longer */
 if (d.director_history && d.director_history.length > S.directorHistory.length) { S.directorHistory = d.director_history; ss('director_history', S.directorHistory); } /* Settings, cloud wins */
-if (d.niche && Object.keys(d.niche).length) { S.niche = Object.assign({}, S.niche, d.niche); ss('niche', S.niche); } if (d.platform_focus && Object.keys(d.platform_focus).length) { S.platformFocus = d.platform_focus; ss('platform_focus', S.platformFocus); } if (d.aesthetic && Object.keys(d.aesthetic).length) { S.aesthetic = d.aesthetic; ss('aesthetic', S.aesthetic); } if (d.gear && Object.keys(d.gear).length) { S.gear = d.gear; ss('gear', S.gear); } if (d.prefs) { S.prefs = Object.assign({}, S.prefs, d.prefs); ss('prefs', S.prefs); if (window.PreShootStudio) PreShootStudio.hydrateFromPrefs(S.prefs); } if (d.connected_accounts) { S.connectedAccounts = d.connected_accounts; ss('connected_accounts', d.connected_accounts); if (window.PreShootResearch&&PreShootResearch.setConnectedAccounts) PreShootResearch.setConnectedAccounts(d.connected_accounts); } if (d.profile) { if (d.profile.name && d.profile.name !== 'PreShoot Creator') S.profile.name = d.profile.name; if (d.profile.handle) S.profile.handle = d.profile.handle; if (d.profile.bio) S.profile.bio = d.profile.bio; ss('profile', S.profile); } if (callback) callback(); }) .catch(function() { if (callback) callback(); }); 
+if (d.niche && Object.keys(d.niche).length) { S.niche = Object.assign({}, S.niche, d.niche); ss('niche', S.niche); } if (d.platform_focus && Object.keys(d.platform_focus).length) { S.platformFocus = d.platform_focus; ss('platform_focus', S.platformFocus); } if (d.aesthetic && Object.keys(d.aesthetic).length) { S.aesthetic = d.aesthetic; ss('aesthetic', S.aesthetic); } if (d.gear && Object.keys(d.gear).length) { S.gear = d.gear; ss('gear', S.gear); } if (d.prefs) { var cloudStudio = d.prefs.studio; var localStudio = (S.prefs && S.prefs.studio) || null; S.prefs = Object.assign({}, S.prefs, d.prefs); if (window.PreShootStudio) { var mergedStudio = PreShootStudio.mergeStudioStores(localStudio || PreShootStudio.getStore(), cloudStudio || (d.studio||{projects:[]})); S.prefs.studio = mergedStudio; PreShootStudio.saveStore(mergedStudio, { silent: true, keepUpdatedAt: true }); } ss('prefs', S.prefs); } else if (d.studio && window.PreShootStudio) { PreShootStudio.applyCloudStudio(d.studio); } if (d.connected_accounts) { S.connectedAccounts = d.connected_accounts; ss('connected_accounts', d.connected_accounts); if (window.PreShootResearch&&PreShootResearch.setConnectedAccounts) PreShootResearch.setConnectedAccounts(d.connected_accounts); } if (d.profile) { if (d.profile.name && d.profile.name !== 'PreShoot Creator') S.profile.name = d.profile.name; if (d.profile.handle) S.profile.handle = d.profile.handle; if (d.profile.bio) S.profile.bio = d.profile.bio; ss('profile', S.profile); } if (callback) callback(); }) .catch(function() { if (callback) callback(); }); 
 } /* ════════════════════════════════════════ */
 /* SWIPE TO DELETE */
 /* ════════════════════════════════════════ */
