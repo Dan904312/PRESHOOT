@@ -1,8 +1,10 @@
 /**
- * PreShoot Studio UI — Phase 1 screens & modals (uses PreShootStudio data layer).
+ * PreShoot Studio UI — Phase 2 polished workspace (builds on Phase 1 data layer).
  */
 (function (global) {
   'use strict';
+
+  var projectDraft = { step: 1, name: '', notes: '', coverImage: null };
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -14,22 +16,6 @@
 
   function Studio() {
     return global.PreShootStudio;
-  }
-
-  function statusChip(status) {
-    var meta = Studio().STATUS_MAP[status] || { label: status || 'Planning', id: 'planning' };
-    return '<span class="st-chip st-' + esc(meta.id) + '">' + esc(meta.label) + '</span>';
-  }
-
-  function summaryLine(summary) {
-    var parts = [];
-    ['planning', 'ready', 'filming', 'editing', 'posted'].forEach(function (id) {
-      var n = summary && summary[id] ? summary[id] : 0;
-      if (!n) return;
-      var label = (Studio().STATUS_MAP[id] && Studio().STATUS_MAP[id].label) || id;
-      parts.push(label + ': ' + n);
-    });
-    return parts.length ? parts.join(' · ') : 'No productions yet';
   }
 
   function openM(id) {
@@ -44,8 +30,61 @@
     if (typeof global.showToast === 'function') global.showToast(msg);
   }
 
-  function syncNav() {
-    if (typeof global.scheduleCloudSync === 'function') global.scheduleCloudSync();
+  function relativeTime(ts) {
+    if (!ts) return 'Updated recently';
+    var diff = Date.now() - Number(ts);
+    if (diff < 0) diff = 0;
+    var m = Math.floor(diff / 60000);
+    if (m < 1) return 'Updated just now';
+    if (m < 60) return 'Updated ' + m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 24) return 'Updated ' + h + 'h ago';
+    var d = Math.floor(h / 24);
+    if (d === 1) return 'Updated yesterday';
+    if (d < 14) return 'Updated ' + d + ' days ago';
+    var date = new Date(ts);
+    return 'Updated ' + date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function statusChip(status) {
+    var meta = Studio().STATUS_MAP[status] || { label: status || 'Planning', id: 'planning' };
+    return (
+      '<span class="st-chip st-' +
+      esc(meta.id) +
+      '"><span class="st-dot" aria-hidden="true"></span>' +
+      esc(meta.label) +
+      '</span>'
+    );
+  }
+
+  function summaryPills(summary) {
+    var parts = [];
+    ['planning', 'ready', 'filming', 'editing', 'posted'].forEach(function (id) {
+      var n = summary && summary[id] ? summary[id] : 0;
+      if (!n) return;
+      var label = (Studio().STATUS_MAP[id] && Studio().STATUS_MAP[id].label) || id;
+      parts.push(
+        '<span class="st-sum-pill st-' +
+          esc(id) +
+          '"><span class="st-dot"></span>' +
+          esc(label) +
+          ' ' +
+          n +
+          '</span>'
+      );
+    });
+    return parts.length ? parts.join('') : '<span class="st-sum-empty">No productions yet</span>';
+  }
+
+  function progressBar(pct) {
+    var p = Math.max(0, Math.min(100, Number(pct) || 0));
+    return (
+      '<div class="st-progress" aria-label="' +
+      p +
+      '% complete"><div class="st-progress-fill" style="width:' +
+      p +
+      '%"></div></div>'
+    );
   }
 
   /* ── Studio dashboard ── */
@@ -65,49 +104,64 @@
 
     var projects = Studio().listProjects();
     var h = '';
+    h += '<div class="studio-shell studio-fade">';
     h += '<div class="studio-hd">';
-    h += '<div><div class="studio-title">Studio</div><div class="studio-sub">Projects you are producing</div></div>';
-    h += '<button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
+    h += '<div class="studio-hd-text">';
+    h += '<div class="studio-title">Studio</div>';
+    h += '<div class="studio-sub">Your creative workspace</div>';
     h += '</div>';
-
-    h += '<div class="studio-toolbar">';
-    h += '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openCreateBlankProduction()">Blank Production</button>';
+    h +=
+      '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
     h += '</div>';
 
     if (!projects.length) {
       h +=
         '<div class="studio-empty">' +
-        '<div class="studio-empty-t">No projects yet</div>' +
-        '<div class="studio-empty-s">Create a project, or send an idea from a scan with Send to Studio.</div>' +
-        '<button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProject()">Create Project</button>' +
+        '<div class="studio-empty-ico" aria-hidden="true">' +
+        '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>' +
+        '</div>' +
+        '<div class="studio-empty-t">No Projects Yet</div>' +
+        '<div class="studio-empty-s">Start organizing your content ideas into creative projects.</div>' +
+        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">Create Project</button>' +
         '</div>';
+      h += '</div>';
       root.innerHTML = h;
       return;
     }
 
     h += '<div class="studio-grid">';
-    projects.forEach(function (p) {
+    projects.forEach(function (p, i) {
       var cover = p.coverImage
         ? '<img class="st-cover" src="' + esc(p.coverImage) + '" alt="">'
-        : '<div class="st-cover ph"></div>';
+        : '<div class="st-cover ph" aria-hidden="true"><span>' +
+          esc((p.name || 'P').charAt(0).toUpperCase()) +
+          '</span></div>';
       h +=
-        '<article class="st-card" onclick="PreShootStudioUI.openProject(\'' +
+        '<article class="st-card st-project-card" style="animation-delay:' +
+        i * 40 +
+        'ms" onclick="PreShootStudioUI.openProject(\'' +
         esc(p.id) +
         '\')">' +
         cover +
         '<div class="st-card-body">' +
+        '<div class="st-card-top">' +
         '<div class="st-card-title">' +
         esc(p.name) +
+        '</div>' +
+        '<div class="st-card-chev" aria-hidden="true">›</div>' +
         '</div>' +
         '<div class="st-card-meta">' +
         (p.productionCount || 0) +
         ' Production' +
         ((p.productionCount || 0) === 1 ? '' : 's') +
-        ' · ' +
+        '</div>' +
+        '<div class="st-card-progress-row">' +
+        '<span>Progress</span><strong>' +
         (p.progress || 0) +
-        '% complete</div>' +
+        '%</strong></div>' +
+        progressBar(p.progress || 0) +
         '<div class="st-card-sum">' +
-        esc(summaryLine(p.statusSummary)) +
+        summaryPills(p.statusSummary) +
         '</div>' +
         '</div></article>';
     });
@@ -117,26 +171,30 @@
       return p.archived;
     });
     if (archived.length) {
-      h += '<div class="studio-sub" style="padding:18px 16px 8px">Archived</div><div class="studio-grid">';
+      h += '<div class="studio-section-label">Archived</div><div class="studio-grid studio-grid-arch">';
       archived.forEach(function (p) {
         h +=
-          '<article class="st-card" style="opacity:.75">' +
-          '<div class="st-cover ph"></div>' +
+          '<article class="st-card st-project-card is-archived">' +
+          '<div class="st-cover ph" aria-hidden="true"><span>' +
+          esc((p.name || 'P').charAt(0).toUpperCase()) +
+          '</span></div>' +
           '<div class="st-card-body">' +
           '<div class="st-card-title">' +
           esc(p.name) +
           '</div>' +
           '<div class="st-card-meta">Archived</div>' +
-          '<button type="button" class="studio-btn ghost" style="margin-top:8px" onclick="event.stopPropagation();PreShootStudioUI.restoreProject(\'' +
+          '<div class="studio-inline-actions">' +
+          '<button type="button" class="studio-btn ghost sm" onclick="event.stopPropagation();PreShootStudioUI.restoreProject(\'' +
           esc(p.id) +
           '\')">Restore</button>' +
-          '<button type="button" class="studio-btn ghost danger" style="margin-top:8px;margin-left:6px" onclick="event.stopPropagation();PreShootStudioUI.deleteProject(\'' +
+          '<button type="button" class="studio-btn ghost sm danger" onclick="event.stopPropagation();PreShootStudioUI.deleteProject(\'' +
           esc(p.id) +
           '\')">Delete</button>' +
-          '</div></article>';
+          '</div></div></article>';
       });
       h += '</div>';
     }
+    h += '</div>';
     root.innerHTML = h;
   }
 
@@ -171,70 +229,119 @@
     });
     var progress = enriched ? enriched.progress : Studio().projectProgress(project);
     var summary = enriched ? enriched.statusSummary : Studio().statusSummary(project);
+    var prods = project.productions || [];
 
     var h = '';
+    h += '<div class="studio-shell studio-fade">';
     h += '<div class="studio-detail-hd">';
     h +=
-      '<button type="button" class="studio-back" onclick="PreShootStudioUI.backToList()" aria-label="Back">←</button>';
-    h += '<div style="flex:1;min-width:0"><div class="studio-title">' + esc(project.name) + '</div>';
+      '<button type="button" class="studio-back" onclick="PreShootStudioUI.backToList()" aria-label="Back to Studio">‹</button>';
+    h += '<div class="studio-hd-text"><div class="studio-title">' + esc(project.name) + '</div>';
     h +=
       '<div class="studio-sub">' +
-      (project.productions || []).length +
-      ' productions · ' +
-      progress +
-      '% · ' +
-      esc(summaryLine(summary)) +
+      prods.length +
+      ' production' +
+      (prods.length === 1 ? '' : 's') +
       '</div></div>';
+    h +=
+      '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProjectMenu(\'' +
+      esc(projectId) +
+      '\')" aria-label="Project options">⋯</button>';
     h += '</div>';
 
-    h += '<div class="studio-actions-row">';
+    h += '<div id="st-project-menu" class="st-overflow-menu" hidden>';
     h +=
-      '<button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProduction(\'' +
-      esc(projectId) +
-      '\')">Add Production</button>';
-    h +=
-      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.renameProjectPrompt(\'' +
+      '<button type="button" onclick="PreShootStudioUI.renameProjectPrompt(\'' +
       esc(projectId) +
       '\')">Rename</button>';
     h +=
-      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.duplicateProject(\'' +
+      '<button type="button" onclick="PreShootStudioUI.duplicateProject(\'' +
       esc(projectId) +
       '\')">Duplicate</button>';
     h +=
-      '<button type="button" class="studio-btn ghost danger" onclick="PreShootStudioUI.archiveProject(\'' +
+      '<button type="button" onclick="PreShootStudioUI.archiveProject(\'' +
       esc(projectId) +
       '\')">Archive</button>';
     h +=
-      '<button type="button" class="studio-btn ghost danger" onclick="PreShootStudioUI.deleteProject(\'' +
+      '<button type="button" class="danger" onclick="PreShootStudioUI.deleteProject(\'' +
       esc(projectId) +
       '\')">Delete</button>';
     h += '</div>';
 
-    var prods = project.productions || [];
+    if (project.coverImage) {
+      h +=
+        '<div class="st-project-hero"><img src="' +
+        esc(project.coverImage) +
+        '" alt=""></div>';
+    }
+
+    if (project.notes) {
+      h += '<div class="st-project-desc">' + esc(project.notes) + '</div>';
+    }
+
+    h += '<div class="st-panel st-progress-panel">';
+    h +=
+      '<div class="st-card-progress-row"><span>Overall progress</span><strong>' +
+      progress +
+      '%</strong></div>';
+    h += progressBar(progress);
+    h += '<div class="st-card-sum">' + summaryPills(summary) + '</div>';
+    h += '</div>';
+
+    h += '<div class="studio-section-row">';
+    h += '<div class="studio-section-label tight">Productions</div>';
+    h +=
+      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openCreateProduction(\'' +
+      esc(projectId) +
+      '\')">+ New Production</button>';
+    h += '</div>';
+
     if (!prods.length) {
       h +=
-        '<div class="studio-empty"><div class="studio-empty-t">Empty project</div><div class="studio-empty-s">Add a blank production or send an idea here from a scan.</div></div>';
+        '<div class="studio-empty compact">' +
+        '<div class="studio-empty-t">No productions yet.</div>' +
+        '<div class="studio-empty-s">Create a blank production or send an idea from a scan.</div>' +
+        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProduction(\'' +
+        esc(projectId) +
+        '\')">Create Production</button>' +
+        '</div>';
     } else {
       h += '<div class="st-prod-list">';
-      prods.forEach(function (prod) {
+      prods.forEach(function (prod, i) {
         var pct =
           typeof prod.progress === 'number'
             ? prod.progress
             : Studio().statusProgress(prod.status);
         h +=
-          '<button type="button" class="st-prod-row" onclick="PreShootStudioUI.openProduction(\'' +
+          '<button type="button" class="st-prod-card" style="animation-delay:' +
+          i * 35 +
+          'ms" onclick="PreShootStudioUI.openProduction(\'' +
           esc(prod.id) +
           '\')">' +
-          '<div class="st-prod-main"><div class="st-prod-name">' +
+          '<div class="st-prod-card-top">' +
+          '<div class="st-prod-name">' +
           esc(prod.name) +
-          '</div><div class="st-prod-meta">' +
-          pct +
-          '% complete</div></div>' +
+          '</div>' +
           statusChip(prod.status) +
+          '</div>' +
+          '<div class="st-prod-card-mid">' +
+          '<strong>' +
+          pct +
+          '%</strong>' +
+          '<span class="st-prod-updated">' +
+          esc(relativeTime(prod.updatedAt || prod.createdAt)) +
+          '</span></div>' +
+          progressBar(pct) +
           '</button>';
       });
       h += '</div>';
     }
+
+    h +=
+      '<button type="button" class="studio-director-placeholder" onclick="PreShootStudioUI.directorPlaceholder(\'project\')">' +
+      '<span>Ask Director AI about this project</span><span class="st-soon">Soon</span></button>';
+
+    h += '</div>';
     root.innerHTML = h;
   }
 
@@ -250,12 +357,13 @@
       typeof prod.progress === 'number' ? prod.progress : Studio().statusProgress(prod.status);
 
     var h = '';
+    h += '<div class="studio-shell studio-fade">';
     h += '<div class="studio-detail-hd">';
     h +=
       '<button type="button" class="studio-back" onclick="PreShootStudioUI.openProject(\'' +
       esc(project.id) +
-      '\')" aria-label="Back">←</button>';
-    h += '<div style="flex:1;min-width:0"><div class="studio-title">' + esc(prod.name) + '</div>';
+      '\')" aria-label="Back">‹</button>';
+    h += '<div class="studio-hd-text"><div class="studio-title">' + esc(prod.name) + '</div>';
     h +=
       '<div class="studio-sub">' +
       esc(project.name) +
@@ -275,10 +383,15 @@
         esc(productionId) +
         "','" +
         esc(s.id) +
-        '\')">' +
+        '\')"><span class="st-dot"></span>' +
         esc(s.label) +
         '</button>';
     });
+    h += '</div>';
+
+    h += '<div class="st-panel">';
+    h += '<div class="st-card-progress-row"><span>Completion</span><strong>' + pct + '%</strong></div>';
+    h += progressBar(pct);
     h += '</div>';
 
     h += '<div class="st-panel">';
@@ -291,7 +404,7 @@
       "','name',this.value)\">";
     h += '<label class="st-label">Notes</label>';
     h +=
-      '<textarea class="st-input st-notes" id="st-prod-notes" rows="5" onchange="PreShootStudioUI.saveProductionField(\'' +
+      '<textarea class="st-input st-notes" id="st-prod-notes" rows="5" placeholder="Shot notes, tone, references…" onchange="PreShootStudioUI.saveProductionField(\'' +
       esc(productionId) +
       "','notes',this.value)\">" +
       esc(prod.notes || '') +
@@ -323,7 +436,22 @@
       '\')">Delete</button>';
     h += '</div>';
 
+    h +=
+      '<button type="button" class="studio-director-placeholder" onclick="PreShootStudioUI.directorPlaceholder(\'production\')">' +
+      '<span>Ask Director AI about this production</span><span class="st-soon">Soon</span></button>';
+
+    h += '</div>';
     root.innerHTML = h;
+  }
+
+  function toggleProjectMenu(projectId) {
+    var menu = document.getElementById('st-project-menu');
+    if (!menu) return;
+    menu.hidden = !menu.hidden;
+  }
+
+  function directorPlaceholder() {
+    toast('Director Studio actions unlock in a later phase');
   }
 
   /* ── Continue Working (Home) ── */
@@ -338,40 +466,173 @@
     }
     mount.style.display = 'block';
     mount.innerHTML =
-      '<div class="continue-card">' +
+      '<button type="button" class="continue-card" onclick="PreShootStudioUI.openProduction(\'' +
+      esc(cw.production.id) +
+      '\')">' +
       '<div class="continue-body">' +
-      '<div class="continue-kicker">Continue working</div>' +
+      '<div class="continue-kicker">Continue Working</div>' +
+      '<div class="continue-project">' +
+      esc(cw.project.name) +
+      '</div>' +
       '<div class="continue-title">' +
       esc(cw.production.name) +
       '</div>' +
       '<div class="continue-meta">' +
-      esc(cw.project.name) +
-      ' · ' +
-      esc((Studio().STATUS_MAP[cw.production.status] || {}).label || cw.production.status) +
-      ' · ' +
+      statusChip(cw.production.status) +
+      '<span class="continue-pct">' +
       cw.progress +
-      '%</div></div>' +
-      '<button type="button" class="studio-btn" onclick="PreShootStudioUI.openProduction(\'' +
-      esc(cw.production.id) +
-      '\')">Continue</button></div>';
+      '%</span></div>' +
+      progressBar(cw.progress) +
+      '</div>' +
+      '<div class="continue-cta">Continue <span aria-hidden="true">→</span></div>' +
+      '</button>';
   }
 
-  /* ── Modals ── */
+  /* ── Create Project (stepped) ── */
   function openCreateProject() {
-    var nameEl = document.getElementById('st-new-project-name');
-    var notesEl = document.getElementById('st-new-project-notes');
-    if (nameEl) nameEl.value = '';
-    if (notesEl) notesEl.value = '';
+    projectDraft = { step: 1, name: '', notes: '', coverImage: null };
+    renderProjectWizard();
     openM('studio-project-modal');
   }
 
-  function confirmCreateProject() {
+  function renderProjectWizard() {
+    var body = document.getElementById('st-project-wizard');
+    if (!body) return;
+    var step = projectDraft.step;
+    var h = '';
+    h += '<div class="st-steps">';
+    for (var i = 1; i <= 3; i++) {
+      h += '<span class="st-step' + (i === step ? ' on' : i < step ? ' done' : '') + '"></span>';
+    }
+    h += '</div>';
+
+    if (step === 1) {
+      h += '<div class="st-step-title">Project name</div>';
+      h += '<div class="st-step-sub">What are you creating?</div>';
+      h +=
+        '<input class="st-input" id="st-new-project-name" placeholder="e.g. Cafe Launch" value="' +
+        esc(projectDraft.name) +
+        '">';
+      h +=
+        '<button type="button" class="studio-btn primary block" onclick="PreShootStudioUI.projectWizardNext()">Continue</button>';
+    } else if (step === 2) {
+      h += '<div class="st-step-title">Description</div>';
+      h += '<div class="st-step-sub">Optional — you can skip this.</div>';
+      h +=
+        '<textarea class="st-input st-notes" id="st-new-project-notes" placeholder="Optional description">' +
+        esc(projectDraft.notes) +
+        '</textarea>';
+      h += '<div class="st-wizard-nav">';
+      h +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.projectWizardBack()">Back</button>';
+      h +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.projectWizardSkip()">Skip</button>';
+      h +=
+        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.projectWizardNext()">Continue</button>';
+      h += '</div>';
+    } else {
+      h += '<div class="st-step-title">Cover image</div>';
+      h += '<div class="st-step-sub">Optional — add a cover later anytime.</div>';
+      h +=
+        '<label class="st-cover-pick">' +
+        (projectDraft.coverImage
+          ? '<img src="' + esc(projectDraft.coverImage) + '" alt="">'
+          : '<span>Choose image</span>') +
+        '<input type="file" accept="image/*" onchange="PreShootStudioUI.onProjectCover(this)" hidden>' +
+        '</label>';
+      if (projectDraft.coverImage) {
+        h +=
+          '<button type="button" class="studio-btn ghost block" onclick="PreShootStudioUI.clearProjectCover()">Remove cover</button>';
+      }
+      h += '<div class="st-wizard-nav">';
+      h +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.projectWizardBack()">Back</button>';
+      h +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.confirmCreateProject()">Skip</button>';
+      h +=
+        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.confirmCreateProject()">Create Project</button>';
+      h += '</div>';
+    }
+    body.innerHTML = h;
+    var nameEl = document.getElementById('st-new-project-name');
+    if (nameEl) setTimeout(function () { nameEl.focus(); }, 50);
+  }
+
+  function projectWizardBack() {
+    if (projectDraft.step <= 1) return;
+    captureWizardFields();
+    projectDraft.step -= 1;
+    renderProjectWizard();
+  }
+
+  function projectWizardSkip() {
+    captureWizardFields();
+    projectDraft.step = Math.min(3, projectDraft.step + 1);
+    renderProjectWizard();
+  }
+
+  function projectWizardNext() {
+    captureWizardFields();
+    if (projectDraft.step === 1) {
+      var name = String(projectDraft.name || '').trim();
+      if (!name) {
+        toast('Enter a project name');
+        return;
+      }
+    }
+    if (projectDraft.step >= 3) {
+      confirmCreateProject();
+      return;
+    }
+    projectDraft.step += 1;
+    renderProjectWizard();
+  }
+
+  function captureWizardFields() {
     var nameEl = document.getElementById('st-new-project-name');
     var notesEl = document.getElementById('st-new-project-notes');
-    var name = nameEl ? nameEl.value : '';
-    var notes = notesEl ? notesEl.value : '';
-    var p = Studio().createProject({ name: name, notes: notes });
+    if (nameEl) projectDraft.name = nameEl.value;
+    if (notesEl) projectDraft.notes = notesEl.value;
+  }
+
+  function onProjectCover(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var max = 640;
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        var r = Math.min(1, max / Math.max(w, h));
+        var cv = document.createElement('canvas');
+        cv.width = Math.round(w * r);
+        cv.height = Math.round(h * r);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        projectDraft.coverImage = cv.toDataURL('image/jpeg', 0.72);
+        renderProjectWizard();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearProjectCover() {
+    projectDraft.coverImage = null;
+    renderProjectWizard();
+  }
+
+  function confirmCreateProject() {
+    captureWizardFields();
+    var name = String(projectDraft.name || '').trim() || 'Untitled Project';
+    var p = Studio().createProject({
+      name: name,
+      notes: projectDraft.notes || '',
+      coverImage: projectDraft.coverImage || null
+    });
     closeM('studio-project-modal');
+    projectDraft = { step: 1, name: '', notes: '', coverImage: null };
     toast('Project created');
     openProject(p.id);
   }
@@ -380,6 +641,7 @@
     var sel = document.getElementById('st-blank-project');
     var nameEl = document.getElementById('st-blank-name');
     var notesEl = document.getElementById('st-blank-notes');
+    var wrap = document.getElementById('st-blank-project-wrap');
     if (nameEl) nameEl.value = '';
     if (notesEl) notesEl.value = '';
     if (sel) {
@@ -402,8 +664,12 @@
         openCreateProject();
         return;
       }
+      if (wrap) wrap.style.display = projectId ? 'none' : '';
     }
+    var ttl = document.getElementById('st-blank-modal-ttl');
+    if (ttl) ttl.textContent = 'New Production';
     openM('studio-blank-modal');
+    if (nameEl) setTimeout(function () { nameEl.focus(); }, 80);
   }
 
   function openCreateBlankProduction() {
@@ -419,8 +685,13 @@
       toast('Choose a project');
       return;
     }
+    var name = nameEl ? String(nameEl.value || '').trim() : '';
+    if (!name) {
+      toast('Enter a production name');
+      return;
+    }
     var result = Studio().createProduction(projectId, {
-      name: nameEl ? nameEl.value : 'Untitled Production',
+      name: name,
       notes: notesEl ? notesEl.value : '',
       source: 'blank'
     });
@@ -535,6 +806,8 @@
   }
 
   function renameProjectPrompt(projectId) {
+    var menu = document.getElementById('st-project-menu');
+    if (menu) menu.hidden = true;
     var p = Studio().findProject(projectId);
     if (!p) return;
     var name = prompt('Rename project', p.name);
@@ -545,6 +818,8 @@
   }
 
   function duplicateProject(projectId) {
+    var menu = document.getElementById('st-project-menu');
+    if (menu) menu.hidden = true;
     var copy = Studio().duplicateProject(projectId);
     if (!copy) return;
     toast('Project duplicated');
@@ -552,6 +827,8 @@
   }
 
   function archiveProject(projectId) {
+    var menu = document.getElementById('st-project-menu');
+    if (menu) menu.hidden = true;
     if (!confirm('Archive this project? You can restore it anytime from Studio.')) return;
     Studio().archiveProject(projectId, true);
     toast('Project archived');
@@ -565,6 +842,8 @@
   }
 
   function deleteProject(projectId) {
+    var menu = document.getElementById('st-project-menu');
+    if (menu) menu.hidden = true;
     if (!confirm('Permanently delete this project and its productions?')) return;
     Studio().deleteProject(projectId);
     toast('Project deleted');
@@ -590,9 +869,11 @@
       toast('Create another project to move into');
       return;
     }
-    var names = projects.map(function (p, i) {
-      return i + 1 + '. ' + p.name;
-    }).join('\n');
+    var names = projects
+      .map(function (p, i) {
+        return i + 1 + '. ' + p.name;
+      })
+      .join('\n');
     var pick = prompt('Move to which project?\n' + names + '\n\nEnter number:');
     var idx = parseInt(pick, 10) - 1;
     if (!projects[idx]) return;
@@ -627,6 +908,11 @@
     backToList: backToList,
     openCreateProject: openCreateProject,
     confirmCreateProject: confirmCreateProject,
+    projectWizardNext: projectWizardNext,
+    projectWizardBack: projectWizardBack,
+    projectWizardSkip: projectWizardSkip,
+    onProjectCover: onProjectCover,
+    clearProjectCover: clearProjectCover,
     openCreateProduction: openCreateProduction,
     openCreateBlankProduction: openCreateBlankProduction,
     confirmBlankProduction: confirmBlankProduction,
@@ -641,6 +927,8 @@
     saveProductionField: saveProductionField,
     moveProductionPrompt: moveProductionPrompt,
     duplicateProduction: duplicateProduction,
-    deleteProduction: deleteProduction
+    deleteProduction: deleteProduction,
+    toggleProjectMenu: toggleProjectMenu,
+    directorPlaceholder: directorPlaceholder
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
