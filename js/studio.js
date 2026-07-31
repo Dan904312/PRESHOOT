@@ -70,9 +70,221 @@
     return {
       overview: { summary: '', goal: '', platform: '', format: '' },
       shotList: [],
-      script: { body: '' },
-      references: { youtube: [], capcut: [], uploads: [] },
+      script: { body: '', lines: [] },
+      references: { youtube: [], capcut: [], uploads: [], pinterest: [] },
       assets: []
+    };
+  }
+
+  function getSkillLevel() {
+    var n = (global.S && global.S.niche) || {};
+    var level = String(n.experienceLevel || n.skillLevel || 'intermediate').toLowerCase();
+    if (level === 'beginner' || level === 'advanced') return level;
+    return 'intermediate';
+  }
+
+  function createShot(input) {
+    input = input || {};
+    return {
+      id: input.id || uid('shot'),
+      order: typeof input.order === 'number' ? input.order : 1,
+      purpose: String(input.purpose || 'Setup'),
+      durationSec: typeof input.durationSec === 'number' ? input.durationSec : 3,
+      cameraMovement: String(input.cameraMovement || ''),
+      framing: String(input.framing || ''),
+      lens: String(input.lens || ''),
+      gear: String(input.gear || ''),
+      lighting: String(input.lighting || ''),
+      audio: String(input.audio || ''),
+      notes: String(input.notes || ''),
+      beginnerTip: String(input.beginnerTip || ''),
+      advancedDetail: String(input.advancedDetail || '')
+    };
+  }
+
+  function createScriptLine(input) {
+    input = input || {};
+    return {
+      id: input.id || uid('line'),
+      text: String(input.text || ''),
+      shotId: input.shotId || null,
+      shotOrder: typeof input.shotOrder === 'number' ? input.shotOrder : null
+    };
+  }
+
+  function createRefItem(input) {
+    input = input || {};
+    return {
+      id: input.id || uid('ref'),
+      title: String(input.title || input.query || 'Reference'),
+      query: String(input.query || input.title || ''),
+      note: String(input.note || ''),
+      url: String(input.url || '')
+    };
+  }
+
+  function createAsset(input) {
+    input = input || {};
+    return {
+      id: input.id || uid('asset'),
+      type: String(input.type || 'image'),
+      kind: String(input.kind || 'upload'),
+      name: String(input.name || 'Asset'),
+      src: input.src || null,
+      note: String(input.note || '')
+    };
+  }
+
+  function seedWorkspaceFromIdea(idea, sceneInfo, meta) {
+    idea = idea || {};
+    sceneInfo = sceneInfo || {};
+    meta = meta || {};
+    var skill = getSkillLevel();
+    var shot1 = createShot({
+      order: 1,
+      purpose: 'Hook',
+      durationSec: 3,
+      framing:
+        skill === 'beginner'
+          ? 'Fill the frame with the most interesting subject'
+          : 'Tight cold-open on the hero detail or face',
+      cameraMovement:
+        skill === 'advanced' ? 'Locked off with a micro push-in' : 'Hold steady for 3 seconds',
+      lens: skill === 'advanced' ? '24–35mm equivalent' : skill === 'intermediate' ? 'Wide-to-normal' : '',
+      gear: skill === 'beginner' ? 'Phone is fine — steady hands or lean on something' : '',
+      lighting:
+        skill === 'beginner'
+          ? 'Stand so light hits the subject from the front or side'
+          : 'Key from window/practicals; avoid flat overhead',
+      audio: idea.audio || (skill === 'beginner' ? 'Speak clearly or add soft music later' : 'Clean VO + room tone'),
+      notes: idea.hook ? 'Open on: “' + String(idea.hook).slice(0, 120) + '”' : '',
+      beginnerTip: 'Film this first. If the hook is weak, nothing else matters — reshoot before moving on.',
+      advancedDetail:
+        skill === 'advanced'
+          ? 'Protect headroom for captions; bias contrast and motion toward the hook subject.'
+          : ''
+    });
+    var shot2 = createShot({
+      order: 2,
+      purpose: 'Setup',
+      durationSec: 5,
+      framing: idea.shotAngle || 'Wide establish → medium',
+      cameraMovement: idea.shotAngle ? String(idea.shotAngle).slice(0, 80) : 'Slow walk-in or gentle pan',
+      lens: skill === 'advanced' ? '16–24mm establish, then 35–50mm' : '',
+      gear: '',
+      lighting: skill === 'beginner' ? 'Keep the same light direction as the hook' : 'Match key direction to hook for continuity',
+      audio: '',
+      notes: idea.whyItWorks || '',
+      beginnerTip: 'Show where you are so viewers can orient quickly.',
+      advancedDetail:
+        skill === 'advanced' ? 'Match eyeline/parallax to the hook for a seamless cut.' : ''
+    });
+    var shot3 = createShot({
+      order: 3,
+      purpose: 'Payoff',
+      durationSec: 4,
+      framing: 'Detail, reaction, or reveal',
+      cameraMovement: 'Locked or soft orbit',
+      lens: skill === 'advanced' ? '50–85mm equivalent for isolation' : '',
+      gear: '',
+      lighting: '',
+      audio: '',
+      notes: idea.editingStyle ? 'Edit vibe: ' + idea.editingStyle : '',
+      beginnerTip: 'This is the “aha” moment — make it clear and satisfying.',
+      advancedDetail:
+        skill === 'advanced'
+          ? 'Time the reveal on a beat; leave 4–6 frames of handles for the cut.'
+          : ''
+    });
+    var shot4 = createShot({
+      order: 4,
+      purpose: 'CTA',
+      durationSec: 3,
+      framing: 'Face-to-camera or end card',
+      cameraMovement: 'Hold',
+      lens: '',
+      gear: '',
+      lighting: skill === 'beginner' ? 'Bright, friendly light on your face' : '',
+      audio: 'Clear spoken CTA',
+      notes: 'Invite a follow, visit, or save',
+      beginnerTip: 'Say one clear next step. Don’t stack three CTAs.',
+      advancedDetail: skill === 'advanced' ? 'End on a loopable frame for rewatches.' : ''
+    });
+    var shots = [shot1, shot2, shot3, shot4];
+    var lines = [];
+    if (idea.hook) {
+      lines.push(createScriptLine({ text: idea.hook, shotId: shot1.id, shotOrder: 1 }));
+    }
+    lines.push(
+      createScriptLine({
+        text: idea.whyItWorks
+          ? String(idea.whyItWorks).slice(0, 140)
+          : 'Here’s why this works…',
+        shotId: shot2.id,
+        shotOrder: 2
+      })
+    );
+    lines.push(
+      createScriptLine({
+        text: 'Come see for yourself.',
+        shotId: shot4.id,
+        shotOrder: 4
+      })
+    );
+    var references = {
+      youtube: [],
+      capcut: [],
+      uploads: [],
+      pinterest: []
+    };
+    if (idea.ytSearch) {
+      references.youtube.push(
+        createRefItem({
+          title: idea.ytSearch,
+          query: idea.ytSearch,
+          note: 'YouTube inspiration'
+        })
+      );
+    }
+    if (idea.capcutSearch) {
+      references.capcut.push(
+        createRefItem({
+          title: idea.capcutSearch,
+          query: idea.capcutSearch,
+          note: 'CapCut template idea'
+        })
+      );
+    }
+    var assets = [];
+    if (meta.coverImage) {
+      assets.push(
+        createAsset({
+          type: 'image',
+          kind: 'scan',
+          name: 'Original scan',
+          src: meta.coverImage,
+          note: sceneInfo.label || sceneInfo.mainSubject || ''
+        })
+      );
+    }
+    return {
+      overview: {
+        summary: [idea.title, idea.hook].filter(Boolean).join(' — ').slice(0, 280),
+        goal: idea.category ? 'Ship a strong ' + idea.category + ' piece' : '',
+        platform: '',
+        format: idea.category || ''
+      },
+      shotList: shots,
+      script: {
+        body: lines
+          .map(function (l) {
+            return l.text;
+          })
+          .join('\n\n'),
+        lines: lines
+      },
+      references: references,
+      assets: assets
     };
   }
 
@@ -85,6 +297,7 @@
       prod.workspace.overview = Object.assign({}, d.overview, prod.workspace.overview || {});
       if (!Array.isArray(prod.workspace.shotList)) prod.workspace.shotList = [];
       prod.workspace.script = Object.assign({}, d.script, prod.workspace.script || {});
+      if (!Array.isArray(prod.workspace.script.lines)) prod.workspace.script.lines = [];
       prod.workspace.references = Object.assign(
         {},
         d.references,
@@ -93,6 +306,7 @@
       if (!Array.isArray(prod.workspace.references.youtube)) prod.workspace.references.youtube = [];
       if (!Array.isArray(prod.workspace.references.capcut)) prod.workspace.references.capcut = [];
       if (!Array.isArray(prod.workspace.references.uploads)) prod.workspace.references.uploads = [];
+      if (!Array.isArray(prod.workspace.references.pinterest)) prod.workspace.references.pinterest = [];
       if (!Array.isArray(prod.workspace.assets)) prod.workspace.assets = [];
     }
     return prod;
@@ -169,18 +383,22 @@
           (newerWs.shotList && newerWs.shotList.length ? newerWs.shotList : olderWs.shotList) || [],
         script: Object.assign({}, olderWs.script || {}, newerWs.script || {}),
         references: {
-          youtube: (newerWs.references && newerWs.references.youtube) ||
-            (olderWs.references && olderWs.references.youtube) ||
-            [],
-          capcut: (newerWs.references && newerWs.references.capcut) ||
-            (olderWs.references && olderWs.references.capcut) ||
-            [],
-          uploads: (newerWs.references && newerWs.references.uploads) ||
-            (olderWs.references && olderWs.references.uploads) ||
-            []
+          youtube: (newerWs.references && newerWs.references.youtube && newerWs.references.youtube.length
+            ? newerWs.references.youtube
+            : olderWs.references && olderWs.references.youtube) || [],
+          capcut: (newerWs.references && newerWs.references.capcut && newerWs.references.capcut.length
+            ? newerWs.references.capcut
+            : olderWs.references && olderWs.references.capcut) || [],
+          uploads: (newerWs.references && newerWs.references.uploads && newerWs.references.uploads.length
+            ? newerWs.references.uploads
+            : olderWs.references && olderWs.references.uploads) || [],
+          pinterest: (newerWs.references && newerWs.references.pinterest && newerWs.references.pinterest.length
+            ? newerWs.references.pinterest
+            : olderWs.references && olderWs.references.pinterest) || []
         },
         assets: (newerWs.assets && newerWs.assets.length ? newerWs.assets : olderWs.assets) || []
       };
+      if (!Array.isArray(out.workspace.script.lines)) out.workspace.script.lines = [];
     }
     out.updatedAt = Math.max(localP && localP.updatedAt || 0, cloudP && cloudP.updatedAt || 0);
     return out;
@@ -651,6 +869,7 @@
     idea = idea || {};
     sceneInfo = sceneInfo || {};
     meta = meta || {};
+    var workspace = seedWorkspaceFromIdea(idea, sceneInfo, meta);
     return {
       name: String(idea.title || 'Untitled Production').trim(),
       notes: [idea.hook ? 'Hook: ' + idea.hook : '', idea.shotAngle || '', meta.notes || '']
@@ -677,8 +896,30 @@
         sceneType: sceneInfo.type || '',
         mainSubject: sceneInfo.mainSubject || ''
       },
-      coverImage: meta.coverImage || null
+      coverImage: meta.coverImage || null,
+      workspace: workspace
     };
+  }
+
+  function buildWorkspaceFromIdea(productionId) {
+    var found = findProduction(getStore(), productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    var idea = prod.ideaSnapshot || {};
+    var scene = prod.scanRef || {};
+    var seeded = seedWorkspaceFromIdea(idea, scene, { coverImage: prod.coverImage });
+    /* Preserve any manually typed overview fields if present */
+    seeded.overview = Object.assign({}, seeded.overview, {
+      summary: (prod.workspace.overview && prod.workspace.overview.summary) || seeded.overview.summary,
+      goal: (prod.workspace.overview && prod.workspace.overview.goal) || seeded.overview.goal,
+      platform: (prod.workspace.overview && prod.workspace.overview.platform) || seeded.overview.platform,
+      format:
+        (prod.workspace.overview && prod.workspace.overview.format) ||
+        seeded.overview.format ||
+        idea.category ||
+        ''
+    });
+    return updateProduction(productionId, { workspace: seeded });
   }
 
   /**
@@ -766,15 +1007,45 @@
     recommendProject: recommendProject,
     suggestProjectName: suggestProjectName,
     productionFromIdea: productionFromIdea,
+    seedWorkspaceFromIdea: seedWorkspaceFromIdea,
+    buildWorkspaceFromIdea: buildWorkspaceFromIdea,
+    createShot: createShot,
+    createScriptLine: createScriptLine,
+    createRefItem: createRefItem,
+    createAsset: createAsset,
+    getSkillLevel: getSkillLevel,
     getDirectorCapabilityManifest: getDirectorCapabilityManifest,
     handleDirectorAction: handleDirectorAction,
     getDirectorContext: function (productionId) {
       var found = productionId ? findProduction(getStore(), productionId) : null;
+      var prod = found ? ensureWorkspace(found.production) : null;
+      var skill = getSkillLevel();
+      var shots = (prod && prod.workspace && prod.workspace.shotList) || [];
+      var lines = (prod && prod.workspace && prod.workspace.script && prod.workspace.script.lines) || [];
       return {
-        phase: 3,
+        phase: 4,
+        skillLevel: skill,
         studio: exportForSync(),
-        project: found ? found.project : null,
-        production: found ? ensureWorkspace(found.production) : null,
+        project: found ? { id: found.project.id, name: found.project.name } : null,
+        production: prod
+          ? {
+              id: prod.id,
+              name: prod.name,
+              status: prod.status,
+              progress: prod.progress,
+              notes: prod.notes,
+              source: prod.source,
+              ideaSnapshot: prod.ideaSnapshot,
+              scanRef: prod.scanRef,
+              overview: prod.workspace.overview,
+              shotCount: shots.length,
+              scriptLineCount: lines.length,
+              shotList: shots,
+              scriptLines: lines,
+              references: prod.workspace.references,
+              assetCount: (prod.workspace.assets || []).length
+            }
+          : null,
         actions: DIRECTOR_ACTIONS
       };
     }

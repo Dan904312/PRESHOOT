@@ -345,6 +345,492 @@
     root.innerHTML = h;
   }
 
+
+  function skillLevel() {
+    if (Studio() && Studio().getSkillLevel) return Studio().getSkillLevel();
+    var n = (global.S && global.S.niche) || {};
+    return n.experienceLevel || n.skillLevel || 'intermediate';
+  }
+
+  function fmtRelative(ts) {
+    if (!ts) return 'Just now';
+    var d = Date.now() - ts;
+    if (d < 60000) return 'Just now';
+    if (d < 3600000) return Math.floor(d / 60000) + 'm ago';
+    if (d < 86400000) return Math.floor(d / 3600000) + 'h ago';
+    return new Date(ts).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  }
+
+  function shotFieldsForLevel(level) {
+    var common = ['purpose', 'durationSec', 'framing', 'notes'];
+    if (level === 'beginner') return common.concat(['beginnerTip', 'lighting', 'audio']);
+    if (level === 'advanced')
+      return common.concat([
+        'cameraMovement',
+        'lens',
+        'gear',
+        'lighting',
+        'audio',
+        'beginnerTip',
+        'advancedDetail'
+      ]);
+    return common.concat(['cameraMovement', 'lighting', 'audio', 'gear', 'beginnerTip']);
+  }
+
+  function fieldLabel(key, level) {
+    var map = {
+      purpose: 'Purpose',
+      durationSec: 'Estimated duration',
+      framing: level === 'beginner' ? 'How to frame it' : 'Framing',
+      cameraMovement: level === 'beginner' ? 'Camera move' : 'Camera movement',
+      lens: 'Lens',
+      gear: level === 'beginner' ? 'What you need' : 'Gear',
+      lighting: 'Lighting',
+      audio: 'Audio',
+      notes: 'Notes',
+      beginnerTip: 'Guidance',
+      advancedDetail: 'Advanced detail'
+    };
+    return map[key] || key;
+  }
+
+  function ensureExpandedMap(productionId) {
+    if (!global.__preshootShotExpanded) global.__preshootShotExpanded = {};
+    if (!global.__preshootShotExpanded[productionId]) global.__preshootShotExpanded[productionId] = {};
+    return global.__preshootShotExpanded[productionId];
+  }
+
+  function renderOverviewSection(prod, project, productionId, ov, pct) {
+    var idea = prod.ideaSnapshot || {};
+    var scan = prod.scanRef || {};
+    var statusLabel = (Studio().STATUS_MAP[prod.status] || {}).label || prod.status;
+    var h = '';
+    h += '<div class="pw-card pw-overview-card">';
+    h += '<div class="pw-card-kicker">Production Overview</div>';
+    h += '<div class="pw-overview-top">';
+    if (prod.coverImage) {
+      h += '<img class="pw-overview-thumb" src="' + esc(prod.coverImage) + '" alt="">';
+    } else {
+      h += '<div class="pw-overview-thumb ph" aria-hidden="true"></div>';
+    }
+    h += '<div class="pw-overview-main">';
+    h += '<div class="pw-overview-name">' + esc(prod.name) + '</div>';
+    h += '<div class="pw-overview-meta-row">';
+    h += statusChip(prod.status);
+    h += '<span class="pw-meta-pill">' + pct + '%</span>';
+    h += '<span class="pw-meta-muted">Edited ' + esc(fmtRelative(prod.updatedAt)) + '</span>';
+    h += '</div>';
+    h += '<div class="pw-overview-project">Project · ' + esc(project.name) + '</div>';
+    h += '</div></div>';
+
+    h += '<div class="pw-facts">';
+    h += '<div class="pw-fact"><span class="pw-fact-l">Platform</span><span class="pw-fact-v">' + esc(ov.platform || 'Not set') + '</span></div>';
+    h += '<div class="pw-fact"><span class="pw-fact-l">Format</span><span class="pw-fact-v">' + esc(ov.format || idea.category || 'Not set') + '</span></div>';
+    h += '<div class="pw-fact"><span class="pw-fact-l">Goal</span><span class="pw-fact-v">' + esc(ov.goal || 'Not set') + '</span></div>';
+    h += '<div class="pw-fact"><span class="pw-fact-l">Status</span><span class="pw-fact-v">' + esc(statusLabel) + '</span></div>';
+    h += '</div>';
+
+    if (ov.summary || idea.hook || idea.title) {
+      h += '<div class="pw-summary-block">';
+      h += '<div class="pw-fact-l">Idea summary</div>';
+      h += '<div class="pw-summary-text">' + esc(ov.summary || idea.title || '') + '</div>';
+      if (idea.hook) h += '<div class="pw-summary-hook">“' + esc(idea.hook) + '”</div>';
+      h += '</div>';
+    }
+    if (scan.sceneLabel || scan.mainSubject) {
+      h += '<div class="pw-scan-line">Original scan · ' + esc(scan.mainSubject || scan.sceneLabel) + '</div>';
+    }
+    h += '</div>';
+
+    /* Editable essentials */
+    h += '<div class="pw-card">';
+    h += '<div class="pw-card-kicker">Details</div>';
+    h += '<label class="st-label">Production name</label>';
+    h +=
+      '<input class="st-input" value="' +
+      esc(prod.name) +
+      '" onchange="PreShootStudioUI.saveProductionField(\'' +
+      esc(productionId) +
+      "','name',this.value)\">";
+    h += '<label class="st-label">Summary</label>';
+    h +=
+      '<textarea class="st-input st-notes" rows="2" placeholder="What is this piece about?" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
+      esc(productionId) +
+      "','overview','summary',this.value)\">" +
+      esc(ov.summary || '') +
+      '</textarea>';
+    h += '<label class="st-label">Goal</label>';
+    h +=
+      '<input class="st-input" placeholder="e.g. Drive cafe foot traffic" value="' +
+      esc(ov.goal || '') +
+      '" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
+      esc(productionId) +
+      "','overview','goal',this.value)\">";
+    h += '<div class="st-two-col">';
+    h += '<div><label class="st-label">Platform</label>';
+    h +=
+      '<input class="st-input" placeholder="TikTok / Reels / Shorts" value="' +
+      esc(ov.platform || '') +
+      '" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
+      esc(productionId) +
+      "','overview','platform',this.value)\"></div>";
+    h += '<div><label class="st-label">Format</label>';
+    h +=
+      '<input class="st-input" placeholder="Advert / UGC / BTS" value="' +
+      esc(ov.format || '') +
+      '" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
+      esc(productionId) +
+      "','overview','format',this.value)\"></div>";
+    h += '</div>';
+    h += '<label class="st-label">Notes</label>';
+    h +=
+      '<textarea class="st-input st-notes" rows="2" placeholder="Tone, constraints, reminders…" onchange="PreShootStudioUI.saveProductionField(\'' +
+      esc(productionId) +
+      "','notes',this.value)\">" +
+      esc(prod.notes || '') +
+      '</textarea>';
+    h += '</div>';
+
+    /* Tools */
+    h += '<div class="pw-card">';
+    h += '<div class="pw-card-kicker">Production Tools</div>';
+    h += '<div class="pw-tools">';
+    [
+      ['shots', 'Shot List', 'What to film'],
+      ['script', 'Script', 'What to say'],
+      ['refs', 'References', 'Inspiration'],
+      ['assets', 'Assets', 'Files & media']
+    ].forEach(function (t) {
+      h +=
+        '<button type="button" class="pw-tool" onclick="PreShootStudioUI.setProdSection(\'' +
+        esc(productionId) +
+        "','" +
+        t[0] +
+        '\')"><span class="pw-tool-t">' +
+        t[1] +
+        '</span><span class="pw-tool-s">' +
+        t[2] +
+        '</span></button>';
+    });
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderShotsSection(prod, productionId, ws) {
+    var level = skillLevel();
+    var shots = (ws.shotList || []).slice().sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0);
+    });
+    var expanded = ensureExpandedMap(productionId);
+    var fields = shotFieldsForLevel(level);
+    var h = '';
+    h += '<div class="pw-section-hd">';
+    h += '<div><div class="pw-card-kicker">Shot List</div>';
+    h +=
+      '<div class="pw-section-sub">Adapted for <strong>' +
+      esc(level) +
+      '</strong> · tap a shot to expand</div></div>';
+    h +=
+      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addShot(\'' +
+      esc(productionId) +
+      '\')">Add shot</button></div>';
+
+    if (!shots.length) {
+      h += '<div class="pw-card pw-empty-card">';
+      h += '<div class="studio-empty-t">No shots yet</div>';
+      h += '<div class="studio-empty-s">Build a filmable shot list from the linked idea, or add shots manually.</div>';
+      if (prod.ideaSnapshot && (prod.ideaSnapshot.title || prod.ideaSnapshot.hook)) {
+        h +=
+          '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.seedFromIdea(\'' +
+          esc(productionId) +
+          '\')">Build from idea</button>';
+      }
+      h += '</div>';
+      return h;
+    }
+
+    shots.forEach(function (shot, i) {
+      var open = !!expanded[shot.id];
+      var dur = typeof shot.durationSec === 'number' ? shot.durationSec + ' sec' : '—';
+      h += '<div class="pw-shot-card' + (open ? ' open' : '') + '">';
+      h +=
+        '<button type="button" class="pw-shot-head" onclick="PreShootStudioUI.toggleShot(\'' +
+        esc(productionId) +
+        "','" +
+        esc(shot.id) +
+        '\')" aria-expanded="' +
+        (open ? 'true' : 'false') +
+        '">';
+      h += '<div class="pw-shot-index">Shot ' + esc(String(shot.order || i + 1)) + '</div>';
+      h += '<div class="pw-shot-head-main">';
+      h += '<div class="pw-shot-purpose">' + esc(shot.purpose || 'Shot') + '</div>';
+      h += '<div class="pw-shot-dur">' + esc(dur) + '</div>';
+      h += '</div>';
+      h += '<span class="pw-chev" aria-hidden="true">' + (open ? '▴' : '▾') + '</span>';
+      h += '</button>';
+      if (open) {
+        h += '<div class="pw-shot-body">';
+        h += '<div class="pw-shot-field"><div class="pw-fact-l">Purpose</div>';
+        h +=
+          '<input class="st-input" value="' +
+          esc(shot.purpose || '') +
+          '" onchange="PreShootStudioUI.updateShotField(\'' +
+          esc(productionId) +
+          "','" +
+          esc(shot.id) +
+          "','purpose',this.value)\"></div>";
+        h += '<div class="pw-shot-field"><div class="pw-fact-l">Estimated duration (sec)</div>';
+        h +=
+          '<input class="st-input" type="number" min="1" max="120" value="' +
+          esc(String(shot.durationSec != null ? shot.durationSec : 3)) +
+          '" onchange="PreShootStudioUI.updateShotField(\'' +
+          esc(productionId) +
+          "','" +
+          esc(shot.id) +
+          "','durationSec',parseInt(this.value,10)||3)\"></div>";
+        if (level !== 'beginner') {
+          ['framing', 'cameraMovement', 'lighting', 'audio', 'notes'].forEach(function (key) {
+            h += '<div class="pw-shot-field"><div class="pw-fact-l">' + esc(fieldLabel(key, level)) + '</div>';
+            h +=
+              '<textarea class="st-input st-notes" rows="2" onchange="PreShootStudioUI.updateShotField(\'' +
+              esc(productionId) +
+              "','" +
+              esc(shot.id) +
+              "','" +
+              key +
+              "',this.value)\">" +
+              esc(shot[key] || '') +
+              '</textarea></div>';
+          });
+        } else {
+          ['framing', 'notes', 'beginnerTip'].forEach(function (key) {
+            h += '<div class="pw-shot-field"><div class="pw-fact-l">' + esc(fieldLabel(key, level)) + '</div>';
+            h +=
+              '<textarea class="st-input st-notes" rows="2" onchange="PreShootStudioUI.updateShotField(\'' +
+              esc(productionId) +
+              "','" +
+              esc(shot.id) +
+              "','" +
+              key +
+              "',this.value)\">" +
+              esc(shot[key] || '') +
+              '</textarea></div>';
+          });
+        }
+        if (level === 'advanced') {
+          ['lens', 'gear', 'advancedDetail'].forEach(function (key) {
+            h += '<div class="pw-shot-field"><div class="pw-fact-l">' + esc(fieldLabel(key, level)) + '</div>';
+            h +=
+              '<textarea class="st-input st-notes" rows="2" onchange="PreShootStudioUI.updateShotField(\'' +
+              esc(productionId) +
+              "','" +
+              esc(shot.id) +
+              "','" +
+              key +
+              "',this.value)\">" +
+              esc(shot[key] || '') +
+              '</textarea></div>';
+          });
+        }
+        h +=
+          '<button type="button" class="studio-btn ghost danger sm" onclick="PreShootStudioUI.deleteShot(\'' +
+          esc(productionId) +
+          "','" +
+          esc(shot.id) +
+          '\')">Remove shot</button>';
+        h += '</div>';
+      }
+      h += '</div>';
+    });
+    return h;
+  }
+
+  function renderScriptSection(prod, productionId, ws) {
+    var lines = (ws.script && ws.script.lines) || [];
+    var shots = ws.shotList || [];
+    var h = '';
+    h += '<div class="pw-section-hd">';
+    h += '<div><div class="pw-card-kicker">Script</div>';
+    h += '<div class="pw-section-sub">Each line maps to a shot</div></div>';
+    h +=
+      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addScriptLine(\'' +
+      esc(productionId) +
+      '\')">Add line</button></div>';
+
+    if (!lines.length) {
+      var body = (ws.script && ws.script.body) || '';
+      if (body) {
+        h += '<div class="pw-card">';
+        h += '<div class="pw-section-sub" style="margin-bottom:10px">Legacy script — convert to line cards</div>';
+        h +=
+          '<button type="button" class="studio-btn" onclick="PreShootStudioUI.convertScriptBody(\'' +
+          esc(productionId) +
+          '\')">Convert to lines</button>';
+        h +=
+          '<textarea class="st-input st-notes st-script" style="margin-top:12px" rows="8" onchange="PreShootStudioUI.saveScript(\'' +
+          esc(productionId) +
+          "',this.value)\">" +
+          esc(body) +
+          '</textarea></div>';
+      } else {
+        h += '<div class="pw-card pw-empty-card">';
+        h += '<div class="studio-empty-t">No script lines</div>';
+        h += '<div class="studio-empty-s">Add dialogue or VO lines and link each to a shot.</div>';
+        if (prod.ideaSnapshot && prod.ideaSnapshot.hook) {
+          h +=
+            '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.seedFromIdea(\'' +
+            esc(productionId) +
+            '\')">Build from idea</button>';
+        }
+        h += '</div>';
+      }
+      return h;
+    }
+
+    lines.forEach(function (line, i) {
+      var shotLabel = line.shotOrder ? 'Shot ' + line.shotOrder : 'Unassigned';
+      h += '<div class="pw-script-card">';
+      h += '<div class="pw-script-quote">“' + esc(line.text || '') + '”</div>';
+      h += '<div class="pw-script-link">↓</div>';
+      h += '<div class="pw-script-shot">' + esc(shotLabel) + '</div>';
+      h +=
+        '<textarea class="st-input st-notes" rows="2" placeholder="Script line…" onchange="PreShootStudioUI.updateScriptLine(\'' +
+        esc(productionId) +
+        "','" +
+        esc(line.id) +
+        "',this.value)\">" +
+        esc(line.text || '') +
+        '</textarea>';
+      h += '<label class="st-label">Linked shot</label>';
+      h +=
+        '<select class="st-input" onchange="PreShootStudioUI.linkScriptLine(\'' +
+        esc(productionId) +
+        "','" +
+        esc(line.id) +
+        "',this.value)\">";
+      h += '<option value="">Unassigned</option>';
+      shots.forEach(function (s) {
+        var sel = line.shotId === s.id || line.shotOrder === s.order ? ' selected' : '';
+        h +=
+          '<option value="' +
+          esc(s.id) +
+          '"' +
+          sel +
+          '>Shot ' +
+          esc(String(s.order)) +
+          ' · ' +
+          esc(s.purpose || '') +
+          '</option>';
+      });
+      h += '</select>';
+      h +=
+        '<button type="button" class="studio-btn ghost danger sm" style="margin-top:8px" onclick="PreShootStudioUI.deleteScriptLine(\'' +
+        esc(productionId) +
+        "','" +
+        esc(line.id) +
+        '\')">Remove line</button>';
+      h += '</div>';
+    });
+    return h;
+  }
+
+  function renderRefsSection(prod, productionId, ws) {
+    var refs = ws.references || {};
+    var h = '';
+    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">References</div>';
+    h += '<div class="pw-section-sub">Inspiration stays inside PreShoot — no random browser jumps</div></div></div>';
+
+    function block(title, items, empty) {
+      var out = '<div class="pw-card"><div class="pw-card-kicker">' + esc(title) + '</div>';
+      if (!items || !items.length) {
+        out += '<div class="pw-section-sub">' + esc(empty) + '</div></div>';
+        return out;
+      }
+      items.forEach(function (item) {
+        out += '<div class="pw-ref-row">';
+        out += '<div class="pw-ref-title">' + esc(item.title || item.query || 'Reference') + '</div>';
+        if (item.note) out += '<div class="pw-ref-note">' + esc(item.note) + '</div>';
+        if (item.query) out += '<div class="pw-ref-query">Search · ' + esc(item.query) + '</div>';
+        out += '</div>';
+      });
+      out += '</div>';
+      return out;
+    }
+
+    h += block('YouTube inspiration', refs.youtube, 'No YouTube references yet. Send an idea with a search cue to seed this.');
+    h += block('CapCut templates', refs.capcut, 'No CapCut template ideas yet.');
+    h += block('Uploaded references', refs.uploads, 'Upload support arrives in a later polish pass. Architecture is ready.');
+    h += block('Pinterest', refs.pinterest, 'Pinterest support is prepared for a future update.');
+
+    if (
+      (!refs.youtube || !refs.youtube.length) &&
+      (!refs.capcut || !refs.capcut.length) &&
+      prod.ideaSnapshot &&
+      (prod.ideaSnapshot.ytSearch || prod.ideaSnapshot.capcutSearch)
+    ) {
+      h +=
+        '<button type="button" class="studio-btn" onclick="PreShootStudioUI.seedFromIdea(\'' +
+        esc(productionId) +
+        '\')">Pull references from idea</button>';
+    }
+    return h;
+  }
+
+  function renderAssetsSection(prod, productionId, ws) {
+    var assets = ws.assets || [];
+    var h = '';
+    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Assets</div>';
+    h += '<div class="pw-section-sub">Scans, images, and files for this production</div></div></div>';
+
+    if (!assets.length && prod.coverImage) {
+      /* Soft-migrate cover into display without forcing save */
+      assets = [
+        {
+          id: 'cover',
+          type: 'image',
+          kind: 'scan',
+          name: 'Original scan',
+          src: prod.coverImage
+        }
+      ];
+    }
+
+    if (!assets.length) {
+      h += '<div class="pw-card pw-empty-card">';
+      h += '<div class="studio-empty-t">No assets yet</div>';
+      h += '<div class="studio-empty-s">Scan images and uploads will appear here. Advanced asset tools come later.</div></div>';
+      return h;
+    }
+
+    h += '<div class="pw-asset-grid">';
+    assets.forEach(function (a) {
+      h += '<div class="pw-asset-card">';
+      if (a.type === 'image' && a.src) {
+        h += '<img class="pw-asset-thumb" src="' + esc(a.src) + '" alt="">';
+      } else {
+        h += '<div class="pw-asset-thumb ph">' + esc((a.type || 'file').toUpperCase()) + '</div>';
+      }
+      h += '<div class="pw-asset-name">' + esc(a.name || 'Asset') + '</div>';
+      h += '<div class="pw-asset-kind">' + esc(a.kind || a.type || '') + '</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  function renderDirectorCard(productionId) {
+    return (
+      '<button type="button" class="pw-director-card" onclick="PreShootStudioUI.openDirectorForProduction(\'' +
+      esc(productionId) +
+      '\')">' +
+      '<div class="pw-director-ico" aria-hidden="true">D</div>' +
+      '<div class="pw-director-body">' +
+      '<div class="pw-director-t">Director AI</div>' +
+      '<div class="pw-director-s">Already loaded with this production, shots, script, and your skill level</div>' +
+      '</div><span class="pw-chev" aria-hidden="true">›</span></button>'
+    );
+  }
+
   function renderProductionDetail(root, productionId) {
     var found = Studio().findProduction(productionId);
     if (!found) {
@@ -367,7 +853,7 @@
     var section = view.section || 'overview';
 
     var h = '';
-    h += '<div class="studio-shell studio-fade">';
+    h += '<div class="studio-shell studio-fade pw-shell">';
     h += '<div class="studio-detail-hd">';
     h +=
       '<button type="button" class="studio-back" onclick="PreShootStudioUI.openProject(\'' +
@@ -383,8 +869,10 @@
       pct +
       '%</div></div></div>';
 
-    /* Stage rail */
-    h += '<div class="st-stage-rail" aria-label="Production stages">';
+    /* Progress stages */
+    h += '<div class="pw-card pw-progress-card">';
+    h += '<div class="pw-card-kicker">Progress</div>';
+    h += '<div class="st-stage-rail pw-stage-rail" aria-label="Production stages">';
     Studio().STATUSES.forEach(function (s, i) {
       if (s.id === 'archived') return;
       var cls = 'st-stage';
@@ -402,35 +890,10 @@
         '</span></button>';
     });
     h += '</div>';
-    h += '<div class="st-panel st-progress-panel">' + progressBar(pct) + '</div>';
+    h += progressBar(pct);
+    h += '</div>';
 
-    /* Linked idea / scan */
-    if (
-      (prod.ideaSnapshot && (prod.ideaSnapshot.title || prod.ideaSnapshot.hook)) ||
-      prod.coverImage ||
-      (prod.scanRef && (prod.scanRef.sceneLabel || prod.scanRef.mainSubject))
-    ) {
-      h += '<div class="st-linked">';
-      if (prod.coverImage) {
-        h += '<img class="st-linked-img" src="' + esc(prod.coverImage) + '" alt="">';
-      }
-      h += '<div class="st-linked-body">';
-      if (prod.ideaSnapshot && prod.ideaSnapshot.title) {
-        h += '<div class="st-label">Linked idea</div>';
-        h += '<div class="st-idea-t">' + esc(prod.ideaSnapshot.title) + '</div>';
-        if (prod.ideaSnapshot.hook)
-          h += '<div class="st-idea-h">“' + esc(prod.ideaSnapshot.hook) + '”</div>';
-      }
-      if (prod.scanRef && (prod.scanRef.sceneLabel || prod.scanRef.mainSubject)) {
-        h +=
-          '<div class="st-linked-scan">Scan · ' +
-          esc(prod.scanRef.mainSubject || prod.scanRef.sceneLabel) +
-          '</div>';
-      }
-      h += '</div></div>';
-    }
-
-    /* Section tabs */
+    /* Section tabs = Production Tools */
     var tabs = [
       { id: 'overview', label: 'Overview' },
       { id: 'shots', label: 'Shot List' },
@@ -454,72 +917,14 @@
     h += '</div>';
 
     h += '<div class="st-section">';
-    if (section === 'overview') {
-      h += '<div class="st-panel">';
-      h += '<label class="st-label">Production name</label>';
-      h +=
-        '<input class="st-input" value="' +
-        esc(prod.name) +
-        '" onchange="PreShootStudioUI.saveProductionField(\'' +
-        esc(productionId) +
-        "','name',this.value)\">";
-      h += '<label class="st-label">Notes</label>';
-      h +=
-        '<textarea class="st-input st-notes" rows="3" placeholder="Tone, constraints, reminders…" onchange="PreShootStudioUI.saveProductionField(\'' +
-        esc(productionId) +
-        "','notes',this.value)\">" +
-        esc(prod.notes || '') +
-        '</textarea>';
-      h += '<label class="st-label">Summary</label>';
-      h +=
-        '<textarea class="st-input st-notes" rows="3" placeholder="What is this piece about?" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
-        esc(productionId) +
-        "','overview','summary',this.value)\">" +
-        esc(ov.summary || '') +
-        '</textarea>';
-      h += '<label class="st-label">Goal</label>';
-      h +=
-        '<input class="st-input" placeholder="e.g. Drive cafe foot traffic" value="' +
-        esc(ov.goal || '') +
-        '" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
-        esc(productionId) +
-        "','overview','goal',this.value)\">";
-      h += '<div class="st-two-col">';
-      h += '<div><label class="st-label">Platform</label>';
-      h +=
-        '<input class="st-input" placeholder="TikTok / Reels / Shorts" value="' +
-        esc(ov.platform || '') +
-        '" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
-        esc(productionId) +
-        "','overview','platform',this.value)\"></div>";
-      h += '<div><label class="st-label">Format</label>';
-      h +=
-        '<input class="st-input" placeholder="Advert / UGC / BTS" value="' +
-        esc(ov.format || '') +
-        '" onchange="PreShootStudioUI.saveWorkspaceField(\'' +
-        esc(productionId) +
-        "','overview','format',this.value)\"></div>";
-      h += '</div></div>';
-    } else if (section === 'shots') {
-      h +=
-        '<div class="studio-empty compact"><div class="studio-empty-t">Shot List</div><div class="studio-empty-s">Structure ready. The advanced shotlist system arrives in a later phase.</div></div>';
-    } else if (section === 'script') {
-      h += '<div class="st-panel">';
-      h += '<label class="st-label">Script / VO</label>';
-      h +=
-        '<textarea class="st-input st-notes st-script" rows="10" placeholder="Write dialogue, VO, or beat outline…" onchange="PreShootStudioUI.saveScript(\'' +
-        esc(productionId) +
-        "',this.value)\">" +
-        esc((ws.script && ws.script.body) || '') +
-        '</textarea></div>';
-    } else if (section === 'refs') {
-      h +=
-        '<div class="studio-empty compact"><div class="studio-empty-t">References</div><div class="studio-empty-s">Space for YouTube references, CapCut templates, and uploaded inspiration. Coming next.</div></div>';
-    } else if (section === 'assets') {
-      h +=
-        '<div class="studio-empty compact"><div class="studio-empty-t">Assets</div><div class="studio-empty-s">Images, videos, and documents will live here. Advanced asset management comes later.</div></div>';
-    }
+    if (section === 'overview') h += renderOverviewSection(prod, project, productionId, ov, pct);
+    else if (section === 'shots') h += renderShotsSection(prod, productionId, ws);
+    else if (section === 'script') h += renderScriptSection(prod, productionId, ws);
+    else if (section === 'refs') h += renderRefsSection(prod, productionId, ws);
+    else if (section === 'assets') h += renderAssetsSection(prod, productionId, ws);
     h += '</div>';
+
+    h += renderDirectorCard(productionId);
 
     h += '<div class="studio-actions-row">';
     h +=
@@ -535,10 +940,6 @@
       esc(productionId) +
       '\')">Delete</button>';
     h += '</div>';
-
-    h +=
-      '<button type="button" class="studio-director-placeholder" onclick="PreShootStudioUI.directorPlaceholder(\'production\')">' +
-      '<span>Ask Director AI about this production</span><span class="st-soon">Soon</span></button>';
 
     h += '</div>';
     root.innerHTML = h;
@@ -581,9 +982,208 @@
     menu.hidden = !menu.hidden;
   }
 
-  function directorPlaceholder() {
-    toast('Director Studio actions unlock in a later phase');
+
+  function toggleShot(productionId, shotId) {
+    var map = ensureExpandedMap(productionId);
+    map[shotId] = !map[shotId];
+    if (global.S) {
+      global.S.studioView = {
+        mode: 'production',
+        productionId: productionId,
+        section: 'shots'
+      };
+    }
+    renderStudio();
   }
+
+  function updateShotField(productionId, shotId, field, value) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var list = prod.workspace.shotList || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === shotId) {
+        list[i][field] = value;
+        break;
+      }
+    }
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    renderContinueCard();
+  }
+
+  function addShot(productionId) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var list = prod.workspace.shotList || [];
+    var order = list.length + 1;
+    list.push(
+      Studio().createShot({
+        order: order,
+        purpose: 'Setup',
+        durationSec: 3,
+        beginnerTip: 'Keep it simple — one clear action per shot.'
+      })
+    );
+    prod.workspace.shotList = list;
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    ensureExpandedMap(productionId)[list[list.length - 1].id] = true;
+    if (global.S) {
+      global.S.studioView = { mode: 'production', productionId: productionId, section: 'shots' };
+    }
+    renderStudio();
+  }
+
+  function deleteShot(productionId, shotId) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    prod.workspace.shotList = (prod.workspace.shotList || []).filter(function (s) {
+      return s.id !== shotId;
+    });
+    prod.workspace.shotList.forEach(function (s, i) {
+      s.order = i + 1;
+    });
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    renderStudio();
+  }
+
+  function addScriptLine(productionId) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    prod.workspace.script = prod.workspace.script || { body: '', lines: [] };
+    if (!Array.isArray(prod.workspace.script.lines)) prod.workspace.script.lines = [];
+    prod.workspace.script.lines.push(Studio().createScriptLine({ text: '' }));
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    if (global.S) {
+      global.S.studioView = { mode: 'production', productionId: productionId, section: 'script' };
+    }
+    renderStudio();
+  }
+
+  function updateScriptLine(productionId, lineId, text) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var lines = (prod.workspace.script && prod.workspace.script.lines) || [];
+    lines.forEach(function (l) {
+      if (l.id === lineId) l.text = text;
+    });
+    prod.workspace.script.lines = lines;
+    prod.workspace.script.body = lines
+      .map(function (l) {
+        return l.text;
+      })
+      .join('\n\n');
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+  }
+
+  function linkScriptLine(productionId, lineId, shotId) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var shot = null;
+    (prod.workspace.shotList || []).forEach(function (s) {
+      if (s.id === shotId) shot = s;
+    });
+    (prod.workspace.script.lines || []).forEach(function (l) {
+      if (l.id === lineId) {
+        l.shotId = shot ? shot.id : null;
+        l.shotOrder = shot ? shot.order : null;
+      }
+    });
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    renderStudio();
+  }
+
+  function deleteScriptLine(productionId, lineId) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    prod.workspace.script.lines = (prod.workspace.script.lines || []).filter(function (l) {
+      return l.id !== lineId;
+    });
+    prod.workspace.script.body = prod.workspace.script.lines
+      .map(function (l) {
+        return l.text;
+      })
+      .join('\n\n');
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    renderStudio();
+  }
+
+  function convertScriptBody(productionId) {
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var body = (prod.workspace.script && prod.workspace.script.body) || '';
+    var parts = body
+      .split(/\n\s*\n/)
+      .map(function (p) {
+        return p.trim();
+      })
+      .filter(Boolean);
+    if (!parts.length) {
+      parts = body
+        .split('\n')
+        .map(function (p) {
+          return p.trim();
+        })
+        .filter(Boolean);
+    }
+    prod.workspace.script.lines = parts.map(function (text, i) {
+      return Studio().createScriptLine({ text: text, shotOrder: i + 1 });
+    });
+    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    toast('Script converted to lines');
+    renderStudio();
+  }
+
+  function seedFromIdea(productionId) {
+    if (!Studio().buildWorkspaceFromIdea) return;
+    Studio().buildWorkspaceFromIdea(productionId);
+    toast('Workspace built from idea');
+    if (global.S) {
+      global.S.studioView = {
+        mode: 'production',
+        productionId: productionId,
+        section: (global.S.studioView && global.S.studioView.section) || 'shots'
+      };
+    }
+    renderContinueCard();
+    renderStudio();
+  }
+
+  function openDirectorForProduction(productionId) {
+    if (typeof global.openDirector !== 'function') {
+      toast('Director is unavailable');
+      return;
+    }
+    if (global.S && global.S.plan !== 'pro') {
+      if (typeof global.openM === 'function') global.openM('pw-modal');
+      return;
+    }
+    if (global.S) global.S.activeProductionId = productionId;
+    try {
+      global.__preshootDirectorProduction = Studio().getDirectorContext(productionId);
+    } catch (e) {}
+    global.openDirector();
+    setTimeout(function () {
+      var title = document.getElementById('dir-conv-title');
+      var found = Studio().findProduction(productionId);
+      if (title && found) title.textContent = found.production.name;
+      var greet = document.querySelector('#dir-msgs');
+      if (greet && found && (!greet.children || !greet.children.length)) {
+        /* greeting already handled by openDirector */
+      }
+    }, 80);
+  }
+
+  function directorPlaceholder() {
+    toast('Open a production and use Director AI from the workspace card');
+  }
+
 
   /* ── Continue Working (Home) ── */
   function renderContinueCard() {
@@ -1061,8 +1661,19 @@
     deleteProduction: deleteProduction,
     toggleProjectMenu: toggleProjectMenu,
     directorPlaceholder: directorPlaceholder,
+    openDirectorForProduction: openDirectorForProduction,
     setProdSection: setProdSection,
     saveWorkspaceField: saveWorkspaceField,
-    saveScript: saveScript
+    saveScript: saveScript,
+    toggleShot: toggleShot,
+    updateShotField: updateShotField,
+    addShot: addShot,
+    deleteShot: deleteShot,
+    addScriptLine: addScriptLine,
+    updateScriptLine: updateScriptLine,
+    linkScriptLine: linkScriptLine,
+    deleteScriptLine: deleteScriptLine,
+    convertScriptBody: convertScriptBody,
+    seedFromIdea: seedFromIdea
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
