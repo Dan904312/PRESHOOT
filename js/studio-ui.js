@@ -458,22 +458,26 @@
     h += '</div>';
 
     if (suggestions.length) {
+      global.__preshootOverviewSuggestions = suggestions;
       h += '<div class="pw-card">';
       h += '<div class="pw-card-kicker">Director suggestions</div>';
-      suggestions.forEach(function (s) {
+      suggestions.forEach(function (s, idx) {
         h += '<div class="pw-suggest-row">';
-        h += '<div class="pw-suggest-text">' + esc(s.text) + '</div>';
-        if (s.action) {
-          h +=
-            '<button type="button" class="studio-btn ghost sm" onclick=\'PreShootStudioUI.proposeDirectorAction(' +
-            JSON.stringify(s.action) +
-            ',' +
-            JSON.stringify(s.payload || {}) +
-            ')\'>Do it</button>';
-        }
+        h +=
+          '<button type="button" class="pw-suggest-item" onclick="PreShootStudioUI.handleOverviewSuggestion(' +
+          idx +
+          ')">' +
+          '<span class="pw-suggest-ico" aria-hidden="true">✦</span>' +
+          '<span class="pw-suggest-text">' +
+          esc(s.text) +
+          '</span>' +
+          '<span class="pw-chev" aria-hidden="true">›</span>' +
+          '</button>';
         h += '</div>';
       });
       h += '</div>';
+    } else {
+      global.__preshootOverviewSuggestions = [];
     }
 
     if (timeline.length) {
@@ -1035,7 +1039,9 @@
 
     h += renderDirectorCard(productionId);
 
-    h += '<div class="studio-actions-row">';
+    h += '<div class="pw-card" style="margin:0 16px 20px">';
+    h += '<div class="pw-card-kicker">Manage</div>';
+    h += '<div class="studio-actions-row" style="padding:0">';
     h +=
       '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.moveProductionPrompt(\'' +
       esc(productionId) +
@@ -1048,7 +1054,7 @@
       '<button type="button" class="studio-btn ghost danger" onclick="PreShootStudioUI.deleteProduction(\'' +
       esc(productionId) +
       '\')">Delete</button>';
-    h += '</div>';
+    h += '</div></div>';
 
     h += '</div>';
     root.innerHTML = h;
@@ -1375,6 +1381,7 @@
     smart.style.display = 'block';
     smart.innerHTML =
       '<button type="button" class="home-suggest-compact" onclick="PreShootStudioUI.openSuggestedNext()">' +
+      '<span class="home-suggest-ico" aria-hidden="true">✦</span>' +
       '<div class="home-suggest-compact-body">' +
       '<div class="continue-kicker">Suggested Next</div>' +
       '<div class="home-suggest-compact-title">' +
@@ -1383,6 +1390,29 @@
       '</div>' +
       '<span class="home-suggest-chev" aria-hidden="true">›</span>' +
       '</button>';
+  }
+
+  function openSuggestedFromStudio(suggestion) {
+    pendingSuggestedNext = Object.assign({}, suggestion || {}, {
+      productionName: suggestion && suggestion.productionName,
+      productionId:
+        (suggestion && suggestion.productionId) ||
+        (suggestion && suggestion.payload && suggestion.payload.productionId) ||
+        (global.S && global.S.studioView && global.S.studioView.productionId) ||
+        null
+    });
+    openSuggestedNext();
+  }
+
+  function handleOverviewSuggestion(index) {
+    var list = global.__preshootOverviewSuggestions || [];
+    var s = list[index];
+    if (!s) return;
+    if (s.action) {
+      proposeDirectorAction(s.action, s.payload || {});
+      return;
+    }
+    openSuggestedFromStudio(s);
   }
 
   function openSuggestedNext() {
@@ -2106,6 +2136,8 @@
     openSearch: openSearch,
     onSearchInput: onSearchInput,
     runSearch: runSearch,
-    openSuggestedNext: openSuggestedNext
+    openSuggestedNext: openSuggestedNext,
+    openSuggestedFromStudio: openSuggestedFromStudio,
+    handleOverviewSuggestion: handleOverviewSuggestion
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
