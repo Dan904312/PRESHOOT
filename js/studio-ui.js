@@ -110,9 +110,12 @@
     h += '<div class="studio-title">Studio</div>';
     h += '<div class="studio-sub">Your creative workspace</div>';
     h += '</div>';
+    h += '<div class="studio-hd-actions">';
+    h +=
+      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
     h +=
       '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
-    h += '</div>';
+    h += '</div></div>';
 
     if (!projects.length) {
       h +=
@@ -400,10 +403,18 @@
     return global.__preshootShotExpanded[productionId];
   }
 
+
   function renderOverviewSection(prod, project, productionId, ov, pct) {
     var idea = prod.ideaSnapshot || {};
     var scan = prod.scanRef || {};
     var statusLabel = (Studio().STATUS_MAP[prod.status] || {}).label || prod.status;
+    var health = Studio().computeProductionHealth
+      ? Studio().computeProductionHealth(prod)
+      : { score: prod.healthScore || 0, missing: [] };
+    var suggestions = Studio().getProductionSuggestions
+      ? Studio().getProductionSuggestions(productionId)
+      : [];
+    var timeline = prod.timeline || [];
     var h = '';
     h += '<div class="pw-card pw-overview-card">';
     h += '<div class="pw-card-kicker">Production Overview</div>';
@@ -418,6 +429,7 @@
     h += '<div class="pw-overview-meta-row">';
     h += statusChip(prod.status);
     h += '<span class="pw-meta-pill">' + pct + '%</span>';
+    h += '<span class="pw-health-pill" title="Production health">Health ' + health.score + '%</span>';
     h += '<span class="pw-meta-muted">Edited ' + esc(fmtRelative(prod.updatedAt)) + '</span>';
     h += '</div>';
     h += '<div class="pw-overview-project">Project · ' + esc(project.name) + '</div>';
@@ -441,6 +453,44 @@
       h += '<div class="pw-scan-line">Original scan · ' + esc(scan.mainSubject || scan.sceneLabel) + '</div>';
     }
     h += '</div>';
+
+    if (suggestions.length) {
+      h += '<div class="pw-card">';
+      h += '<div class="pw-card-kicker">Director suggestions</div>';
+      suggestions.forEach(function (s) {
+        h += '<div class="pw-suggest-row">';
+        h += '<div class="pw-suggest-text">' + esc(s.text) + '</div>';
+        if (s.action) {
+          h +=
+            '<button type="button" class="studio-btn ghost sm" onclick=\'PreShootStudioUI.proposeDirectorAction(' +
+            JSON.stringify(s.action) +
+            ',' +
+            JSON.stringify(s.payload || {}) +
+            ')\'>Do it</button>';
+        }
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+
+    if (timeline.length) {
+      h += '<div class="pw-card">';
+      h += '<div class="pw-card-kicker">Timeline</div>';
+      h += '<div class="pw-timeline">';
+      timeline
+        .slice()
+        .reverse()
+        .slice(0, 8)
+        .forEach(function (evt, i, arr) {
+          h += '<div class="pw-tl-item">';
+          h += '<div class="pw-tl-dot"></div>';
+          h += '<div class="pw-tl-body">';
+          h += '<div class="pw-tl-label">' + esc(evt.label || evt.type) + '</div>';
+          h += '<div class="pw-tl-time">' + esc(fmtRelative(evt.at)) + '</div>';
+          h += '</div></div>';
+        });
+      h += '</div></div>';
+    }
 
     /* Editable essentials */
     h += '<div class="pw-card">';
@@ -491,7 +541,6 @@
       '</textarea>';
     h += '</div>';
 
-    /* Tools */
     h += '<div class="pw-card">';
     h += '<div class="pw-card-kicker">Production Tools</div>';
     h += '<div class="pw-tools">';
@@ -499,17 +548,18 @@
       ['shots', 'Shot List', 'What to film'],
       ['script', 'Script', 'What to say'],
       ['refs', 'References', 'Inspiration'],
-      ['assets', 'Assets', 'Files & media']
-    ].forEach(function (t) {
+      ['assets', 'Assets', 'Files & media'],
+      ['performance', 'Performance', 'Results']
+    ].forEach(function (tool) {
       h +=
         '<button type="button" class="pw-tool" onclick="PreShootStudioUI.setProdSection(\'' +
         esc(productionId) +
         "','" +
-        t[0] +
+        tool[0] +
         '\')"><span class="pw-tool-t">' +
-        t[1] +
+        tool[1] +
         '</span><span class="pw-tool-s">' +
-        t[2] +
+        tool[2] +
         '</span></button>';
     });
     h += '</div></div>';
@@ -818,6 +868,55 @@
     return h;
   }
 
+
+  function renderPerformanceSection(prod, productionId, ws) {
+    var perf = (ws && ws.performance) || {};
+    var h = '';
+    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Performance Review</div>';
+    h += '<div class="pw-section-sub">Manual metrics or a PDF note — no social APIs yet</div></div></div>';
+    h += '<div class="pw-card">';
+    h += '<div class="pw-perf-grid">';
+    [
+      ['views', 'Views'],
+      ['likes', 'Likes'],
+      ['comments', 'Comments'],
+      ['watchTime', 'Watch time'],
+      ['ctr', 'CTR']
+    ].forEach(function (f) {
+      h += '<div><label class="st-label">' + f[1] + '</label>';
+      h +=
+        '<input class="st-input" value="' +
+        esc(perf[f[0]] || '') +
+        '" placeholder="—" onchange="PreShootStudioUI.savePerformanceField(\'' +
+        esc(productionId) +
+        "','" +
+        f[0] +
+        "',this.value)\"></div>";
+    });
+    h += '</div>';
+    h += '<label class="st-label">Notes</label>';
+    h +=
+      '<textarea class="st-input st-notes" rows="3" placeholder="What worked? What to change next time?" onchange="PreShootStudioUI.savePerformanceField(\'' +
+      esc(productionId) +
+      "','notes',this.value)\">" +
+      esc(perf.notes || '') +
+      '</textarea>';
+    h += '<label class="st-label">PDF report (name only for now)</label>';
+    h +=
+      '<input class="st-input" type="file" accept="application/pdf" onchange="PreShootStudioUI.onPerformancePdf(\'' +
+      esc(productionId) +
+      "',this)\">";
+    if (perf.pdfName) {
+      h += '<div class="pw-section-sub" style="margin-top:8px">Attached · ' + esc(perf.pdfName) + '</div>';
+    }
+    h +=
+      '<button type="button" class="studio-btn" style="margin-top:12px;width:100%" onclick="PreShootStudioUI.proposeDirectorAction(\'update_status\',' +
+      JSON.stringify({ productionId: productionId, status: 'performance' }) +
+      ')">Mark as Performance Review</button>';
+    h += '</div>';
+    return h;
+  }
+
   function renderDirectorCard(productionId) {
     return (
       '<button type="button" class="pw-director-card" onclick="PreShootStudioUI.openDirectorForProduction(\'' +
@@ -862,11 +961,16 @@
     h += '<div class="studio-hd-text">';
     h += '<div class="studio-eyebrow">' + esc(project.name) + '</div>';
     h += '<div class="studio-title">' + esc(prod.name) + '</div>';
+    var healthScore = Studio().computeProductionHealth
+      ? Studio().computeProductionHealth(prod).score
+      : prod.healthScore || 0;
     h +=
       '<div class="studio-sub">' +
       esc((Studio().STATUS_MAP[prod.status] || {}).label || prod.status) +
-      ' · ' +
+      ' · Stage ' +
       pct +
+      '% · Health ' +
+      healthScore +
       '%</div></div></div>';
 
     /* Progress stages */
@@ -899,7 +1003,8 @@
       { id: 'shots', label: 'Shot List' },
       { id: 'script', label: 'Script' },
       { id: 'refs', label: 'References' },
-      { id: 'assets', label: 'Assets' }
+      { id: 'assets', label: 'Assets' },
+      { id: 'performance', label: 'Performance' }
     ];
     h += '<div class="st-tabs">';
     tabs.forEach(function (t) {
@@ -922,6 +1027,7 @@
     else if (section === 'script') h += renderScriptSection(prod, productionId, ws);
     else if (section === 'refs') h += renderRefsSection(prod, productionId, ws);
     else if (section === 'assets') h += renderAssetsSection(prod, productionId, ws);
+    else if (section === 'performance') h += renderPerformanceSection(prod, productionId, ws);
     h += '</div>';
 
     h += renderDirectorCard(productionId);
@@ -1185,41 +1291,263 @@
   }
 
 
-  /* ── Continue Working (Home) ── */
+
+  /* ── Continue Working + Smart Home (Phase 5) ── */
   function renderContinueCard() {
     var mount = document.getElementById('continue-working');
-    if (!mount || !Studio()) return;
-    var cw = Studio().getContinueWorking();
-    if (!cw) {
-      mount.innerHTML = '';
-      mount.style.display = 'none';
+    var smart = document.getElementById('home-smart');
+    if (!Studio()) return;
+    var insights = Studio().getHomeInsights ? Studio().getHomeInsights() : null;
+    var cw = insights ? insights.continueWorking : Studio().getContinueWorking();
+
+    if (mount) {
+      if (!cw) {
+        mount.innerHTML = '';
+        mount.style.display = 'none';
+      } else {
+        mount.style.display = 'block';
+        mount.innerHTML =
+          '<button type="button" class="continue-card" onclick="PreShootStudioUI.openProduction(\'' +
+          esc(cw.production.id) +
+          '\')">' +
+          '<div class="continue-body">' +
+          '<div class="continue-kicker">Continue Working</div>' +
+          '<div class="continue-project">' +
+          esc(cw.project.name) +
+          '</div>' +
+          '<div class="continue-title">' +
+          esc(cw.production.name) +
+          '</div>' +
+          '<div class="continue-meta">' +
+          statusChip(cw.production.status) +
+          '<span class="continue-pct">' +
+          cw.progress +
+          '%</span></div>' +
+          progressBar(cw.progress) +
+          '</div>' +
+          '<div class="continue-cta">Continue <span aria-hidden="true">→</span></div>' +
+          '</button>';
+      }
+    }
+
+    if (!smart) return;
+    if (!insights) {
+      smart.innerHTML = '';
+      smart.style.display = 'none';
       return;
     }
-    mount.style.display = 'block';
-    mount.innerHTML =
-      '<button type="button" class="continue-card" onclick="PreShootStudioUI.openProduction(\'' +
-      esc(cw.production.id) +
-      '\')">' +
-      '<div class="continue-body">' +
-      '<div class="continue-kicker">Continue Working</div>' +
-      '<div class="continue-project">' +
-      esc(cw.project.name) +
-      '</div>' +
-      '<div class="continue-title">' +
-      esc(cw.production.name) +
-      '</div>' +
-      '<div class="continue-meta">' +
-      statusChip(cw.production.status) +
-      '<span class="continue-pct">' +
-      cw.progress +
-      '%</span></div>' +
-      progressBar(cw.progress) +
-      '</div>' +
-      '<div class="continue-cta">Continue <span aria-hidden="true">→</span></div>' +
-      '</button>';
+    var h = '';
+    if (insights.nextAction && insights.nextAction.text) {
+      h += '<div class="home-smart-card">';
+      h += '<div class="pw-card-kicker">Suggested next</div>';
+      h += '<div class="home-smart-text">' + esc(insights.nextAction.text) + '</div>';
+      if (insights.nextAction.productionId) {
+        h +=
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openProduction(\'' +
+          esc(insights.nextAction.productionId) +
+          '\')">Open</button>';
+      }
+      h += '</div>';
+    }
+    if (insights.recentProductions && insights.recentProductions.length) {
+      h += '<div class="home-smart-card">';
+      h += '<div class="pw-card-kicker">Recent productions</div>';
+      insights.recentProductions.forEach(function (r) {
+        h +=
+          '<button type="button" class="home-smart-row" onclick="PreShootStudioUI.openProduction(\'' +
+          esc(r.productionId) +
+          '\')"><span>' +
+          esc(r.name) +
+          '</span><span class="home-smart-meta">' +
+          esc((Studio().STATUS_MAP[r.status] || {}).label || r.status) +
+          ' · ' +
+          r.health +
+          '%</span></button>';
+      });
+      h += '</div>';
+    }
+    if (insights.recentScans && insights.recentScans.length) {
+      h += '<div class="home-smart-card">';
+      h += '<div class="pw-card-kicker">Recently scanned</div>';
+      h += '<div class="home-scan-row">';
+      insights.recentScans.forEach(function (s) {
+        h +=
+          '<button type="button" class="home-scan-chip" onclick="PreShootStudioUI.openProduction(\'' +
+          esc(s.productionId) +
+          '\')">';
+        if (s.coverImage) h += '<img src="' + esc(s.coverImage) + '" alt="">';
+        h += '<span>' + esc(s.name) + '</span></button>';
+      });
+      h += '</div></div>';
+    }
+    if (!h) {
+      smart.innerHTML = '';
+      smart.style.display = 'none';
+    } else {
+      smart.style.display = 'block';
+      smart.innerHTML = h;
+    }
   }
 
-  /* ── Create Project (stepped) ── */
+  function proposeDirectorAction(action, payload) {
+    pendingDirectorAction = { action: action, payload: payload || {} };
+    var preview = Studio().handleDirectorAction(action, payload || {}, { confirmed: false });
+    var msg =
+      (preview && preview.message) ||
+      (Studio().confirmMessage && Studio().confirmMessage(action, payload)) ||
+      'Confirm this action?';
+    var title = document.getElementById('dir-action-title');
+    var body = document.getElementById('dir-action-body');
+    if (title) title.textContent = 'Confirm action';
+    if (body) body.textContent = msg;
+    if (typeof global.openM === 'function') global.openM('dir-action-modal');
+  }
+
+  function confirmDirectorAction() {
+    if (!pendingDirectorAction) return;
+    var action = pendingDirectorAction.action;
+    var payload = pendingDirectorAction.payload || {};
+    pendingDirectorAction = null;
+    if (typeof global.closeM === 'function') global.closeM('dir-action-modal');
+    var result = Studio().handleDirectorAction(action, payload, { confirmed: true });
+    if (!result || !result.ok) {
+      toast((result && (result.message || result.error)) || 'Action failed');
+      return;
+    }
+    toast('Done');
+    var openId =
+      (result.open &&
+        ((result.result && result.result.productionId) || payload.productionId)) ||
+      null;
+    if (openId) {
+      openProduction(openId);
+      return;
+    }
+    renderContinueCard();
+    renderStudio();
+  }
+
+  function cancelDirectorAction() {
+    pendingDirectorAction = null;
+    if (typeof global.closeM === 'function') global.closeM('dir-action-modal');
+  }
+
+  function savePerformanceField(productionId, field, value) {
+    if (!Studio().savePerformance) return;
+    var patch = {};
+    patch[field] = value;
+    Studio().savePerformance(productionId, patch);
+    renderContinueCard();
+  }
+
+  function onPerformancePdf(productionId, input) {
+    var file = input && input.files && input.files[0];
+    if (!file) return;
+    Studio().savePerformance(productionId, { pdfName: file.name });
+    toast('PDF noted · ' + file.name);
+    if (global.S) {
+      global.S.studioView = { mode: 'production', productionId: productionId, section: 'performance' };
+    }
+    renderStudio();
+  }
+
+  var searchTimer = null;
+  function openSearch() {
+    if (typeof global.openM === 'function') global.openM('global-search-modal');
+    var inp = document.getElementById('global-search-input');
+    if (inp) {
+      inp.value = '';
+      setTimeout(function () {
+        inp.focus();
+      }, 50);
+    }
+    var results = document.getElementById('global-search-results');
+    if (results) results.innerHTML = '<div class="pw-section-sub">Type to search projects, productions, scans, ideas…</div>';
+  }
+
+  function onSearchInput(value) {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      runSearch(value);
+    }, 120);
+  }
+
+  function runSearch(value) {
+    var results = document.getElementById('global-search-results');
+    if (!results || !Studio().globalSearch) return;
+    var data = Studio().globalSearch(value);
+    var total = 0;
+    Object.keys(data).forEach(function (k) {
+      total += (data[k] || []).length;
+    });
+    if (!String(value || '').trim()) {
+      results.innerHTML = '<div class="pw-section-sub">Type to search projects, productions, scans, ideas…</div>';
+      return;
+    }
+    if (!total) {
+      results.innerHTML = '<div class="pw-section-sub">No matches</div>';
+      return;
+    }
+    var h = '';
+    function block(title, items, onOpen) {
+      if (!items || !items.length) return;
+      h += '<div class="search-block"><div class="pw-card-kicker">' + esc(title) + '</div>';
+      items.forEach(function (item) {
+        h +=
+          '<button type="button" class="home-smart-row" onclick="' +
+          onOpen(item) +
+          '"><span>' +
+          esc(item.name) +
+          '</span><span class="home-smart-meta">' +
+          esc(item.projectName || item.kind || item.type || '') +
+          '</span></button>';
+      });
+      h += '</div>';
+    }
+    block('Projects', data.projects, function (item) {
+      return 'closeM(\'global-search-modal\');PreShootStudioUI.openProject(\'' + esc(item.id) + '\')';
+    });
+    block('Productions', data.productions, function (item) {
+      return 'closeM(\'global-search-modal\');PreShootStudioUI.openProduction(\'' + esc(item.id) + '\')';
+    });
+    block('Scans', data.scans, function (item) {
+      return 'closeM(\'global-search-modal\');PreShootStudioUI.openProduction(\'' + esc(item.productionId) + '\')';
+    });
+    block('Ideas', data.ideas, function (item) {
+      return 'closeM(\'global-search-modal\');PreShootStudioUI.openProduction(\'' + esc(item.productionId) + '\')';
+    });
+    block('Scripts', data.scripts, function (item) {
+      return (
+        'closeM(\'global-search-modal\');PreShootStudioUI.openProduction(\'' +
+        esc(item.productionId) +
+        '\');PreShootStudioUI.setProdSection(\'' +
+        esc(item.productionId) +
+        "','script')"
+      );
+    });
+    block('Assets', data.assets, function (item) {
+      return (
+        'closeM(\'global-search-modal\');PreShootStudioUI.openProduction(\'' +
+        esc(item.productionId) +
+        '\');PreShootStudioUI.setProdSection(\'' +
+        esc(item.productionId) +
+        "','assets')"
+      );
+    });
+    block('References', data.references, function (item) {
+      return (
+        'closeM(\'global-search-modal\');PreShootStudioUI.openProduction(\'' +
+        esc(item.productionId) +
+        '\');PreShootStudioUI.setProdSection(\'' +
+        esc(item.productionId) +
+        "','refs')"
+      );
+    });
+    results.innerHTML = h;
+  }
+
+  var pendingDirectorAction = null;
+
   function openCreateProject() {
     projectDraft = { step: 1, name: '', notes: '', coverImage: null };
     renderProjectWizard();
@@ -1674,6 +2002,14 @@
     linkScriptLine: linkScriptLine,
     deleteScriptLine: deleteScriptLine,
     convertScriptBody: convertScriptBody,
-    seedFromIdea: seedFromIdea
+    seedFromIdea: seedFromIdea,
+    proposeDirectorAction: proposeDirectorAction,
+    confirmDirectorAction: confirmDirectorAction,
+    cancelDirectorAction: cancelDirectorAction,
+    savePerformanceField: savePerformanceField,
+    onPerformancePdf: onPerformancePdf,
+    openSearch: openSearch,
+    onSearchInput: onSearchInput,
+    runSearch: runSearch
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
