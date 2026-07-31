@@ -142,7 +142,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 @media(min-width:900px){:root{--bnav-side:24px;--bnav-inset-bottom:10px}.home-inner{max-width:780px}.scan-zone{max-width:520px}.scan-ring{width:clamp(140px,18vw,176px);height:clamp(140px,18vw,176px)}}
 @media(min-width:1200px){.home-inner{max-width:840px}.bnav{width:min(480px,calc(100% - 64px))}}
 @media(max-height:700px){.scan-ring{width:clamp(108px,28vw,140px);height:clamp(108px,28vw,140px)}.scan-zone{gap:clamp(8px,1.2vh,14px)}}
-@media(max-height:640px){.scan-zone-main{justify-content:flex-start;padding-top:clamp(4px,1vh,12px)}.home-hd{padding-top:max(44px,calc(8px + env(safe-area-inset-top,20px)))}}
+@media(max-height:640px){.scan-zone-main{padding-top:clamp(4px,1vh,12px)}.home-hd{padding-top:max(44px,calc(8px + env(safe-area-inset-top,20px)))}}
  /* ─────── ONBOARDING (premium) ─────── */
 #screen-onboard{background:var(--bg);padding-bottom:0;overflow:hidden}
 #screen-onboard.active ~ .bnav, .bnav.hidden{display:none!important}
@@ -988,25 +988,30 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
   overflow:hidden;
 }
 #screen-home .scan-zone{
-  justify-content:space-between;
+  justify-content:flex-start;
   gap:var(--home-gap);
   padding-top:var(--home-gap-sm);
   padding-bottom:0;
 }
+/* Fill space above Continue/Director, then pin the scan CTA toward that foot */
 #screen-home .scan-zone-main{
-  flex:0 1 auto;
-  justify-content:flex-start;
-  padding-top:clamp(4px,1.2vh,12px);
+  flex:1 1 auto;
+  justify-content:flex-end;
+  align-items:center;
+  min-height:0;
+  padding-top:clamp(8px,2vh,20px);
+  padding-bottom:var(--home-gap);
   gap:var(--home-gap);
 }
 #screen-home .scan-zone-foot{
   width:100%;
   max-width:var(--home-card-max);
   margin:0 auto;
-  margin-top:auto;
+  margin-top:0;
   gap:var(--home-gap);
   padding:0 0 2px;
   box-sizing:border-box;
+  flex-shrink:0;
 }
 #screen-home .scan-sub{max-width:min(260px,78vw)!important;font-size:clamp(12px,3.4vw,13px)!important;padding:0 4px;box-sizing:border-box;line-height:1.45!important}
 #screen-home .scan-lbl{font-size:clamp(18px,5vw,22px);margin-bottom:4px}
@@ -1091,8 +1096,8 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 /* Desktop / large: keep centered, don't force mobile squeeze */
 @media (min-width:640px){
   :root{--home-card-max:360px;--pad-x:24px;--home-gap:14px;--home-gap-sm:10px;--bnav-inset-bottom:10px}
-  #screen-home .scan-zone{justify-content:space-between}
-  #screen-home .scan-zone-main{flex:1;justify-content:center}
+  #screen-home .scan-zone{justify-content:flex-start}
+  #screen-home .scan-zone-main{flex:1;justify-content:center;padding-bottom:var(--home-gap)}
   #screen-home .upload-btn{width:auto!important;max-width:280px!important}
   .continue-card{flex-direction:row;align-items:center;gap:14px;padding:12px 14px}
   .continue-cta{align-self:center;margin-left:auto}
