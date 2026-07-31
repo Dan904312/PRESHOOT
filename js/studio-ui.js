@@ -117,6 +117,8 @@
       '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
     h += '</div></div>';
 
+    h += renderStudioRecents();
+
     if (!projects.length) {
       h +=
         '<div class="studio-empty">' +
@@ -132,6 +134,7 @@
       return;
     }
 
+    h += '<div class="studio-section-label" style="padding-left:20px;padding-right:20px">All Projects</div>';
     h += '<div class="studio-grid">';
     projects.forEach(function (p, i) {
       var cover = p.coverImage
@@ -1292,7 +1295,39 @@
 
 
 
-  /* ── Continue Working + Smart Home (Phase 5) ── */
+  /* ── Continue Working + Suggested Next (compact Home) ── */
+  var pendingSuggestedNext = null;
+
+  function suggestedNextHeadline(next) {
+    if (!next) return '';
+    var name = next.productionName || '';
+    if (next.id === 'continue' || next.id === 'open_recent') {
+      return name ? 'Continue editing: ' + name : next.text || 'Continue where you left off';
+    }
+    if (name) return 'Continue editing: ' + name;
+    return next.text || 'Suggested next step';
+  }
+
+  function suggestedNextReason(next) {
+    if (!next) return '';
+    var reasons = {
+      continue: 'Pick up this production and keep momentum.',
+      open_recent: 'This is your most recently updated production.',
+      need_shots: 'A shot list makes filming faster and more intentional.',
+      need_script: 'Mapping lines to shots keeps the edit clear.',
+      need_refs: 'References help lock the look before you film.',
+      need_assets: 'Inspiration and scan assets ground the production.',
+      need_goal: 'A clear goal helps Director give better advice.',
+      need_platform: 'Platform pacing changes hook length and structure.',
+      script_long: 'Short-form audiences drop off when scripts run long.',
+      weak_hook: 'A sharper first line improves retention.',
+      ready_film: 'Completeness looks strong — time to shoot.',
+      add_perf: 'Logging results improves future recommendations.'
+    };
+    if (reasons[next.id]) return reasons[next.id];
+    return 'Director AI recommends this as your next step.';
+  }
+
   function renderContinueCard() {
     var mount = document.getElementById('continue-working');
     var smart = document.getElementById('home-smart');
@@ -1305,88 +1340,148 @@
         mount.innerHTML = '';
         mount.style.display = 'none';
       } else {
+        var statusLbl =
+          (Studio().STATUS_MAP[cw.production.status] || {}).label || cw.production.status || 'Planning';
         mount.style.display = 'block';
         mount.innerHTML =
-          '<button type="button" class="continue-card" onclick="PreShootStudioUI.openProduction(\'' +
+          '<button type="button" class="continue-card continue-card-compact" onclick="PreShootStudioUI.openProduction(\'' +
           esc(cw.production.id) +
           '\')">' +
           '<div class="continue-body">' +
           '<div class="continue-kicker">Continue Working</div>' +
-          '<div class="continue-project">' +
-          esc(cw.project.name) +
-          '</div>' +
           '<div class="continue-title">' +
           esc(cw.production.name) +
           '</div>' +
-          '<div class="continue-meta">' +
-          statusChip(cw.production.status) +
-          '<span class="continue-pct">' +
+          '<div class="continue-meta-line">' +
+          esc(statusLbl) +
+          ' · ' +
           cw.progress +
-          '%</span></div>' +
-          progressBar(cw.progress) +
+          '%</div>' +
           '</div>' +
           '<div class="continue-cta">Continue <span aria-hidden="true">→</span></div>' +
           '</button>';
       }
     }
 
+    /* Home: Suggested Next only (Recent Productions / Scans live in Studio + Library) */
     if (!smart) return;
-    if (!insights) {
+    var next = insights && insights.nextAction;
+    pendingSuggestedNext = next || null;
+    if (!next || !next.text) {
       smart.innerHTML = '';
       smart.style.display = 'none';
       return;
     }
-    var h = '';
-    if (insights.nextAction && insights.nextAction.text) {
-      h += '<div class="home-smart-card">';
-      h += '<div class="pw-card-kicker">Suggested next</div>';
-      h += '<div class="home-smart-text">' + esc(insights.nextAction.text) + '</div>';
-      if (insights.nextAction.productionId) {
-        h +=
-          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openProduction(\'' +
-          esc(insights.nextAction.productionId) +
-          '\')">Open</button>';
+    smart.style.display = 'block';
+    smart.innerHTML =
+      '<button type="button" class="home-suggest-compact" onclick="PreShootStudioUI.openSuggestedNext()">' +
+      '<div class="home-suggest-compact-body">' +
+      '<div class="continue-kicker">Suggested Next</div>' +
+      '<div class="home-suggest-compact-title">' +
+      esc(suggestedNextHeadline(next)) +
+      '</div>' +
+      '</div>' +
+      '<span class="home-suggest-chev" aria-hidden="true">›</span>' +
+      '</button>';
+  }
+
+  function openSuggestedNext() {
+    var next = pendingSuggestedNext;
+    if (!next) {
+      if (Studio() && Studio().getHomeInsights) {
+        next = (Studio().getHomeInsights() || {}).nextAction;
+        pendingSuggestedNext = next || null;
       }
+    }
+    if (!next) return;
+    var title = document.getElementById('suggested-next-title');
+    var body = document.getElementById('suggested-next-body');
+    var reason = document.getElementById('suggested-next-reason');
+    var openBtn = document.getElementById('suggested-next-open');
+    if (title) title.textContent = 'Suggested Next';
+    if (body) body.textContent = next.text || suggestedNextHeadline(next);
+    if (reason) reason.textContent = suggestedNextReason(next);
+    if (openBtn) {
+      if (next.productionId) {
+        openBtn.style.display = '';
+        openBtn.onclick = function () {
+          if (typeof global.closeM === 'function') global.closeM('suggested-next-modal');
+          openProduction(next.productionId);
+        };
+      } else {
+        openBtn.style.display = 'none';
+      }
+    }
+    if (typeof global.openM === 'function') global.openM('suggested-next-modal');
+  }
+
+  function renderStudioRecents() {
+    if (!Studio() || !Studio().getHomeInsights) return '';
+    var insights = Studio().getHomeInsights();
+    var recent = (insights && insights.recentProductions) || [];
+    var projects = Studio()
+      .listProjects()
+      .slice()
+      .sort(function (a, b) {
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      })
+      .slice(0, 4);
+    var h = '';
+    if (insights && insights.continueWorking) {
+      var cw = insights.continueWorking;
+      var st =
+        (Studio().STATUS_MAP[cw.production.status] || {}).label || cw.production.status || 'Planning';
+      h += '<div class="studio-recents">';
+      h +=
+        '<button type="button" class="continue-card continue-card-compact studio-continue" onclick="PreShootStudioUI.openProduction(\'' +
+        esc(cw.production.id) +
+        '\')">' +
+        '<div class="continue-body">' +
+        '<div class="continue-kicker">Continue</div>' +
+        '<div class="continue-title">' +
+        esc(cw.production.name) +
+        '</div>' +
+        '<div class="continue-meta-line">' +
+        esc(st) +
+        ' · ' +
+        cw.progress +
+        '%</div></div>' +
+        '<div class="continue-cta">Open <span aria-hidden="true">→</span></div></button>';
       h += '</div>';
     }
-    if (insights.recentProductions && insights.recentProductions.length) {
-      h += '<div class="home-smart-card">';
-      h += '<div class="pw-card-kicker">Recent productions</div>';
-      insights.recentProductions.forEach(function (r) {
+    if (recent.length) {
+      h += '<div class="studio-recents">';
+      h += '<div class="studio-section-label">Recent Productions</div>';
+      h += '<div class="studio-recent-list">';
+      recent.forEach(function (r) {
         h +=
-          '<button type="button" class="home-smart-row" onclick="PreShootStudioUI.openProduction(\'' +
+          '<button type="button" class="studio-recent-row" onclick="PreShootStudioUI.openProduction(\'' +
           esc(r.productionId) +
-          '\')"><span>' +
+          '\')"><span class="studio-recent-name">' +
           esc(r.name) +
           '</span><span class="home-smart-meta">' +
           esc((Studio().STATUS_MAP[r.status] || {}).label || r.status) +
-          ' · ' +
-          r.health +
-          '%</span></button>';
-      });
-      h += '</div>';
-    }
-    if (insights.recentScans && insights.recentScans.length) {
-      h += '<div class="home-smart-card">';
-      h += '<div class="pw-card-kicker">Recently scanned</div>';
-      h += '<div class="home-scan-row">';
-      insights.recentScans.forEach(function (s) {
-        h +=
-          '<button type="button" class="home-scan-chip" onclick="PreShootStudioUI.openProduction(\'' +
-          esc(s.productionId) +
-          '\')">';
-        if (s.coverImage) h += '<img src="' + esc(s.coverImage) + '" alt="">';
-        h += '<span>' + esc(s.name) + '</span></button>';
+          '</span></button>';
       });
       h += '</div></div>';
     }
-    if (!h) {
-      smart.innerHTML = '';
-      smart.style.display = 'none';
-    } else {
-      smart.style.display = 'block';
-      smart.innerHTML = h;
+    if (projects.length) {
+      h += '<div class="studio-recents">';
+      h += '<div class="studio-section-label">Recent Projects</div>';
+      h += '<div class="studio-recent-list">';
+      projects.forEach(function (p) {
+        h +=
+          '<button type="button" class="studio-recent-row" onclick="PreShootStudioUI.openProject(\'' +
+          esc(p.id) +
+          '\')"><span class="studio-recent-name">' +
+          esc(p.name) +
+          '</span><span class="home-smart-meta">' +
+          (p.productionCount != null ? p.productionCount : (p.productions || []).length) +
+          '</span></button>';
+      });
+      h += '</div></div>';
     }
+    return h;
   }
 
   function proposeDirectorAction(action, payload) {
@@ -2010,6 +2105,7 @@
     onPerformancePdf: onPerformancePdf,
     openSearch: openSearch,
     onSearchInput: onSearchInput,
-    runSearch: runSearch
+    runSearch: runSearch,
+    openSuggestedNext: openSuggestedNext
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
