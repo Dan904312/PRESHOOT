@@ -37,9 +37,9 @@
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/hook-engine.js"></script>
 <script src="/js/creative-research.js"></script>
-<script src="/js/studio.js?v=270"></script>
-<script src="/js/studio-sync.js?v=270"></script>
-<script src="/js/studio-ui.js?v=270"></script>
+<script src="/js/studio.js?v=280"></script>
+<script src="/js/studio-sync.js?v=280"></script>
+<script src="/js/studio-ui.js?v=280"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -973,6 +973,125 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .st-section{padding-bottom:4px}
 .st-two-col{display:grid;grid-template-columns:1fr;gap:10px}
 .st-script{min-height:220px}
+
+/* ═══ Phase 4 — Production Workspace ═══ */
+.pw-shell .st-section{padding:0 16px 8px;display:flex;flex-direction:column;gap:12px}
+.pw-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:18px;
+  padding:14px;box-sizing:border-box;
+}
+.pw-card-kicker{
+  font-size:10px;font-weight:700;letter-spacing:.55px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:10px;
+}
+.pw-section-hd{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  margin:0 0 4px;padding:0 2px;
+}
+.pw-section-sub{font-size:12px;color:var(--text2);line-height:1.4;margin-top:2px}
+.pw-section-sub strong{color:var(--text);font-weight:600;text-transform:capitalize}
+.studio-btn.sm{padding:8px 12px;font-size:12px;border-radius:10px}
+.pw-progress-card{margin:0 16px 10px}
+.pw-stage-rail{padding:0 0 10px!important;margin:0!important;max-width:none!important}
+.pw-overview-top{display:flex;gap:12px;align-items:stretch;margin-bottom:12px}
+.pw-overview-thumb{
+  width:72px;height:72px;border-radius:14px;object-fit:cover;flex-shrink:0;background:var(--s2);
+}
+.pw-overview-thumb.ph{border:1px dashed var(--border)}
+.pw-overview-main{min-width:0;flex:1}
+.pw-overview-name{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text);line-height:1.25;margin-bottom:6px}
+.pw-overview-meta-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px}
+.pw-meta-pill{
+  font-size:11px;font-weight:700;color:var(--text2);border:1px solid var(--border);
+  border-radius:999px;padding:3px 8px;
+}
+.pw-meta-muted{font-size:11px;color:var(--text3)}
+.pw-overview-project{font-size:12px;color:var(--text2)}
+.pw-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.pw-fact{
+  background:var(--s2);border-radius:12px;padding:10px;min-width:0;
+}
+.pw-fact-l{display:block;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.pw-fact-v{font-size:13px;font-weight:600;color:var(--text);line-height:1.35;word-break:break-word}
+.pw-summary-block{margin-top:2px;padding-top:10px;border-top:1px solid var(--border)}
+.pw-summary-text{font-size:14px;color:var(--text);line-height:1.45;margin-top:4px}
+.pw-summary-hook{font-size:13px;color:var(--text2);font-style:italic;margin-top:6px;line-height:1.4}
+.pw-scan-line{font-size:12px;color:var(--text3);margin-top:10px}
+.pw-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pw-tool{
+  appearance:none;border:1px solid var(--border);background:var(--s2);border-radius:14px;
+  padding:12px;text-align:left;cursor:pointer;min-height:64px;
+}
+.pw-tool:active{transform:scale(.98)}
+.pw-tool-t{display:block;font-family:var(--fd);font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px}
+.pw-tool-s{display:block;font-size:11px;color:var(--text3)}
+.pw-empty-card{text-align:center;padding:22px 16px}
+.pw-shot-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:16px;overflow:hidden;
+  margin-bottom:0;
+}
+.pw-shot-head{
+  width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;text-align:left;
+  appearance:none;border:none;background:transparent;color:var(--text);cursor:pointer;min-height:56px;
+}
+.pw-shot-index{
+  font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);
+  flex-shrink:0;min-width:52px;
+}
+.pw-shot-head-main{flex:1;min-width:0}
+.pw-shot-purpose{font-family:var(--fd);font-size:15px;font-weight:700}
+.pw-shot-dur{font-size:12px;color:var(--text2);margin-top:2px}
+.pw-chev{color:var(--text3);font-size:14px;flex-shrink:0}
+.pw-shot-body{padding:0 14px 14px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px;padding-top:12px}
+.pw-shot-field .pw-shot-val{font-size:13px;color:var(--text);line-height:1.45}
+.pw-script-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:14px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.pw-script-quote{font-family:var(--fd);font-size:16px;font-weight:600;color:var(--text);line-height:1.4}
+.pw-script-link{color:var(--text3);font-size:14px;text-align:center}
+.pw-script-shot{
+  align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--text2);border:1px solid var(--border);border-radius:999px;padding:4px 10px;
+}
+.pw-ref-row{padding:10px 0;border-top:1px solid var(--border)}
+.pw-ref-row:first-of-type{border-top:none;padding-top:0}
+.pw-ref-title{font-size:14px;font-weight:600;color:var(--text)}
+.pw-ref-note,.pw-ref-query{font-size:12px;color:var(--text2);margin-top:3px}
+.pw-asset-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 2px}
+.pw-asset-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden;padding:0 0 10px;
+}
+.pw-asset-thumb{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--s2)}
+.pw-asset-thumb.ph{
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text3);
+}
+.pw-asset-name{font-size:12px;font-weight:600;color:var(--text);padding:8px 10px 0;line-height:1.3}
+.pw-asset-kind{font-size:10px;color:var(--text3);padding:2px 10px 0;text-transform:uppercase;letter-spacing:.4px}
+.pw-director-card{
+  margin:8px 16px 12px;width:calc(100% - 32px);box-sizing:border-box;
+  display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;
+  border:1px solid var(--border);background:var(--s1);color:var(--text);cursor:pointer;text-align:left;
+}
+.pw-director-card:active{transform:scale(.985)}
+.pw-director-ico{
+  width:40px;height:40px;border-radius:12px;background:var(--s2);display:flex;align-items:center;
+  justify-content:center;font-family:var(--fd);font-weight:800;color:var(--accent);flex-shrink:0;
+}
+.pw-director-t{font-family:var(--fd);font-size:15px;font-weight:700;margin-bottom:2px}
+.pw-director-s{font-size:12px;color:var(--text2);line-height:1.4}
+@media (min-width:700px){
+  .pw-shell .st-section,.pw-progress-card,.pw-director-card{max-width:920px;margin-left:auto;margin-right:auto}
+  .pw-director-card{width:calc(100% - 40px)}
+  .pw-asset-grid{grid-template-columns:repeat(3,1fr)}
+  .pw-tools{grid-template-columns:repeat(4,1fr)}
+}
+@media (max-width:639px){
+  .pw-shell .st-section{padding-left:var(--pad-x);padding-right:var(--pad-x)}
+  .pw-progress-card{margin-left:var(--pad-x);margin-right:var(--pad-x)}
+  .pw-director-card{margin-left:var(--pad-x);margin-right:var(--pad-x);width:auto}
+}
+
 @media (min-width:700px){
   .st-two-col{grid-template-columns:1fr 1fr}
   .st-stage-rail,.st-tabs,.st-linked{max-width:920px;margin-left:auto;margin-right:auto}
@@ -1228,7 +1347,7 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 
 <div class="screen" id="screen-home"> <div class="home-kinetic" id="home-kinetic"></div> <div class="home-inner"> <div class="home-hd"> <div class="home-logo">Pre<span>Shoot</span></div> <div class="home-hd-meta"> <div class="streak-pill"><svg class="ico-svg" width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s5 4.5 5 9a5 5 0 1 1-10 0c0-2.5 1.8-4.5 3-6 0 2 1 3 2 3z"/></svg> <span id="streak-n">0 days</span></div> <div class="usage-bar usage-pill" id="usage-bar" aria-live="polite"></div> </div> </div> <div class="scan-zone">
  <div class="scan-zone-main"> <div class="scan-ring" role="button" aria-label="Take a photo" onclick="if(!requireAuthOrPrompt('Sign in to scan scenes'))return;if(!canScan()){openM('pw-modal');return;}document.getElementById('cam-in').value='';document.getElementById('cam-in').click();" id="scan-ring"><div class="scan-orb" id="scan-orb" aria-hidden="true"></div><svg class="ico-svg scan-ring-cam" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div> <div><div class="scan-lbl">Take a photo</div><div class="scan-sub" style="font-size:13px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px">Take a clear photo of your location. The more detail the AI can see, the better your ideas</div></div> <button class="upload-btn" onclick="if(!requireAuthOrPrompt('Sign in to scan scenes'))return;if(!canScan()){openM('pw-modal');return;}document.getElementById('gal-in').value='';document.getElementById('gal-in').click();" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4-3 3 2 4-4 5 5"/></svg> <span>Upload from Camera Roll</span> </button> </div>
- <div class="scan-zone-foot"> <div id="continue-working" class="continue-working" style="display:none"></div> <div class="director-card" onclick="openDirector()" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"> <div class="director-card-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg></div> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:var(--accent);color:var(--on-accent);padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div> <div style="font-size:11px;color:var(--text2);line-height:1.4">Your AI assistant for filming, editing and beyond</div> </div> <div style="color:var(--text3);display:flex;align-items:center" data-ico="chevronRight" data-ico-size="16"></div> </div> </div> </div>
+ <div class="scan-zone-foot"> <div id="continue-working" class="continue-working" style="display:none"></div> <div class="director-card" onclick="S.activeProductionId=null;window.__preshootDirectorProduction=null;openDirector()" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"> <div class="director-card-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg></div> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:var(--accent);color:var(--on-accent);padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div> <div style="font-size:11px;color:var(--text2);line-height:1.4">Your AI assistant for filming, editing and beyond</div> </div> <div style="color:var(--text3);display:flex;align-items:center" data-ico="chevronRight" data-ico-size="16"></div> </div> </div> </div>
  </div>
 </div> <!-- ═══ RESULTS ═══ -->
 <div class="screen" id="screen-results"> <div class="res-hd"> <div class="back-btn" onclick="goTab('home')" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <div style="flex:1;min-width:0"> <div class="res-title" id="res-title">Your ideas</div> <div class="res-sub" id="res-sub">6 ideas generated</div> </div> <button class="rescan-btn" onclick="openPicker()">Rescan</button> </div> <div class="scene-strip" id="scene-strip"><div style="width:100%;height:100%;background:var(--s2)"></div></div> <div class="sb"> <div class="ideas-list" id="ideas-list"></div> <button onclick="openShotlistDirector()" style="margin:0 16px 20px;padding:14px;background:var(--text);color:var(--bg);border-radius:10px;font-size:15px;font-weight:600;box-shadow:none;border:1px solid var(--text);font-family:var(--fd)"> <span><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg> Generate Shotlist</span> <span id="shotlist-lock" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:8px;font-weight:800">PRO</span> </button> </div>
@@ -1725,7 +1844,43 @@ if(gearBits.length) lines.push('Gear: '+gearBits.join(' | '));
 else if(n.gear) lines.push('Gear: '+n.gear);
 if(n.style) lines.push('Style notes: '+n.style);
 if(n.extraContext) lines.push('Extra context: '+n.extraContext);
-if(S.dirActiveIdea){ var di=S.dirActiveIdea; lines.push('ACTIVE IDEA: '+ (di.title||'')); if(di.category) lines.push('Format: '+di.category); if(di.hook) lines.push('SELECTED PRIMARY HOOK (lock script to this promise): '+di.hook); if(di.primaryHook&&di.primaryHook!==di.hook) lines.push('Original primary hook: '+di.primaryHook); if(di.altHooks&&di.altHooks.length) lines.push('Alternative hooks: '+di.altHooks.filter(Boolean).join(' | ')); if(di.hookWhy) lines.push('Why hook works: '+di.hookWhy); if(di.hookFramework) lines.push('Hook framework: '+di.hookFramework); lines.push('SCRIPT RULE: Open with the selected hook. Body and ending must pay off the curiosity/tension created. Do not abandon the opening promise.'); if(di.shotAngle||di.shot) lines.push('Shot approach: '+(di.shotAngle||di.shot)); if(di.editingStyle) lines.push('Edit style: '+di.editingStyle); if(di.audio) lines.push('Audio: '+di.audio); if(di.sceneLabel) lines.push('Scene: '+di.sceneLabel); } if(window.PreShootHooks&&PreShootHooks.buildDirectorPromptSection){ lines.push(PreShootHooks.buildDirectorPromptSection()); }
+if(S.dirActiveIdea){ var di=S.dirActiveIdea; lines.push('ACTIVE IDEA: '+ (di.title||'')); if(di.category) lines.push('Format: '+di.category); if(di.hook) lines.push('SELECTED PRIMARY HOOK (lock script to this promise): '+di.hook); if(di.primaryHook&&di.primaryHook!==di.hook) lines.push('Original primary hook: '+di.primaryHook); if(di.altHooks&&di.altHooks.length) lines.push('Alternative hooks: '+di.altHooks.filter(Boolean).join(' | ')); if(di.hookWhy) lines.push('Why hook works: '+di.hookWhy); if(di.hookFramework) lines.push('Hook framework: '+di.hookFramework); lines.push('SCRIPT RULE: Open with the selected hook. Body and ending must pay off the curiosity/tension created. Do not abandon the opening promise.'); if(di.shotAngle||di.shot) lines.push('Shot approach: '+(di.shotAngle||di.shot)); if(di.editingStyle) lines.push('Edit style: '+di.editingStyle); if(di.audio) lines.push('Audio: '+di.audio); if(di.sceneLabel) lines.push('Scene: '+di.sceneLabel); }
+/* Phase 4: auto-load active Production Workspace context */
+if(window.PreShootStudio && S.activeProductionId){
+  try{
+    var pctx = PreShootStudio.getDirectorContext(S.activeProductionId);
+    window.__preshootDirectorProduction = pctx;
+    if(pctx && pctx.production){
+      var pp = pctx.production;
+      lines.push('ACTIVE PRODUCTION WORKSPACE');
+      lines.push('Production: '+(pp.name||''));
+      if(pctx.project && pctx.project.name) lines.push('Project: '+pctx.project.name);
+      if(pp.status) lines.push('Status: '+pp.status+(pp.progress!=null?' ('+pp.progress+'%)':''));
+      if(pp.overview){
+        if(pp.overview.platform) lines.push('Platform: '+pp.overview.platform);
+        if(pp.overview.format) lines.push('Format: '+pp.overview.format);
+        if(pp.overview.goal) lines.push('Goal: '+pp.overview.goal);
+        if(pp.overview.summary) lines.push('Summary: '+pp.overview.summary);
+      }
+      if(pp.ideaSnapshot && pp.ideaSnapshot.hook) lines.push('Hook: '+pp.ideaSnapshot.hook);
+      if(pp.scanRef && (pp.scanRef.mainSubject||pp.scanRef.sceneLabel)) lines.push('Scan: '+(pp.scanRef.mainSubject||pp.scanRef.sceneLabel));
+      if(pp.shotList && pp.shotList.length){
+        lines.push('SHOT LIST ('+pp.shotList.length+'):');
+        pp.shotList.slice(0,12).forEach(function(sh){
+          lines.push('Shot '+(sh.order||'')+' ['+(sh.purpose||'')+' / '+(sh.durationSec||'?')+'s]: '+(sh.framing||sh.notes||sh.cameraMovement||''));
+        });
+      }
+      if(pp.scriptLines && pp.scriptLines.length){
+        lines.push('SCRIPT LINES:');
+        pp.scriptLines.slice(0,12).forEach(function(ln){
+          lines.push((ln.shotOrder?('Shot '+ln.shotOrder+': '):'')+'"'+(ln.text||'')+'"');
+        });
+      }
+      lines.push('Adapt all advice to skill level: '+(pctx.skillLevel||'intermediate')+'. User should never need to re-explain this production.');
+    }
+  }catch(e){}
+}
+if(window.PreShootHooks&&PreShootHooks.buildDirectorPromptSection){ lines.push(PreShootHooks.buildDirectorPromptSection()); }
  var hist = getHistory().slice(0, 5); var lib = getLib().slice(0, 5); if (hist.length) lines.push('Recent scan locations: ' + hist.map(function(h){ return h.sceneLabel || h.sceneType; }).join(', ')); if (lib.length) lines.push('Saved ideas: ' + lib.map(function(i){ return i.title; }).join(', ')); if (S.ideas && S.ideas.length) lines.push('Current session ideas: ' + S.ideas.map(function(i){ return i.title; }).join(', ')); return lines.join('\n'); 
 } /* ============================================= */
 /* FORMAT PICKER */
@@ -1764,7 +1919,7 @@ function deleteHistoryEntry(idx) { var hist = getHistory(); hist.splice(idx, 1);
 } function initSwipeDelete(row, idx) { if (!row) return; var card = row.querySelector('.hist-card'); if (!card) return; var startX = 0, curX = 0, swiping = false; var THRESHOLD = 86; card.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; curX = 0; swiping = true; card.style.transition = 'none'; }, { passive: true }); card.addEventListener('touchmove', function(e) { if (!swiping) return; var dx = e.touches[0].clientX - startX; if (dx > 4) { card.style.transform = 'translateX(0)'; return; } var pull = Math.max(dx, -THRESHOLD * 1.35); /* Rubber band resistance past threshold */
 if (Math.abs(pull) > THRESHOLD) { var over = Math.abs(pull) - THRESHOLD; pull = -(THRESHOLD + over * 0.22); } curX = pull; card.style.transform = 'translateX(' + curX + 'px)'; if (Math.abs(curX) > THRESHOLD * 0.38) row.classList.add('revealing'); else row.classList.remove('revealing'); }, { passive: true }); card.addEventListener('touchend', function() { if (!swiping) return; swiping = false; card.style.transition = 'transform .42s cubic-bezier(.34,1.32,.64,1)'; if (Math.abs(curX) >= THRESHOLD * 0.82) { card.style.transform = 'translateX(-110%)'; row.style.transition = 'max-height .32s .18s ease, opacity .28s .18s ease, margin .32s .18s ease'; row.style.maxHeight = row.offsetHeight + 'px'; row.style.overflow = 'hidden'; setTimeout(function() { row.style.maxHeight = '0'; row.style.opacity = '0'; row.style.marginBottom = '0'; setTimeout(function() { deleteHistoryEntry(idx); }, 340); }, 50); } else { card.style.transform = 'translateX(0)'; row.classList.remove('revealing'); } curX = 0; }, { passive: true }); 
 } /* ─── DIRECTOR OPEN / CLOSE ───────────────── */
-function openDirector() { if (S.plan !== 'pro') { openM('pw-modal'); return; } if (window.PreShootStudio) { try { window.__preshootDirectorStudio = PreShootStudio.getDirectorCapabilityManifest(); } catch (e) {} } ['home','results','library','studio','menu','profile'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); document.getElementById('screen-director').classList.add('active'); S.tab = 'director'; var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.add('hidden'); var pills = document.getElementById('dir-pills'); if (pills) { pills.innerHTML = ['How to film this','Shot list','Editing advice','Gear help','Grow my channel','Caption ideas'].map(function(p) { return '<button onclick="dirPill(this)" style="flex-shrink:0;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:border-color .2s,background .2s,color .2s">' + p + '</button>'; }).join(''); } var msgs = document.getElementById('dir-msgs'); if (msgs && !msgs.children.length) { var lastConv = S.activeDirConvId ? getDirConv(S.activeDirConvId) : null; if (lastConv && lastConv.messages && lastConv.messages.length) { loadDirConversation(S.activeDirConvId); } else { showDirGreeting(); } }
+function openDirector() { if (S.plan !== 'pro') { openM('pw-modal'); return; } if (window.PreShootStudio) { try { window.__preshootDirectorStudio = PreShootStudio.getDirectorCapabilityManifest(); if (S.activeProductionId) window.__preshootDirectorProduction = PreShootStudio.getDirectorContext(S.activeProductionId); } catch (e) {} } ['home','results','library','studio','menu','profile'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); document.getElementById('screen-director').classList.add('active'); S.tab = 'director'; var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.add('hidden'); var pills = document.getElementById('dir-pills'); if (pills) { pills.innerHTML = ['How to film this','Shot list','Editing advice','Gear help','Grow my channel','Caption ideas'].map(function(p) { return '<button onclick="dirPill(this)" style="flex-shrink:0;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:border-color .2s,background .2s,color .2s">' + p + '</button>'; }).join(''); } var msgs = document.getElementById('dir-msgs'); if (msgs && !msgs.children.length) { var lastConv = S.activeDirConvId ? getDirConv(S.activeDirConvId) : null; if (lastConv && lastConv.messages && lastConv.messages.length) { loadDirConversation(S.activeDirConvId); } else { showDirGreeting(); } }
 } function closeDirector() { document.getElementById('screen-director').classList.remove('active'); document.getElementById('screen-home').classList.add('active'); document.getElementById('nav-home').classList.add('active'); S.tab = 'home'; var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.remove('hidden'); closeDirDrawer();
 } function openShotlistDirector() { if (S.plan !== 'pro') { openM('pw-modal'); return; } var context = 'I just scanned: ' + (S.sceneInfo.label || 'a location') + '\n'; context += 'Scene type: ' + (S.sceneInfo.type || 'general') + '\n\n'; if (S.ideas && S.ideas.length) { context += 'Generated ideas:\n'; S.ideas.forEach(function(idea, i) { context += (i+1) + '. ' + idea.title + ' (' + idea.category + ')\n'; }); } context += '\nCreate a detailed shotlist with camera angles, movements, and shooting order.'; S.dirActiveIdea=null; S.dirPendingImage=S.scanB64?{data:S.scanB64,mime:S.scanMime||'image/jpeg'}:null; openDirector(); setTimeout(function() { var inp = document.getElementById('dir-input'); if (inp) { inp.value = context; sendDirector(); } }, 100);
 }
