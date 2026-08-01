@@ -40,6 +40,7 @@
 <script src="/js/studio.js?v=292"></script>
 <script src="/js/studio-sync.js?v=292"></script>
 <script src="/js/studio-ui.js?v=292"></script>
+<script src="/js/director-os.js?v=292"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -1990,7 +1991,11 @@ if(window.PreShootStudio){
 }
 
 if(window.PreShootHooks&&PreShootHooks.buildDirectorPromptSection){ lines.push(PreShootHooks.buildDirectorPromptSection()); }
- var hist = getHistory().slice(0, 5); var lib = getLib().slice(0, 5); if (hist.length) lines.push('Recent scan locations: ' + hist.map(function(h){ return h.sceneLabel || h.sceneType; }).join(', ')); if (lib.length) lines.push('Saved ideas: ' + lib.map(function(i){ return i.title; }).join(', ')); if (S.ideas && S.ideas.length) lines.push('Current session ideas: ' + S.ideas.map(function(i){ return i.title; }).join(', ')); return lines.join('\n'); 
+ var hist = getHistory().slice(0, 5); var lib = getLib().slice(0, 5); if (hist.length) lines.push('Recent scan locations: ' + hist.map(function(h){ return h.sceneLabel || h.sceneType; }).join(', ')); if (lib.length) lines.push('Saved ideas: ' + lib.map(function(i){ return i.title; }).join(', ')); if (S.ideas && S.ideas.length) lines.push('Current session ideas: ' + S.ideas.map(function(i){ return i.title; }).join(', '));
+if (window.PreShootDirectorOS && PreShootDirectorOS.buildOSContext) {
+  try { lines.push(PreShootDirectorOS.buildOSContext({ surface: PreShootDirectorOS.getSurface() })); } catch (e) {}
+}
+return lines.join('\n'); 
 } /* ============================================= */
 /* FORMAT PICKER */
 /* ============================================= */
@@ -2082,8 +2087,37 @@ function getActiveDirConv(){ return S.activeDirConvId ? getDirConv(S.activeDirCo
 } var _dirStreaming=false; function sendDirector(){ if(_dirStreaming) return; var inp=document.getElementById('dir-input'); var msg=inp?inp.value.trim():''; if(!msg) return; var dt=gs('dir_today',{date:'',count:0}); var today=new Date().toDateString(); if(dt.date!==today) dt={date:today,count:0}; if(dt.count>=50){showToast('50 message daily limit reached');return;} dt.count++; ss('dir_today',dt); inp.value=''; inp.style.height='42px'; var btn=document.getElementById('dir-send-btn'); if(btn) btn.style.opacity='.4'; _dirStreaming=true; addDirMsg('user',msg,true); /* ── Build conversation  history (user/assistant only) ── */
 var conv=getActiveDirConv(); var history=[]; if(conv&&conv.messages&&conv.messages.length){ history=conv.messages.slice(-14).map(function(m){return {role:m.role,content:m.content};}); } /* Remove any trailing user turn, we append the fresh message below */
 while(history.length && history[history.length-1].role==='user') history.pop(); history.push({role:'user',content:msg}); /* ── Build creator context (separate from system prompt) ── // This is passed to /api/director which appends it to the system prompt server-side. // FUTURE: this can be replaced with a Supabase profile fetch from the server. */
-var context = buildDirectorContext(); var pendingImg=S.dirPendingImage||null; S.dirPendingImage=null; var bub=addDirStreamBubble(); var fullText=''; var sseBuf=''; /* ── Call /api/director, NOT /api/chat ── // director.js injects the Director™ system prompt server-side. // chat.js is left untouched for scan analysis. */
-apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ messages: history, context: context, stream: true, image: pendingImg||undefined }) }) .then(function(res){ if(!res.ok){ return res.json().then(function(d){ if(bub) bub.textContent=(d.error&&d.error.message)||'Error'; _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); } saveMsgToConv('ai',fullText); S.directorHistory.push({role:'user',content:msg}); S.directorHistory.push({role:'assistant',content:fullText}); ss('director_history',S.directorHistory); _dirStreaming=false; if(btn) btn.style.opacity='1'; var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; return; } sseBuf+=decoder.decode(r.value,{stream:true}); var lines=sseBuf.split('\n'); sseBuf=lines.pop(); lines.forEach(function(line){ if(!line.startsWith('data: ')) return; var data=line.slice(6).trim(); if(!data||data==='[DONE]') return; try{ var evt=JSON.parse(data); if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){ fullText+=evt.delta.text; if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); var caret=document.createElement('span'); caret.style.cssText='display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px'; bub.appendChild(caret); var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; } } }catch(e){} }); return pump(); }); } return pump(); }) .catch(function(){ if(bub) bub.textContent='Network error'; _dirStreaming=false; if(btn) btn.style.opacity='1'; }); 
+var context = buildDirectorContext();
+if (window.PreShootDirectorOS && PreShootDirectorOS.matchIntent) {
+  try {
+    var _intent = PreShootDirectorOS.matchIntent(msg, { surface: PreShootDirectorOS.getSurface() });
+    if (_intent && _intent.confidence >= 0.78) {
+      window.__preshootPendingDirectorIntent = _intent;
+    } else {
+      window.__preshootPendingDirectorIntent = null;
+    }
+  } catch (e) { window.__preshootPendingDirectorIntent = null; }
+}
+var pendingImg=S.dirPendingImage||null; S.dirPendingImage=null; var bub=addDirStreamBubble(); var fullText=''; var sseBuf=''; /* ── Call /api/director, NOT /api/chat ── // director.js injects the Director™ system prompt server-side. // chat.js is left untouched for scan analysis. */
+apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ messages: history, context: context, stream: true, image: pendingImg||undefined }) }) .then(function(res){ if(!res.ok){ return res.json().then(function(d){ if(bub) bub.textContent=(d.error&&d.error.message)||'Error'; _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); } var _displayFull = fullText;
+if (window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply) {
+  try {
+    var _act = PreShootDirectorOS.parseActionFromReply(fullText);
+    if (_act) {
+      _displayFull = PreShootDirectorOS.stripActionMarker(fullText) || fullText;
+      if (bub) {
+        bub.textContent = '';
+        _displayFull.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); });
+      }
+      setTimeout(function(){ PreShootDirectorOS.proposeToUI(_act); }, 120);
+      window.__preshootPendingDirectorIntent = null;
+    } else if (window.__preshootPendingDirectorIntent) {
+      var _pi = window.__preshootPendingDirectorIntent; window.__preshootPendingDirectorIntent = null;
+      setTimeout(function(){ PreShootDirectorOS.proposeToUI(_pi); }, 160);
+    }
+  } catch (e) {}
+}
+saveMsgToConv('ai',_displayFull); S.directorHistory.push({role:'user',content:msg}); S.directorHistory.push({role:'assistant',content:_displayFull}); ss('director_history',S.directorHistory); _dirStreaming=false; if(btn) btn.style.opacity='1'; var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; return; } sseBuf+=decoder.decode(r.value,{stream:true}); var lines=sseBuf.split('\n'); sseBuf=lines.pop(); lines.forEach(function(line){ if(!line.startsWith('data: ')) return; var data=line.slice(6).trim(); if(!data||data==='[DONE]') return; try{ var evt=JSON.parse(data); if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){ fullText+=evt.delta.text; if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); var caret=document.createElement('span'); caret.style.cssText='display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px'; bub.appendChild(caret); var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; } } }catch(e){} }); return pump(); }); } return pump(); }) .catch(function(){ if(bub) bub.textContent='Network error'; _dirStreaming=false; if(btn) btn.style.opacity='1'; }); 
 } function clearDirectorChat(){ newDirConversation();
 } /* ── Kinetic grid background on home screen ── */
 var homeKineticGrid = null;
