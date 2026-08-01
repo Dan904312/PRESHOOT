@@ -118,6 +118,10 @@
     h += '</div></div>';
 
     h += renderStudioRecents();
+    h += renderDirectorCommandBar({
+      placeholder: 'Tell Director what you’d like to do…',
+      scope: 'studio'
+    });
 
     if (!projects.length) {
       h +=
@@ -343,9 +347,11 @@
       h += '</div>';
     }
 
-    h +=
-      '<button type="button" class="studio-director-placeholder" onclick="PreShootStudioUI.directorPlaceholder(\'project\')">' +
-      '<span>Ask Director AI about this project</span><span class="st-soon">Soon</span></button>';
+    h += renderDirectorCommandBar({
+      placeholder: 'Ask Director to help with this project…',
+      scope: 'project',
+      projectId: projectId
+    });
 
     h += '</div>';
     root.innerHTML = h;
@@ -924,17 +930,337 @@
     return h;
   }
 
-  function renderDirectorCard(productionId) {
+  function renderDirectorCommandBar(opts) {
+    opts = opts || {};
+    var ph = opts.placeholder || 'Tell Director what you’d like to do…';
+    var scope = opts.scope || 'studio';
     return (
-      '<button type="button" class="pw-director-card" onclick="PreShootStudioUI.openDirectorForProduction(\'' +
-      esc(productionId) +
-      '\')">' +
-      '<div class="pw-director-ico" aria-hidden="true">D</div>' +
-      '<div class="pw-director-body">' +
-      '<div class="pw-director-t">Director AI</div>' +
-      '<div class="pw-director-s">Already loaded with this production, shots, script, and your skill level</div>' +
-      '</div><span class="pw-chev" aria-hidden="true">›</span></button>'
+      '<div class="dir-cmd" data-dir-scope="' +
+      esc(scope) +
+      '">' +
+      '<div class="dir-cmd-bar">' +
+      '<span class="dir-cmd-mark" aria-hidden="true">D</span>' +
+      '<input type="text" class="dir-cmd-input" id="dir-cmd-input" placeholder="' +
+      esc(ph) +
+      '" autocomplete="off" enterkeyhint="go" onkeydown="if(event.key===\'Enter\'){event.preventDefault();PreShootStudioUI.submitDirectorCommand();}">' +
+      '<button type="button" class="dir-cmd-mic" id="dir-cmd-mic" onclick="PreShootStudioUI.toggleDirectorVoice()" aria-label="Voice input" title="Voice input">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>' +
+      '</button>' +
+      '<button type="button" class="dir-cmd-go" onclick="PreShootStudioUI.submitDirectorCommand()" aria-label="Run">Go</button>' +
+      '</div>' +
+      '<div class="dir-cmd-panel" id="dir-cmd-panel" hidden></div>' +
+      '</div>'
     );
+  }
+
+  function renderDirectorCard(productionId) {
+    /* Studio stays in-place — command bar replaces chat launch card */
+    return renderDirectorCommandBar({
+      placeholder: 'What do you want to change?',
+      scope: 'production',
+      productionId: productionId
+    });
+  }
+
+  function setDirectorPanel(html, opts) {
+    opts = opts || {};
+    var panel = document.getElementById('dir-cmd-panel');
+    if (!panel) return;
+    if (!html) {
+      panel.hidden = true;
+      panel.innerHTML = '';
+      return;
+    }
+    panel.hidden = false;
+    panel.innerHTML = html;
+    if (opts.scroll !== false) {
+      try {
+        panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } catch (e) {}
+    }
+  }
+
+  function submitDirectorCommand() {
+    var inp = document.getElementById('dir-cmd-input');
+    var text = inp ? String(inp.value || '').trim() : '';
+    if (!text) return;
+    if (!Studio()) return;
+    if (global.S && global.S.plan !== 'pro') {
+      if (typeof global.openM === 'function') global.openM('pw-modal');
+      return;
+    }
+    if (!global.PreShootDirectorOS || !global.PreShootDirectorOS.processStudioCommand) {
+      toast('Director is unavailable');
+      return;
+    }
+    if (inp) inp.value = '';
+    setDirectorPanel('<div class="dir-cmd-status">Working…</div>');
+    var result = global.PreShootDirectorOS.processStudioCommand(text);
+    handleDirectorCommandResult(result);
+  }
+
+  function handleDirectorCommandResult(result) {
+    if (!result) {
+      setDirectorPanel('');
+      return;
+    }
+    if (result.kind === 'confirm' && result.proposal) {
+      setDirectorPanel(
+        '<div class="dir-cmd-reply">' +
+          esc(result.message || 'Confirm this action?') +
+          '</div>'
+      );
+      proposeDirectorAction(result.proposal.action, result.proposal.payload || {}, {
+        object: result.proposal.object || result.object || null,
+        tool: result.proposal.tool || null,
+        mutates: result.proposal.mutates
+      });
+      return;
+    }
+    if (result.kind === 'clarify') {
+      _dirClarifyOptions = result.options || [];
+      var h =
+        '<div class="dir-cmd-reply">' +
+        esc(result.question || 'Which one?') +
+        '</div><div class="dir-cmd-choices">';
+      _dirClarifyOptions.forEach(function (opt, i) {
+        h +=
+          '<button type="button" class="dir-cmd-choice" onclick="PreShootStudioUI.chooseDirectorClarifyIndex(' +
+          i +
+          ')">' +
+          esc(opt.label) +
+          '</button>';
+      });
+      h += '</div>';
+      if (result.freeText) {
+        h +=
+          '<div class="dir-cmd-hint">Type the new name in the bar and press Go.</div>';
+      }
+      setDirectorPanel(h);
+      return;
+    }
+    if (result.kind === 'action' && result.proposal) {
+      var prop = result.proposal;
+      var preview =
+        global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed
+          ? global.PreShootDirectorOS.executeProposed(prop, { confirmed: false })
+          : null;
+      if (preview && preview.needsConfirmation) {
+        handleDirectorCommandResult({
+          kind: 'confirm',
+          proposal: prop,
+          message: preview.message || result.message
+        });
+        return;
+      }
+      if (prop.mutates === false || prop.action === 'open_production') {
+        var opened =
+          global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed
+            ? global.PreShootDirectorOS.executeProposed(prop, { confirmed: true })
+            : null;
+        if (opened && opened.open && prop.payload && prop.payload.productionId) {
+          openProduction(prop.payload.productionId);
+          return;
+        }
+        handleDirectorCommandResult({
+          kind: 'done',
+          message: (opened && opened.ok && 'Done.') || (opened && opened.error) || 'Done.',
+          refresh: true
+        });
+        return;
+      }
+      handleDirectorCommandResult({
+        kind: 'confirm',
+        proposal: prop,
+        message: (preview && preview.message) || result.message || 'Confirm this action?'
+      });
+      return;
+    }
+    if (result.kind === 'navigate' && result.target) {
+      setDirectorPanel('');
+      if (result.target.type === 'project') openProject(result.target.id);
+      else if (result.target.type === 'production') openProduction(result.target.id);
+      return;
+    }
+    if (result.kind === 'done') {
+      setDirectorPanel(
+        '<div class="dir-cmd-reply dir-cmd-done">' + esc(result.message || 'Done.') + '</div>'
+      );
+      if (result.section && global.S && global.S.studioView && global.S.studioView.productionId) {
+        global.S.studioView.section = result.section;
+      }
+      if (result.open && result.result && result.result.result && result.result.result.productionId) {
+        openProduction(result.result.result.productionId);
+        return;
+      }
+      if (result.refresh !== false) {
+        renderContinueCard();
+        renderStudio();
+        /* restore brief done flash after re-render */
+        setTimeout(function () {
+          setDirectorPanel(
+            '<div class="dir-cmd-reply dir-cmd-done">' + esc(result.message || 'Done.') + '</div>'
+          );
+        }, 30);
+      }
+      return;
+    }
+    if (result.kind === 'explain') {
+      requestDirectorExplain(result);
+      return;
+    }
+    if (result.kind === 'reply') {
+      setDirectorPanel('<div class="dir-cmd-reply">' + esc(result.text || '') + '</div>');
+      return;
+    }
+    if (result.kind === 'error') {
+      setDirectorPanel('<div class="dir-cmd-reply">' + esc(result.message || 'Something went wrong.') + '</div>');
+      return;
+    }
+    setDirectorPanel('');
+  }
+
+  var _dirClarifyOptions = [];
+  function chooseDirectorClarifyIndex(index) {
+    var opt = _dirClarifyOptions[index];
+    if (!opt) return;
+    chooseDirectorClarify(opt.value);
+  }
+  function chooseDirectorClarify(value) {
+    if (!global.PreShootDirectorOS || !global.PreShootDirectorOS.resolveClarifyChoice) return;
+    var next = global.PreShootDirectorOS.resolveClarifyChoice(value);
+    handleDirectorCommandResult(next);
+  }
+
+  function requestDirectorExplain(result) {
+    var fallback = (result && result.localFallback) || 'Here’s a concise take based on your current production.';
+    setDirectorPanel('<div class="dir-cmd-reply">' + esc(fallback) + '</div><div class="dir-cmd-status">Refining…</div>');
+    var ctxLines = '';
+    try {
+      if (global.PreShootDirectorOS && global.PreShootDirectorOS.buildOSContext) {
+        ctxLines = global.PreShootDirectorOS.buildOSContext();
+      }
+    } catch (e) {}
+    var msg = String((result && result.message) || '').slice(0, 500);
+    if (typeof global.apiFetch !== 'function') {
+      setDirectorPanel('<div class="dir-cmd-reply">' + esc(fallback) + '</div>');
+      return;
+    }
+    global
+      .apiFetch('/api/director', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stream: false,
+          context: ctxLines + '\n\nMODE: Studio embedded answer. Max 3 short sentences. No ACTION block unless essential.',
+          messages: [
+            {
+              role: 'user',
+              content:
+                'Answer briefly inside Studio (no chat UI). Question: ' +
+                msg +
+                '\nIf useful, end with one concrete next action the user can type.'
+            }
+          ]
+        })
+      })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (data) {
+        var block = (data.content || []).find(function (b) {
+          return b.type === 'text';
+        });
+        var text = (block && block.text) || fallback;
+        if (global.PreShootDirectorOS && global.PreShootDirectorOS.stripActionMarker) {
+          text = global.PreShootDirectorOS.stripActionMarker(text);
+        }
+        var act =
+          global.PreShootDirectorOS && global.PreShootDirectorOS.parseActionFromReply
+            ? global.PreShootDirectorOS.parseActionFromReply((block && block.text) || '')
+            : null;
+        setDirectorPanel('<div class="dir-cmd-reply">' + esc(text) + '</div>');
+        if (act) {
+          setTimeout(function () {
+            proposeDirectorAction(act.action, act.payload || {});
+          }, 200);
+        }
+      })
+      .catch(function () {
+        setDirectorPanel('<div class="dir-cmd-reply">' + esc(fallback) + '</div>');
+      });
+  }
+
+  var _dirVoiceRec = null;
+  function toggleDirectorVoice() {
+    var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
+    var btn = document.getElementById('dir-cmd-mic');
+    if (!SR) {
+      toast('Voice input isn’t supported in this browser yet');
+      return;
+    }
+    if (_dirVoiceRec) {
+      try {
+        _dirVoiceRec.stop();
+      } catch (e) {}
+      _dirVoiceRec = null;
+      if (btn) btn.classList.remove('listening');
+      return;
+    }
+    var rec = new SR();
+    _dirVoiceRec = rec;
+    rec.lang = 'en-US';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    if (btn) btn.classList.add('listening');
+    rec.onresult = function (ev) {
+      var said = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : '';
+      var inp = document.getElementById('dir-cmd-input');
+      if (inp && said) {
+        inp.value = said;
+        submitDirectorCommand();
+      }
+    };
+    rec.onerror = function () {
+      if (btn) btn.classList.remove('listening');
+      _dirVoiceRec = null;
+      toast('Couldn’t hear that — try again');
+    };
+    rec.onend = function () {
+      if (btn) btn.classList.remove('listening');
+      _dirVoiceRec = null;
+    };
+    try {
+      rec.start();
+    } catch (e) {
+      if (btn) btn.classList.remove('listening');
+      _dirVoiceRec = null;
+      toast('Microphone unavailable');
+    }
+  }
+
+  function openDirectorForProduction(productionId) {
+    /* Stay in Studio — focus the in-page Director command bar */
+    if (global.S) global.S.activeProductionId = productionId;
+    if (global.S) {
+      global.S.studioView = global.S.studioView || {};
+      global.S.studioView.mode = 'production';
+      global.S.studioView.productionId = productionId;
+    }
+    renderStudio();
+    setTimeout(function () {
+      var inp = document.getElementById('dir-cmd-input');
+      if (inp) inp.focus();
+    }, 40);
+  }
+
+  function directorPlaceholder() {
+    var inp = document.getElementById('dir-cmd-input');
+    if (inp) {
+      inp.focus();
+      return;
+    }
+    toast('Use the Director bar at the bottom of Studio');
   }
 
   function renderProductionDetail(root, productionId) {
@@ -1270,37 +1596,6 @@
     renderStudio();
   }
 
-  function openDirectorForProduction(productionId) {
-    if (typeof global.openDirector !== 'function') {
-      toast('Director is unavailable');
-      return;
-    }
-    if (global.S && global.S.plan !== 'pro') {
-      if (typeof global.openM === 'function') global.openM('pw-modal');
-      return;
-    }
-    if (global.S) global.S.activeProductionId = productionId;
-    try {
-      global.__preshootDirectorProduction = Studio().getDirectorContext(productionId);
-    } catch (e) {}
-    global.openDirector();
-    setTimeout(function () {
-      var title = document.getElementById('dir-conv-title');
-      var found = Studio().findProduction(productionId);
-      if (title && found) title.textContent = found.production.name;
-      var greet = document.querySelector('#dir-msgs');
-      if (greet && found && (!greet.children || !greet.children.length)) {
-        /* greeting already handled by openDirector */
-      }
-    }, 80);
-  }
-
-  function directorPlaceholder() {
-    toast('Open a production and use Director AI from the workspace card');
-  }
-
-
-
   /* ── Continue Working + Suggested Next (compact Home) ── */
   var pendingSuggestedNext = null;
 
@@ -1514,12 +1809,23 @@
     return h;
   }
 
-  function proposeDirectorAction(action, payload) {
-    pendingDirectorAction = { action: action, payload: payload || {} };
+  function proposeDirectorAction(action, payload, meta) {
+    pendingDirectorAction = {
+      action: action,
+      payload: payload || {},
+      object: (meta && meta.object) || (payload && payload.__object) || null,
+      tool: (meta && meta.tool) || null,
+      mutates: meta && meta.mutates
+    };
     var preview = null;
     if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
       preview = global.PreShootDirectorOS.executeProposed(
-        { action: action, payload: payload || {} },
+        {
+          action: action,
+          payload: payload || {},
+          object: pendingDirectorAction.object,
+          mutates: pendingDirectorAction.mutates
+        },
         { confirmed: false }
       );
     } else {
@@ -1540,12 +1846,14 @@
     if (!pendingDirectorAction) return;
     var action = pendingDirectorAction.action;
     var payload = pendingDirectorAction.payload || {};
+    var object = pendingDirectorAction.object || null;
+    var mutates = pendingDirectorAction.mutates;
     pendingDirectorAction = null;
     if (typeof global.closeM === 'function') global.closeM('dir-action-modal');
     var result = null;
     if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
       result = global.PreShootDirectorOS.executeProposed(
-        { action: action, payload: payload },
+        { action: action, payload: payload, object: object, mutates: mutates },
         { confirmed: true }
       );
     } else {
@@ -1566,6 +1874,9 @@
     }
     renderContinueCard();
     renderStudio();
+    setTimeout(function () {
+      setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+    }, 40);
   }
 
   function cancelDirectorAction() {
@@ -2131,6 +2442,10 @@
     toggleProjectMenu: toggleProjectMenu,
     directorPlaceholder: directorPlaceholder,
     openDirectorForProduction: openDirectorForProduction,
+    submitDirectorCommand: submitDirectorCommand,
+    toggleDirectorVoice: toggleDirectorVoice,
+    chooseDirectorClarify: chooseDirectorClarify,
+    chooseDirectorClarifyIndex: chooseDirectorClarifyIndex,
     setProdSection: setProdSection,
     saveWorkspaceField: saveWorkspaceField,
     saveScript: saveScript,
