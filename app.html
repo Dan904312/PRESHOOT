@@ -39,8 +39,8 @@
 <script src="/js/creative-research.js"></script>
 <script src="/js/studio.js?v=292"></script>
 <script src="/js/studio-sync.js?v=292"></script>
-<script src="/js/studio-ui.js?v=292"></script>
-<script src="/js/director-os.js?v=292"></script>
+<script src="/js/studio-ui.js?v=294"></script>
+<script src="/js/director-os.js?v=294"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -1042,6 +1042,24 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .pw-director-ico{width:40px;height:40px;border-radius:12px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:800;flex-shrink:0}
 .pw-director-t{font-family:var(--fd);font-size:15px;font-weight:700;margin-bottom:2px}
 .pw-director-s{font-size:12px;color:var(--text2);line-height:1.4}
+.dir-cmd{margin:10px 16px 14px;width:calc(100% - 32px);box-sizing:border-box;max-width:920px;position:sticky;bottom:84px;z-index:5}
+.dir-cmd-bar{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-radius:16px;border:1px solid var(--border);background:var(--s1);box-shadow:var(--sh)}
+.dir-cmd-mark{width:28px;height:28px;border-radius:9px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:800;font-size:12px;color:var(--text);flex-shrink:0}
+.dir-cmd-input{flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--text);font:inherit;font-size:14px;font-weight:500;padding:8px 2px;caret-color:var(--text)}
+.dir-cmd-input::placeholder{color:var(--text3);font-weight:500}
+.dir-cmd-mic,.dir-cmd-go{flex-shrink:0;height:34px;border-radius:11px;border:1px solid var(--border);background:var(--s2);color:var(--text2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font:inherit;font-size:12px;font-weight:700;padding:0 12px}
+.dir-cmd-mic{width:34px;padding:0}
+.dir-cmd-mic.listening{color:var(--text);border-color:rgba(255,255,255,.28);background:var(--s1)}
+.dir-cmd-go:active,.dir-cmd-mic:active{transform:scale(.96)}
+.dir-cmd-panel{margin-top:8px;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--s1)}
+.dir-cmd-panel[hidden]{display:none!important}
+.dir-cmd-reply{font-size:13px;line-height:1.45;color:var(--text);font-weight:500}
+.dir-cmd-done{color:var(--text2)}
+.dir-cmd-status{font-size:12px;color:var(--text3);margin-top:6px;font-weight:600}
+.dir-cmd-hint{font-size:12px;color:var(--text3);margin-top:8px}
+.dir-cmd-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.dir-cmd-choice{width:100%;text-align:left;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:var(--s2);color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.dir-cmd-choice:active{transform:scale(.985)}
 .pw-suggest-row{display:flex;align-items:center;gap:10px;padding:0;margin:0 0 8px}
 .pw-suggest-row:last-child{margin-bottom:0}
 .pw-suggest-item{width:100%;display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid var(--border);background:var(--s2);color:var(--text);font:inherit;text-align:left;cursor:pointer;box-sizing:border-box}
@@ -1059,8 +1077,9 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .pw-perf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
 
 @media (min-width:700px){
-  .pw-shell .st-section,.pw-progress-card,.pw-director-card{max-width:920px;margin-left:auto;margin-right:auto}
+  .pw-shell .st-section,.pw-progress-card,.pw-director-card,.dir-cmd{max-width:920px;margin-left:auto;margin-right:auto}
   .pw-director-card{width:calc(100% - 40px)}
+  .dir-cmd{width:calc(100% - 40px)}
   .pw-asset-grid{grid-template-columns:repeat(3,1fr)}
   .pw-tools{grid-template-columns:repeat(4,1fr)}
   .st-two-col{grid-template-columns:1fr 1fr}
@@ -1073,6 +1092,7 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
   .pw-shell .st-section{padding-left:var(--pad-x);padding-right:var(--pad-x)}
   .pw-progress-card{margin-left:var(--pad-x);margin-right:var(--pad-x)}
   .pw-director-card{margin-left:var(--pad-x);margin-right:var(--pad-x);width:auto}
+  .dir-cmd{margin-left:var(--pad-x);margin-right:var(--pad-x);width:auto}
   .pw-shell > .pw-card{margin-left:var(--pad-x)!important;margin-right:var(--pad-x)!important;width:auto!important}
 }
 
