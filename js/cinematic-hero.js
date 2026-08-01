@@ -75,7 +75,7 @@
     var stopAnything = null;
 
     if (prefersReducedMotion()) {
-      gsap.set('.text-track, .text-days', { autoAlpha: 1, y: 0, scale: 1, filter: 'none', clipPath: 'none', rotationX: 0 });
+      gsap.set('.text-track, .text-days, .text-secs', { autoAlpha: 1, y: 0, scale: 1, filter: 'none', clipPath: 'none', rotationX: 0 });
       gsap.set('.main-card', { y: 0, autoAlpha: 1, width: '92%', height: '92%' });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 1 });
       gsap.set('.cta-wrapper', { autoAlpha: 0 });
@@ -116,23 +116,30 @@
 
     var isMobile = window.innerWidth < 768;
     var ctx = gsap.context(function () {
-      /* First paint already shows brand + value via .hero-first-frame (CSS).
-         Keep headline mostly ready — shorter motion, no empty loading feel. */
+      /* First paint already shows the correct Hero copy via .hero-first-frame.
+         Crossfade into the motion headline (same words) — never a different message. */
       gsap.set('.hero-first-frame', { autoAlpha: 1 });
-      gsap.set('.text-track', { autoAlpha: 0, y: 28, scale: 0.96, filter: 'blur(8px)', rotationX: -8 });
-      gsap.set('.text-days', { autoAlpha: 1, clipPath: 'inset(0 100% 0 0)' });
+      gsap.set('.hero-text-wrapper', { autoAlpha: 1 });
+      gsap.set('.text-track', { autoAlpha: 0, y: 18, scale: 0.98, filter: 'blur(6px)', rotationX: -4 });
+      gsap.set('.text-days', { autoAlpha: 0, y: 14 });
+      gsap.set('.text-secs', { autoAlpha: 0, y: 10 });
       gsap.set('.main-card', { y: getViewportHeight() + 200, autoAlpha: 1 });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 0 });
       gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, filter: 'blur(30px)' });
 
-      var introTl = gsap.timeline({ delay: 0.05 });
+      var introTl = gsap.timeline({ delay: 0.35 });
       introTl
-        .to('.hero-first-frame', { duration: 0.55, autoAlpha: 0, y: -12, ease: 'power2.in' }, 0)
-        .to('.text-track', { duration: 1.05, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' }, 0.12)
-        .to('.text-days', { duration: 0.95, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=0.65')
+        .to('.hero-first-frame', { duration: 0.55, autoAlpha: 0, ease: 'power2.inOut' }, 0)
+        .to('.text-track', { duration: 0.9, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' }, 0.15)
+        .to('.text-days', { duration: 0.75, autoAlpha: 1, y: 0, ease: 'power3.out' }, 0.28)
+        .to('.text-secs', { duration: 0.7, autoAlpha: 1, y: 0, ease: 'power3.out' }, 0.4)
         .add(function () {
           gsap.set('.text-track', { clearProps: 'filter' });
           if (!stopAnything) stopAnything = runAnythingSync(anythingEl);
+          var ff = root.querySelector('.hero-first-frame');
+          if (ff) ff.setAttribute('aria-hidden', 'true');
+          var tw = root.querySelector('.hero-text-wrapper');
+          if (tw) tw.removeAttribute('aria-hidden');
         });
 
       var scrollTl = gsap.timeline({
