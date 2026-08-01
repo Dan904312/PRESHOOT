@@ -1516,7 +1516,15 @@
 
   function proposeDirectorAction(action, payload) {
     pendingDirectorAction = { action: action, payload: payload || {} };
-    var preview = Studio().handleDirectorAction(action, payload || {}, { confirmed: false });
+    var preview = null;
+    if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
+      preview = global.PreShootDirectorOS.executeProposed(
+        { action: action, payload: payload || {} },
+        { confirmed: false }
+      );
+    } else {
+      preview = Studio().handleDirectorAction(action, payload || {}, { confirmed: false });
+    }
     var msg =
       (preview && preview.message) ||
       (Studio().confirmMessage && Studio().confirmMessage(action, payload)) ||
@@ -1534,7 +1542,15 @@
     var payload = pendingDirectorAction.payload || {};
     pendingDirectorAction = null;
     if (typeof global.closeM === 'function') global.closeM('dir-action-modal');
-    var result = Studio().handleDirectorAction(action, payload, { confirmed: true });
+    var result = null;
+    if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
+      result = global.PreShootDirectorOS.executeProposed(
+        { action: action, payload: payload },
+        { confirmed: true }
+      );
+    } else {
+      result = Studio().handleDirectorAction(action, payload, { confirmed: true });
+    }
     if (!result || !result.ok) {
       toast((result && (result.message || result.error)) || 'Action failed');
       return;
