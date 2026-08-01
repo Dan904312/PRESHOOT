@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<style data-hero-boot>html,body{background:#161618;color:#f4f4f6}html:not(.hero-ready) .site>:not(nav):not(#cinematic-hero){visibility:hidden}</style>
 <title>PreShoot: AI Video Ideas for Creators</title>
-<meta name="description" content="Point your camera at anything and get six shoot-ready video ideas in under 30 seconds. AI built for content creators.">
+<meta name="description" content="Scan anything. Get six film-ready ideas. In thirty seconds. AI built for content creators.">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -266,7 +267,7 @@ nav.visible{transform:translateY(0);opacity:1}
 .hw-right{position:absolute;right:-3px;width:3px;border-radius:0 4px 4px 0;z-index:0;transform:scaleX(-1)}
 .scroll-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:30;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3);pointer-events:none}
 
-/* ── Hero first-frame value (visible before GSAP headline) ── */
+/* ── Hero first paint (identical message to animated headline — no alternate page) ── */
 .hero-first-frame{
   position:absolute;z-index:12;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;padding:0 24px;pointer-events:none;will-change:opacity,transform;
@@ -274,8 +275,14 @@ nav.visible{transform:translateY(0);opacity:1}
 .hero-first-brand{font-family:var(--fd);font-size:clamp(1.35rem,3.5vw,1.75rem);font-weight:700;letter-spacing:-.03em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .hero-first-brand span{color:var(--accent)}
 .hero-first-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent-glow)}
-.hero-first-line{font-family:var(--fd);font-size:clamp(1.35rem,4.2vw,2.35rem);font-weight:700;letter-spacing:-.04em;line-height:1.15;max-width:18ch;color:var(--txt)}
-.hero-first-sub{margin-top:14px;font-size:clamp(14px,2vw,16px);color:var(--txt-2);max-width:34rem;line-height:1.6;font-weight:300}
+.hero-first-line{font-family:var(--fd);font-size:clamp(1.45rem,4.4vw,2.5rem);font-weight:700;letter-spacing:-.04em;line-height:1.15;max-width:16ch;color:var(--txt)}
+.hero-first-line-2{margin-top:6px;max-width:18ch}
+.hero-first-sub{margin-top:16px;font-size:clamp(15px,2.2vw,18px);color:var(--txt-2);max-width:34rem;line-height:1.5;font-weight:500}
+.hero-text-wrapper .text-secs{font-family:var(--fd);font-size:clamp(1.1rem,3vw,1.65rem);font-weight:600;letter-spacing:-.03em;margin-top:.35em;opacity:.9}
+/* Prevent below-hero layout from painting before hero is stable */
+html:not(.hero-ready) .site > *:not(nav):not(#cinematic-hero){visibility:hidden}
+html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
+#cinematic-hero{visibility:visible!important}
 
 /* ── Before / after proof ── */
 .proof-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}
@@ -604,15 +611,18 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
       <div class="film-grain" aria-hidden="true"></div>
       <div class="bg-grid-theme" style="position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5" aria-hidden="true"></div>
 
-      <div class="hero-first-frame" aria-hidden="true">
+      <!-- First paint = final Hero copy. No interstitial / alternate message. -->
+      <div class="hero-first-frame" id="hero-first-frame">
         <div class="hero-first-brand"><span class="hero-first-dot"></span>Pre<span>Shoot</span></div>
-        <div class="hero-first-line">Scan anything. Film with a plan.</div>
-        <p class="hero-first-sub">AI video ideas, hooks, and shotlists from a single photo — built for creators and businesses.</p>
+        <div class="hero-first-line">Scan <span class="anything">ANYTHING</span>.</div>
+        <div class="hero-first-line hero-first-line-2">Get six film-ready ideas.</div>
+        <p class="hero-first-sub">In thirty seconds.</p>
       </div>
 
-      <div class="hero-text-wrapper">
-        <h1 class="text-track gsap-reveal text-3d-matte">Scan <span class="anything">ANYTHING</span>,</h1>
-        <h1 class="text-days gsap-reveal text-silver-matte">film ready ideas.</h1>
+      <div class="hero-text-wrapper" aria-hidden="true">
+        <h1 class="text-track gsap-reveal text-3d-matte">Scan <span class="anything">ANYTHING</span>.</h1>
+        <h1 class="text-days gsap-reveal text-silver-matte">Get six film-ready ideas.</h1>
+        <h1 class="text-secs gsap-reveal text-silver-matte">In thirty seconds.</h1>
       </div>
 
       <div class="cta-wrapper gsap-reveal">
@@ -1133,30 +1143,46 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="/js/kinetic-grid.js"></script>
-<script src="/js/cinematic-hero.js"></script>
-<script src="/js/landing-scroll.js"></script>
+<script src="/js/kinetic-grid.js?v=293"></script>
+<script src="/js/cinematic-hero.js?v=293"></script>
+<script src="/js/landing-scroll.js?v=293"></script>
 <script>
 (function() {
 'use strict';
 
 document.documentElement.classList.add('js-ready');
+/* First paint already shows the Hero. Unlock the rest of the page without swapping messages. */
+document.documentElement.classList.add('hero-ready');
 
-/* One fixed kinetic grid — lives behind the whole page; sections that used to be plain/gradient stay transparent so the grid + cursor ripples show through */
+/* One fixed kinetic grid — behind the page */
 new KineticGrid('#kinetic-hero', { fixed: true, interactive: true });
 
 requestAnimationFrame(function() {
   setTimeout(function() {
-    document.getElementById('nav').classList.add('visible');
-  }, 100);
+    var nav = document.getElementById('nav');
+    if (nav) nav.classList.add('visible');
+  }, 180);
 });
 
-if (window.initCinematicHero) {
-  initCinematicHero(document.getElementById('cinematic-hero'));
+function startHeroMotion() {
+  if (window.initCinematicHero) {
+    initCinematicHero(document.getElementById('cinematic-hero'));
+  }
+  if (window.initLandingScroll) {
+    initLandingScroll();
+  }
 }
 
-if (window.initLandingScroll) {
-  initLandingScroll();
+/* Start motion only after layout + fonts settle — avoids flash / jump */
+var start = function () {
+  requestAnimationFrame(function () {
+    requestAnimationFrame(startHeroMotion);
+  });
+};
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(start).catch(start);
+} else {
+  start();
 }
 
 
