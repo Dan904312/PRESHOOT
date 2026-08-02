@@ -56,6 +56,17 @@
       }),
       library: typeof global.getLib === 'function' ? global.getLib() : [],
       director_history: (S.directorHistory || []).slice(-30),
+      director_convs: (S.directorConvs || []).slice(0, 20).map(function (c) {
+        return {
+          id: c.id,
+          title: c.title,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          context: c.context || null,
+          messages: (c.messages || []).slice(-40)
+        };
+      }),
+      active_dir_conv: S.activeDirConvId || null,
       niche: S.niche,
       platform_focus: S.platformFocus,
       aesthetic: S.aesthetic,

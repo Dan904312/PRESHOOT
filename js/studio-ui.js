@@ -135,6 +135,9 @@
         '</div>';
       h += '</div>';
       root.innerHTML = h;
+      setTimeout(function () {
+        setDirectorGoState('idle');
+      }, 0);
       return;
     }
 
@@ -206,6 +209,9 @@
     }
     h += '</div>';
     root.innerHTML = h;
+    setTimeout(function () {
+      setDirectorGoState('idle');
+    }, 0);
   }
 
   function openProject(projectId) {
@@ -355,6 +361,9 @@
 
     h += '</div>';
     root.innerHTML = h;
+    setTimeout(function () {
+      setDirectorGoState('idle');
+    }, 0);
   }
 
 
@@ -942,11 +951,11 @@
       '<span class="dir-cmd-mark" aria-hidden="true">D</span>' +
       '<input type="text" class="dir-cmd-input" id="dir-cmd-input" placeholder="' +
       esc(ph) +
-      '" autocomplete="off" enterkeyhint="go" onkeydown="if(event.key===\'Enter\'){event.preventDefault();PreShootStudioUI.submitDirectorCommand();}">' +
+      '" autocomplete="off" enterkeyhint="go" oninput="PreShootStudioUI.onDirectorInputChange()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();PreShootStudioUI.submitDirectorCommand();}">' +
       '<button type="button" class="dir-cmd-mic" id="dir-cmd-mic" onclick="PreShootStudioUI.toggleDirectorVoice()" aria-label="Voice input" title="Voice input">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>' +
       '</button>' +
-      '<button type="button" class="dir-cmd-go" onclick="PreShootStudioUI.submitDirectorCommand()" aria-label="Run">Go</button>' +
+      '<button type="button" class="dir-cmd-go" id="dir-cmd-go" onclick="PreShootStudioUI.submitDirectorCommand()" aria-label="Go" disabled>Go</button>' +
       '</div>' +
       '<div class="dir-cmd-panel" id="dir-cmd-panel" hidden></div>' +
       '</div>'
@@ -980,7 +989,218 @@
     }
   }
 
+  var _dirGoState = 'idle';
+  function setDirectorGoState(state) {
+    _dirGoState = state || 'idle';
+    var btn = document.getElementById('dir-cmd-go');
+    if (!btn) return;
+    btn.classList.remove('ready', 'executing', 'done');
+    btn.disabled = false;
+    if (_dirGoState === 'ready') {
+      btn.classList.add('ready');
+      btn.textContent = 'Go';
+      btn.disabled = false;
+    } else if (_dirGoState === 'executing') {
+      btn.classList.add('executing');
+      btn.textContent = '…';
+      btn.disabled = true;
+    } else if (_dirGoState === 'done') {
+      btn.classList.add('done');
+      btn.textContent = 'Done';
+      btn.disabled = true;
+    } else {
+      var inp = document.getElementById('dir-cmd-input');
+      var hasText = !!(inp && String(inp.value || '').trim());
+      btn.textContent = 'Go';
+      btn.disabled = !hasText;
+    }
+  }
+
+  function onDirectorInputChange() {
+    if (pendingDirectorAction && _dirGoState === 'ready') {
+      pendingDirectorAction = null;
+      setDirectorPanel('');
+    }
+    if (_dirGoState !== 'executing') {
+      setDirectorGoState('idle');
+    }
+  }
+
+  function actionCardHtml(action, payload, message) {
+    payload = payload || {};
+    var title = actionLabel(action);
+    var rows = '';
+    if (action === 'rename_production' || action === 'rename_project') {
+      var current = '';
+      if (action === 'rename_production' && payload.productionId) {
+        var found = Studio().findProduction(payload.productionId);
+        current = found && found.production ? found.production.name : '';
+      } else if (action === 'rename_project' && payload.projectId) {
+        var proj = Studio().findProject(payload.projectId);
+        current = proj ? proj.name : '';
+      }
+      rows +=
+        '<div class="dir-action-row"><span>Current</span><strong>' +
+        esc(current || '—') +
+        '</strong></div>';
+      rows +=
+        '<div class="dir-action-row"><span>New</span><strong>' +
+        esc(payload.name || '—') +
+        '</strong></div>';
+    } else if (action === 'update_status') {
+      rows +=
+        '<div class="dir-action-row"><span>Status</span><strong>' +
+        esc(
+          ((Studio().STATUS_MAP || {})[payload.status] || {}).label ||
+            payload.status ||
+            '—'
+        ) +
+        '</strong></div>';
+    } else if (action === 'move_production') {
+      var dest = Studio().findProject(payload.toProjectId);
+      rows +=
+        '<div class="dir-action-row"><span>Move to</span><strong>' +
+        esc(dest ? dest.name : 'Selected project') +
+        '</strong></div>';
+    } else if (message) {
+      rows += '<div class="dir-action-msg">' + esc(message) + '</div>';
+    }
+    return (
+      '<div class="dir-action-card">' +
+      '<div class="dir-action-title">' +
+      esc(title) +
+      '</div>' +
+      rows +
+      '<div class="dir-action-hint">Press Go to apply</div>' +
+      '</div>'
+    );
+  }
+
+  function actionLabel(action) {
+    var map = {
+      rename_production: 'Rename Production',
+      rename_project: 'Rename Project',
+      move_production: 'Move Production',
+      archive_production: 'Archive Production',
+      archive_project: 'Archive Project',
+      delete_production: 'Delete Production',
+      create_project: 'Create Project',
+      create_production: 'Create Production',
+      update_status: 'Update Status',
+      generate_sections: 'Generate Sections',
+      open_production: 'Open Production',
+      set_primary_platform: 'Set Platform'
+    };
+    return map[action] || 'Director Action';
+  }
+
+  function stageDirectorAction(action, payload, meta) {
+    meta = meta || {};
+    pendingDirectorAction = {
+      action: action,
+      payload: payload || {},
+      object: meta.object || null,
+      tool: meta.tool || null,
+      mutates: meta.mutates
+    };
+    var preview = null;
+    if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
+      preview = global.PreShootDirectorOS.executeProposed(
+        {
+          action: action,
+          payload: payload || {},
+          object: pendingDirectorAction.object,
+          mutates: pendingDirectorAction.mutates
+        },
+        { confirmed: false }
+      );
+    } else if (Studio() && Studio().handleDirectorAction) {
+      preview = Studio().handleDirectorAction(action, payload || {}, { confirmed: false });
+    }
+    /* Incomplete / invalid — do not enable Go */
+    if (preview && preview.error && !preview.needsConfirmation) {
+      pendingDirectorAction = null;
+      setDirectorPanel(
+        '<div class="dir-cmd-reply">' +
+          esc(preview.message || preview.error || 'I need a bit more detail.') +
+          '</div>'
+      );
+      setDirectorGoState('idle');
+      return false;
+    }
+    var msg =
+      (preview && preview.message) ||
+      (Studio().confirmMessage && Studio().confirmMessage(action, payload)) ||
+      'Ready to apply.';
+    setDirectorPanel(actionCardHtml(action, payload, msg));
+    setDirectorGoState('ready');
+    return true;
+  }
+
+  function executeStagedDirectorAction() {
+    if (!pendingDirectorAction) return;
+    if (_dirGoState === 'executing') return;
+    setDirectorGoState('executing');
+    var action = pendingDirectorAction.action;
+    var payload = pendingDirectorAction.payload || {};
+    var object = pendingDirectorAction.object || null;
+    var mutates = pendingDirectorAction.mutates;
+    pendingDirectorAction = null;
+    var result = null;
+    try {
+      if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
+        result = global.PreShootDirectorOS.executeProposed(
+          { action: action, payload: payload, object: object, mutates: mutates },
+          { confirmed: true }
+        );
+      } else {
+        result = Studio().handleDirectorAction(action, payload, { confirmed: true });
+      }
+    } catch (e) {
+      result = { ok: false, error: 'failed' };
+    }
+    if (!result || !result.ok) {
+      setDirectorGoState('idle');
+      setDirectorPanel(
+        '<div class="dir-cmd-reply">' +
+          esc((result && (result.message || result.error)) || 'Action failed') +
+          '</div>'
+      );
+      toast((result && (result.message || result.error)) || 'Action failed');
+      return;
+    }
+    setDirectorGoState('done');
+    setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+    toast('Done');
+    var openId =
+      (result.open &&
+        ((result.result && result.result.productionId) || payload.productionId)) ||
+      null;
+    setTimeout(function () {
+      if (openId) {
+        openProduction(openId);
+        return;
+      }
+      renderContinueCard();
+      renderStudio();
+      setTimeout(function () {
+        setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+        setDirectorGoState('done');
+        setTimeout(function () {
+          setDirectorGoState('idle');
+        }, 1200);
+      }, 40);
+    }, 280);
+  }
+
   function submitDirectorCommand() {
+    /* Ready Go = execute staged action */
+    if (_dirGoState === 'ready' && pendingDirectorAction) {
+      executeStagedDirectorAction();
+      return;
+    }
+    if (_dirGoState === 'executing' || _dirGoState === 'done') return;
+
     var inp = document.getElementById('dir-cmd-input');
     var text = inp ? String(inp.value || '').trim() : '';
     if (!text) return;
@@ -994,6 +1214,8 @@
       return;
     }
     if (inp) inp.value = '';
+    pendingDirectorAction = null;
+    setDirectorGoState('executing');
     setDirectorPanel('<div class="dir-cmd-status">Working…</div>');
     var result = global.PreShootDirectorOS.processStudioCommand(text);
     handleDirectorCommandResult(result);
@@ -1002,15 +1224,11 @@
   function handleDirectorCommandResult(result) {
     if (!result) {
       setDirectorPanel('');
+      setDirectorGoState('idle');
       return;
     }
     if (result.kind === 'confirm' && result.proposal) {
-      setDirectorPanel(
-        '<div class="dir-cmd-reply">' +
-          esc(result.message || 'Confirm this action?') +
-          '</div>'
-      );
-      proposeDirectorAction(result.proposal.action, result.proposal.payload || {}, {
+      stageDirectorAction(result.proposal.action, result.proposal.payload || {}, {
         object: result.proposal.object || result.object || null,
         tool: result.proposal.tool || null,
         mutates: result.proposal.mutates
@@ -1037,6 +1255,7 @@
           '<div class="dir-cmd-hint">Type the new name in the bar and press Go.</div>';
       }
       setDirectorPanel(h);
+      setDirectorGoState('idle');
       return;
     }
     if (result.kind === 'action' && result.proposal) {
@@ -1078,11 +1297,13 @@
     }
     if (result.kind === 'navigate' && result.target) {
       setDirectorPanel('');
+      setDirectorGoState('idle');
       if (result.target.type === 'project') openProject(result.target.id);
       else if (result.target.type === 'production') openProduction(result.target.id);
       return;
     }
     if (result.kind === 'done') {
+      setDirectorGoState('done');
       setDirectorPanel(
         '<div class="dir-cmd-reply dir-cmd-done">' + esc(result.message || 'Done.') + '</div>'
       );
@@ -1101,23 +1322,35 @@
           setDirectorPanel(
             '<div class="dir-cmd-reply dir-cmd-done">' + esc(result.message || 'Done.') + '</div>'
           );
+          setDirectorGoState('done');
+          setTimeout(function () {
+            setDirectorGoState('idle');
+          }, 1200);
         }, 30);
+      } else {
+        setTimeout(function () {
+          setDirectorGoState('idle');
+        }, 1200);
       }
       return;
     }
     if (result.kind === 'explain') {
+      setDirectorGoState('idle');
       requestDirectorExplain(result);
       return;
     }
     if (result.kind === 'reply') {
       setDirectorPanel('<div class="dir-cmd-reply">' + esc(result.text || '') + '</div>');
+      setDirectorGoState('idle');
       return;
     }
     if (result.kind === 'error') {
       setDirectorPanel('<div class="dir-cmd-reply">' + esc(result.message || 'Something went wrong.') + '</div>');
+      setDirectorGoState('idle');
       return;
     }
     setDirectorPanel('');
+    setDirectorGoState('idle');
   }
 
   var _dirClarifyOptions = [];
@@ -1304,7 +1537,35 @@
       pct +
       '% · Health ' +
       healthScore +
-      '%</div></div></div>';
+      '%</div></div>';
+    h +=
+      '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProductionMenu(\'' +
+      esc(productionId) +
+      '\')" aria-label="Production options">⋯</button>';
+    h += '</div>';
+
+    h += '<div id="st-production-menu" class="st-overflow-menu" hidden>';
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.renameProductionPrompt(\'' +
+      esc(productionId) +
+      '\')">Rename</button>';
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.moveProductionPrompt(\'' +
+      esc(productionId) +
+      '\')">Move</button>';
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.duplicateProduction(\'' +
+      esc(productionId) +
+      '\')">Duplicate</button>';
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.archiveProductionPrompt(\'' +
+      esc(productionId) +
+      '\')">Archive</button>';
+    h +=
+      '<button type="button" class="danger" onclick="PreShootStudioUI.deleteProduction(\'' +
+      esc(productionId) +
+      '\')">Delete</button>';
+    h += '</div>';
 
     /* Progress stages */
     h += '<div class="pw-card pw-progress-card">';
@@ -1365,25 +1626,11 @@
 
     h += renderDirectorCard(productionId);
 
-    h += '<div class="pw-card" style="margin:0 16px 20px">';
-    h += '<div class="pw-card-kicker">Manage</div>';
-    h += '<div class="studio-actions-row" style="padding:0">';
-    h +=
-      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.moveProductionPrompt(\'' +
-      esc(productionId) +
-      '\')">Move</button>';
-    h +=
-      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.duplicateProduction(\'' +
-      esc(productionId) +
-      '\')">Duplicate</button>';
-    h +=
-      '<button type="button" class="studio-btn ghost danger" onclick="PreShootStudioUI.deleteProduction(\'' +
-      esc(productionId) +
-      '\')">Delete</button>';
-    h += '</div></div>';
-
     h += '</div>';
     root.innerHTML = h;
+    setTimeout(function () {
+      setDirectorGoState('idle');
+    }, 0);
   }
 
   function setProdSection(productionId, section) {
@@ -1421,6 +1668,39 @@
     var menu = document.getElementById('st-project-menu');
     if (!menu) return;
     menu.hidden = !menu.hidden;
+    var other = document.getElementById('st-production-menu');
+    if (other) other.hidden = true;
+  }
+
+  function toggleProductionMenu(productionId) {
+    var menu = document.getElementById('st-production-menu');
+    if (!menu) return;
+    menu.hidden = !menu.hidden;
+    var other = document.getElementById('st-project-menu');
+    if (other) other.hidden = true;
+  }
+
+  function renameProductionPrompt(productionId) {
+    var menu = document.getElementById('st-production-menu');
+    if (menu) menu.hidden = true;
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var name = prompt('Rename production', found.production.name);
+    if (name == null) return;
+    Studio().updateProduction(productionId, { name: name });
+    toast('Production renamed');
+    openProduction(productionId);
+  }
+
+  function archiveProductionPrompt(productionId) {
+    var menu = document.getElementById('st-production-menu');
+    if (menu) menu.hidden = true;
+    if (!confirm('Archive this production?')) return;
+    Studio().updateProduction(productionId, { status: 'archived', archived: true });
+    toast('Production archived');
+    var found = Studio().findProduction(productionId);
+    if (found && found.project) openProject(found.project.id);
+    else backToList();
   }
 
 
@@ -1810,12 +2090,23 @@
   }
 
   function proposeDirectorAction(action, payload, meta) {
+    meta = meta || {};
+    /* Prefer in-page staged action + green Go when Studio command bar is present */
+    if (
+      global.S &&
+      global.S.tab === 'studio' &&
+      document.getElementById('dir-cmd-go') &&
+      document.getElementById('dir-cmd-panel')
+    ) {
+      stageDirectorAction(action, payload || {}, meta);
+      return;
+    }
     pendingDirectorAction = {
       action: action,
       payload: payload || {},
-      object: (meta && meta.object) || (payload && payload.__object) || null,
-      tool: (meta && meta.tool) || null,
-      mutates: meta && meta.mutates
+      object: meta.object || (payload && payload.__object) || null,
+      tool: meta.tool || null,
+      mutates: meta.mutates
     };
     var preview = null;
     if (global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed) {
@@ -1837,13 +2128,35 @@
       'Confirm this action?';
     var title = document.getElementById('dir-action-title');
     var body = document.getElementById('dir-action-body');
-    if (title) title.textContent = 'Confirm action';
-    if (body) body.textContent = msg;
+    if (title) title.textContent = actionLabel(action);
+    if (body) {
+      body.innerHTML = '';
+      var card = document.createElement('div');
+      card.className = 'dir-action-card-inline';
+      card.innerHTML = actionCardHtml(action, payload || {}, msg).replace(
+        'dir-action-card',
+        'dir-action-card flat'
+      );
+      /* Use text for modal compatibility */
+      body.textContent = msg;
+    }
+    var goBtn = document.getElementById('dir-action-go');
+    if (goBtn) {
+      goBtn.classList.add('ready');
+      goBtn.disabled = false;
+      goBtn.textContent = 'Go';
+    }
     if (typeof global.openM === 'function') global.openM('dir-action-modal');
   }
 
   function confirmDirectorAction() {
     if (!pendingDirectorAction) return;
+    var goBtn = document.getElementById('dir-action-go');
+    if (goBtn) {
+      goBtn.classList.add('executing');
+      goBtn.disabled = true;
+      goBtn.textContent = '…';
+    }
     var action = pendingDirectorAction.action;
     var payload = pendingDirectorAction.payload || {};
     var object = pendingDirectorAction.object || null;
@@ -1876,6 +2189,10 @@
     renderStudio();
     setTimeout(function () {
       setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+      setDirectorGoState('done');
+      setTimeout(function () {
+        setDirectorGoState('idle');
+      }, 1200);
     }, 40);
   }
 
@@ -2375,6 +2692,8 @@
   }
 
   function moveProductionPrompt(productionId) {
+    var menu = document.getElementById('st-production-menu');
+    if (menu) menu.hidden = true;
     var projects = Studio().listProjects();
     if (projects.length < 2) {
       toast('Create another project to move into');
@@ -2394,6 +2713,8 @@
   }
 
   function duplicateProduction(productionId) {
+    var menu = document.getElementById('st-production-menu');
+    if (menu) menu.hidden = true;
     var result = Studio().duplicateProduction(productionId);
     if (!result) return;
     toast('Production duplicated');
@@ -2401,6 +2722,8 @@
   }
 
   function deleteProduction(productionId) {
+    var menu = document.getElementById('st-production-menu');
+    if (menu) menu.hidden = true;
     if (!confirm('Delete this production? This cannot be undone.')) return;
     var found = Studio().findProduction(productionId);
     var projectId = found && found.project ? found.project.id : null;
@@ -2440,9 +2763,13 @@
     duplicateProduction: duplicateProduction,
     deleteProduction: deleteProduction,
     toggleProjectMenu: toggleProjectMenu,
+    toggleProductionMenu: toggleProductionMenu,
+    renameProductionPrompt: renameProductionPrompt,
+    archiveProductionPrompt: archiveProductionPrompt,
     directorPlaceholder: directorPlaceholder,
     openDirectorForProduction: openDirectorForProduction,
     submitDirectorCommand: submitDirectorCommand,
+    onDirectorInputChange: onDirectorInputChange,
     toggleDirectorVoice: toggleDirectorVoice,
     chooseDirectorClarify: chooseDirectorClarify,
     chooseDirectorClarifyIndex: chooseDirectorClarifyIndex,
