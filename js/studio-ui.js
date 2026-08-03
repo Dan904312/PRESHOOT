@@ -983,9 +983,16 @@
     panel.hidden = false;
     panel.innerHTML = html;
     if (opts.scroll !== false) {
-      try {
-        panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      } catch (e) {}
+      var inp = document.getElementById('dir-cmd-input');
+      if (
+        inp &&
+        global.PreShootStudioKeyboard &&
+        typeof global.PreShootStudioKeyboard.ensureVisible === 'function'
+      ) {
+        setTimeout(function () {
+          global.PreShootStudioKeyboard.ensureVisible(inp, { force: true });
+        }, 40);
+      }
     }
   }
 
