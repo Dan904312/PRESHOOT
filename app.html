@@ -6,23 +6,35 @@
 <script>
 (function(){
   var root=document.documentElement;
-  function sync(){
-    var vv=window.visualViewport;
-    var h=Math.round(vv?vv.height:window.innerHeight);
-    var t=Math.round(vv?vv.offsetTop:0);
+  var baseHeight=Math.round(window.innerHeight);
+  function isField(el){
+    if(!el||!el.tagName) return false;
+    var t=el.tagName;
+    return t==='TEXTAREA'||t==='SELECT'||(t==='INPUT'&&el.type!=='file'&&el.type!=='hidden'&&el.type!=='checkbox'&&el.type!=='radio');
+  }
+  /* Stable layout viewport — keyboard is an overlay, never resize the shell */
+  function syncLayout(){
+    var h=Math.round(window.innerHeight);
+    var focused=document.activeElement;
+    /* Mobile: ignore keyboard-driven resize shrink while typing */
+    if(window.innerWidth<=899&&focused&&isField(focused)&&h<baseHeight-80){
+      h=baseHeight;
+    } else {
+      baseHeight=h;
+    }
     root.style.setProperty('--app-height',h+'px');
-    root.style.setProperty('--app-top',t+'px');
+    root.style.setProperty('--app-top','0px');
     var standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
     root.classList.toggle('is-standalone',!!standalone);
     root.classList.toggle('is-browser',!standalone);
   }
-  sync();
-  window.addEventListener('resize',sync,{passive:true});
-  window.addEventListener('orientationchange',function(){setTimeout(sync,50);},{passive:true});
-  if(window.visualViewport){
-    visualViewport.addEventListener('resize',sync,{passive:true});
-    visualViewport.addEventListener('scroll',sync,{passive:true});
-  }
+  syncLayout();
+  window.addEventListener('resize',function(){
+    if(window.innerWidth>899) syncLayout();
+    else if(!document.activeElement||!isField(document.activeElement)) syncLayout();
+  },{passive:true});
+  window.addEventListener('orientationchange',function(){setTimeout(function(){baseHeight=Math.round(window.innerHeight);syncLayout();},120);},{passive:true});
+  document.addEventListener('focusout',function(){setTimeout(syncLayout,280);},{passive:true});
 })();
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -39,8 +51,9 @@
 <script src="/js/creative-research.js"></script>
 <script src="/js/studio.js?v=292"></script>
 <script src="/js/studio-sync.js?v=295"></script>
-<script src="/js/studio-ui.js?v=295"></script>
-<script src="/js/director-os.js?v=295"></script>
+<script src="/js/studio-ui.js?v=296"></script>
+<script src="/js/studio-keyboard.js?v=296"></script>
+<script src="/js/director-os.js?v=296"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -82,15 +95,16 @@
 }
 html.is-browser{ --bnav-inset-bottom:8px; }
 html.is-standalone{ --bnav-inset-bottom:max(8px, env(safe-area-inset-bottom, 0px)); }
-html,body{height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);min-height:100%;min-height:100dvh;min-height:-webkit-fill-available;overflow:hidden;overscroll-behavior:none;background:var(--bg)}
-body{font-family:var(--fb);color:var(--text);-webkit-overflow-scrolling:touch;user-select:none;-webkit-user-select:none;position:fixed;top:var(--app-top,0px);left:0;right:0;width:100%;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh)}
+html,body{height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);min-height:100%;min-height:100dvh;min-height:-webkit-fill-available;overflow:hidden;overscroll-behavior:none;background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:var(--fb);color:var(--text);-webkit-overflow-scrolling:touch;user-select:none;-webkit-user-select:none;position:fixed;top:0;left:0;right:0;width:100%;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh)}
+input,textarea,select,[contenteditable]{user-select:text;-webkit-user-select:text}
 button{font-family:var(--fb);cursor:pointer;border:none;background:none}
 ::-webkit-scrollbar{display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 @keyframes pulse{0%,100%{box-shadow:none}} /* SCREENS */
-.screen{position:fixed;top:var(--app-top,0px);left:0;right:0;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);display:none;flex-direction:column;background:var(--bg);padding-bottom:var(--bnav-space);box-sizing:border-box}
+.screen{position:fixed;top:0;left:0;right:0;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);display:none;flex-direction:column;background:var(--bg);padding-bottom:var(--bnav-space);box-sizing:border-box}
 .screen.active{display:flex;animation:screenIn .32s cubic-bezier(0.4,0,.2,1) forwards}
 .screen.exit{animation:screenOut .2s cubic-bezier(0.4,0,1,1) forwards;pointer-events:none}
 @keyframes screenIn{0%{opacity:0}100%{opacity:1}}
@@ -128,7 +142,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .fmt-go-btn:active{transform:scale(.96)!important} /* Info tooltip spring */
 .info-tip-box{animation:tipIn .32s cubic-bezier(0.34,1.4,0.64,1) both}
 @keyframes tipIn{0%{opacity:0;transform:scale(.85) translateY(16px)}100%{opacity:1;transform:scale(1) translateY(0)}} /* ── iPhone Dock Nav ── */
-.bnav{position:fixed;z-index:200;left:max(var(--bnav-side),env(safe-area-inset-left,0px));right:max(var(--bnav-side),env(safe-area-inset-right,0px));top:calc(var(--app-top,0px) + var(--app-height,100dvh) - var(--bnav-h) - var(--bnav-inset-bottom));bottom:auto;height:var(--bnav-h);background:var(--s1);backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);border-radius:999px;border:1px solid var(--border);box-shadow:0 10px 40px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.06) inset;display:flex;align-items:center;padding:0 8px;overflow:visible}
+.bnav{position:fixed;z-index:200;left:max(var(--bnav-side),env(safe-area-inset-left,0px));right:max(var(--bnav-side),env(safe-area-inset-right,0px));bottom:var(--bnav-inset-bottom);top:auto;height:var(--bnav-h);background:var(--s1);backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);border-radius:999px;border:1px solid var(--border);box-shadow:0 10px 40px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.06) inset;display:flex;align-items:center;padding:0 8px;overflow:visible;transform:none}
 .bni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:4px 0;min-width:0;overflow:visible;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
 .bni:active{transform:scale(.86)}
 .scan-ring-label{font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
@@ -454,7 +468,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .color-sw{width:38px;height:38px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform .15s;position:relative}
 .color-sw:active{transform:scale(.9)}
 .color-sw.sel::after{content:'checkmark';font-size:0;position:absolute;inset:0;border-radius:50%;border:2px solid #fff} /* TOAST */
-.toast{position:fixed;bottom:auto;top:calc(var(--app-top,0px) + var(--app-height,100dvh) - var(--bnav-h) - var(--bnav-inset-bottom) - 64px);left:16px;right:16px;z-index:900;background:var(--s3);border:1px solid var(--border2);border-radius:var(--r);padding:11px 15px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:9px;transform:translateY(20px);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;color:var(--text)}
+.toast{position:fixed;bottom:calc(var(--bnav-h) + var(--bnav-inset-bottom) + 64px);top:auto;left:16px;right:16px;z-index:900;background:var(--s3);border:1px solid var(--border2);border-radius:var(--r);padding:11px 15px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:9px;transform:translateY(20px);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;color:var(--text)}
 .toast.show{transform:translateY(0);opacity:1} /* ═══ PERSONALIZATION UI ═══ */
 .pers-tab{display:flex;gap:8px;margin-bottom:20px;border-bottom:1.5px solid var(--border);overflow-x:auto;scrollbar-width:none}
 .pers-tab::-webkit-scrollbar{display:none}
@@ -912,7 +926,7 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .st-status-btn{border:1px solid var(--border);background:var(--s2);color:var(--text2);border-radius:999px;padding:8px 11px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .st-status-btn.sel{border-color:rgba(255,255,255,.35);color:var(--text);background:rgba(255,255,255,.08)}
 .st-label{display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin:0 0 6px}
-.st-input{width:100%;box-sizing:border-box;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:15px;font-family:var(--fb);margin-bottom:12px}
+.st-input{width:100%;box-sizing:border-box;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:16px;font-family:var(--fb);margin-bottom:12px;-webkit-appearance:none;appearance:none}
 .st-notes{min-height:110px;resize:vertical;line-height:1.5}
 .st-idea-t{font-weight:700;font-family:var(--fd);margin-bottom:6px}
 .st-idea-h{font-size:13px;color:var(--text2);line-height:1.5}
@@ -1042,10 +1056,10 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .pw-director-ico{width:40px;height:40px;border-radius:12px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:800;flex-shrink:0}
 .pw-director-t{font-family:var(--fd);font-size:15px;font-weight:700;margin-bottom:2px}
 .pw-director-s{font-size:12px;color:var(--text2);line-height:1.4}
-.dir-cmd{margin:10px 16px 14px;width:calc(100% - 32px);box-sizing:border-box;max-width:920px;position:sticky;bottom:84px;z-index:5}
+.dir-cmd{margin:10px 16px 14px;width:calc(100% - 32px);box-sizing:border-box;max-width:920px;position:relative;z-index:5}
 .dir-cmd-bar{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-radius:16px;border:1px solid var(--border);background:var(--s1);box-shadow:var(--sh)}
 .dir-cmd-mark{width:28px;height:28px;border-radius:9px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:800;font-size:12px;color:var(--text);flex-shrink:0}
-.dir-cmd-input{flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--text);font:inherit;font-size:14px;font-weight:500;padding:8px 2px;caret-color:var(--text)}
+.dir-cmd-input{flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--text);font:inherit;font-size:16px;font-weight:500;padding:8px 2px;caret-color:var(--text)}
 .dir-cmd-input::placeholder{color:var(--text3);font-weight:500}
 .dir-cmd-mic,.dir-cmd-go{flex-shrink:0;height:34px;border-radius:11px;border:1px solid var(--border);background:var(--s2);color:var(--text2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font:inherit;font-size:12px;font-weight:700;padding:0 12px;transition:background .18s,color .18s,border-color .18s,opacity .18s,transform .12s}
 .dir-cmd-mic{width:34px;padding:0}
@@ -1272,6 +1286,31 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
   #screen-home .upload-btn{width:auto!important;max-width:280px!important}
   .continue-card{flex-direction:row;align-items:center;gap:14px;padding:12px 14px}
   .continue-cta{align-self:center;margin-left:auto}
+}
+
+/* ═══ Phase 6 — Studio mobile keyboard (overlay model) ═══ */
+@media (max-width:899px){
+  #screen-studio .sb{
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    scroll-behavior:auto;
+  }
+  #screen-studio .st-input,
+  #screen-studio .dir-cmd-input,
+  #screen-studio textarea,
+  #screen-studio select.st-input{
+    font-size:16px!important;
+    line-height:1.45;
+    transform:none!important;
+    zoom:1;
+  }
+  #screen-studio .dir-cmd{
+    position:relative;
+    bottom:auto;
+  }
+  #screen-studio .studio-shell{
+    transform:none!important;
+  }
 }
 
 </style>
