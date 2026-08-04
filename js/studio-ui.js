@@ -1033,8 +1033,9 @@
     }
   }
 
-  function actionCardHtml(action, payload, message) {
+  function actionCardHtml(action, payload, message, status) {
     payload = payload || {};
+    status = status || 'waiting';
     var title = actionLabel(action);
     var rows = '';
     if (action === 'rename_production' || action === 'rename_project') {
@@ -1050,6 +1051,8 @@
         '<div class="dir-action-row"><span>Current</span><strong>' +
         esc(current || '—') +
         '</strong></div>';
+      rows +=
+        '<div class="dir-action-arrow" aria-hidden="true">→</div>';
       rows +=
         '<div class="dir-action-row"><span>New</span><strong>' +
         esc(payload.name || '—') +
@@ -1072,15 +1075,64 @@
     } else if (message) {
       rows += '<div class="dir-action-msg">' + esc(message) + '</div>';
     }
+    var statusLabel =
+      status === 'executing'
+        ? 'Executing…'
+        : status === 'done'
+          ? 'Completed ✓'
+          : status === 'error'
+            ? 'Failed'
+            : 'Waiting for confirmation';
     return (
-      '<div class="dir-action-card">' +
+      '<div class="dir-action-card status-' +
+      esc(status) +
+      '">' +
       '<div class="dir-action-title">' +
       esc(title) +
       '</div>' +
       rows +
-      '<div class="dir-action-hint">Press Go to apply</div>' +
+      '<div class="dir-action-status">' +
+      esc(statusLabel) +
+      '</div>' +
+      (status === 'waiting'
+        ? '<div class="dir-action-hint">Press Go to apply</div>'
+        : '') +
       '</div>'
     );
+  }
+
+  function setDirectorStatus(kind, message) {
+    var label = message || '';
+    if (!label) {
+      if (kind === 'thinking') label = 'Thinking…';
+      else if (kind === 'listening') label = 'Listening…';
+      else if (kind === 'executing') label = 'Updating…';
+      else if (kind === 'done') label = 'Done';
+      else if (kind === 'error') label = 'Something went wrong';
+    }
+    setDirectorPanel(
+      '<div class="dir-cmd-status-card kind-' +
+        esc(kind || 'thinking') +
+        '">' +
+        '<div class="dir-cmd-status-pulse" aria-hidden="true"></div>' +
+        '<div class="dir-cmd-status-text">' +
+        esc(label) +
+        '</div>' +
+        '</div>'
+    );
+  }
+
+  function statusLabelForIntent(text) {
+    var t = String(text || '').toLowerCase();
+    if (/\bhook\b/.test(t)) return 'Improving hook…';
+    if (/\bscript\b|\bline\b/.test(t)) return 'Updating script…';
+    if (/\bshot\b|close-?up/.test(t)) return 'Updating shot list…';
+    if (/\brename|call (this|it)|change (the )?name/.test(t)) return 'Preparing rename…';
+    if (/\bmove\b/.test(t)) return 'Preparing move…';
+    if (/\barchive\b/.test(t)) return 'Preparing archive…';
+    if (/\bgenerat|improve|stronger|cinematic|shorter/.test(t)) return 'Generating…';
+    if (/\bfind|open|search\b/.test(t)) return 'Searching…';
+    return 'Thinking…';
   }
 
   function actionLabel(action) {
@@ -1139,7 +1191,7 @@
       (preview && preview.message) ||
       (Studio().confirmMessage && Studio().confirmMessage(action, payload)) ||
       'Ready to apply.';
-    setDirectorPanel(actionCardHtml(action, payload, msg));
+    setDirectorPanel(actionCardHtml(action, payload, msg, 'waiting'));
     setDirectorGoState('ready');
     return true;
   }
@@ -1152,6 +1204,7 @@
     var payload = pendingDirectorAction.payload || {};
     var object = pendingDirectorAction.object || null;
     var mutates = pendingDirectorAction.mutates;
+    setDirectorPanel(actionCardHtml(action, payload, '', 'executing'));
     pendingDirectorAction = null;
     var result = null;
     try {
@@ -1168,16 +1221,12 @@
     }
     if (!result || !result.ok) {
       setDirectorGoState('idle');
-      setDirectorPanel(
-        '<div class="dir-cmd-reply">' +
-          esc((result && (result.message || result.error)) || 'Action failed') +
-          '</div>'
-      );
+      setDirectorPanel(actionCardHtml(action, payload, (result && (result.message || result.error)) || 'Action failed', 'error'));
       toast((result && (result.message || result.error)) || 'Action failed');
       return;
     }
     setDirectorGoState('done');
-    setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+    setDirectorPanel(actionCardHtml(action, payload, '', 'done'));
     toast('Done');
     var openId =
       (result.open &&
@@ -1191,46 +1240,75 @@
       renderContinueCard();
       renderStudio();
       setTimeout(function () {
-        setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+        setDirectorPanel(
+          '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Done ✓</div></div>'
+        );
         setDirectorGoState('done');
         setTimeout(function () {
           setDirectorGoState('idle');
-        }, 1200);
+        }, 1400);
       }, 40);
-    }, 280);
+    }, 420);
   }
 
-  function submitDirectorCommand() {
+  function submitDirectorCommand(forcedText) {
     /* Ready Go = execute staged action */
-    if (_dirGoState === 'ready' && pendingDirectorAction) {
+    if (_dirGoState === 'ready' && pendingDirectorAction && forcedText == null) {
       executeStagedDirectorAction();
       return;
     }
-    if (_dirGoState === 'executing' || _dirGoState === 'done') return;
+    if (_dirGoState === 'executing') return;
+    if (_dirGoState === 'done' && forcedText == null) return;
 
     var inp = document.getElementById('dir-cmd-input');
-    var text = inp ? String(inp.value || '').trim() : '';
-    if (!text) return;
-    if (!Studio()) return;
+    var text =
+      forcedText != null
+        ? String(forcedText || '').trim()
+        : inp
+          ? String(inp.value || '').trim()
+          : '';
+    if (!text) {
+      setDirectorStatus('error', 'Tell Director what you’d like to do.');
+      return;
+    }
+    if (!Studio()) {
+      setDirectorStatus('error', 'Studio isn’t ready yet.');
+      return;
+    }
     if (global.S && global.S.plan !== 'pro') {
       if (typeof global.openM === 'function') global.openM('pw-modal');
       return;
     }
     if (!global.PreShootDirectorOS || !global.PreShootDirectorOS.processStudioCommand) {
+      setDirectorStatus('error', 'Director is unavailable');
       toast('Director is unavailable');
       return;
     }
     if (inp) inp.value = '';
     pendingDirectorAction = null;
     setDirectorGoState('executing');
-    setDirectorPanel('<div class="dir-cmd-status">Working…</div>');
-    var result = global.PreShootDirectorOS.processStudioCommand(text);
+    setDirectorStatus('thinking', statusLabelForIntent(text));
+    var result = null;
+    try {
+      result = global.PreShootDirectorOS.processStudioCommand(text);
+    } catch (e) {
+      setDirectorGoState('idle');
+      setDirectorStatus('error', 'Something went wrong. Try again.');
+      return;
+    }
     handleDirectorCommandResult(result);
+  }
+
+  function shortActionMessage(msg, fallback) {
+    var t = String(msg || '').replace(/\s+/g, ' ').trim();
+    if (!t) return fallback || 'Done';
+    if (t.length > 90) t = t.slice(0, 87).replace(/\s+\S*$/, '') + '…';
+    return t;
   }
 
   function handleDirectorCommandResult(result) {
     if (!result) {
-      setDirectorPanel('');
+      setDirectorStatus('error', 'No response from Director. Try again.');
       setDirectorGoState('idle');
       return;
     }
@@ -1245,9 +1323,10 @@
     if (result.kind === 'clarify') {
       _dirClarifyOptions = result.options || [];
       var h =
-        '<div class="dir-cmd-reply">' +
+        '<div class="dir-cmd-status-card kind-clarify">' +
+        '<div class="dir-cmd-status-text">' +
         esc(result.question || 'Which one?') +
-        '</div><div class="dir-cmd-choices">';
+        '</div></div><div class="dir-cmd-choices">';
       _dirClarifyOptions.forEach(function (opt, i) {
         h +=
           '<button type="button" class="dir-cmd-choice" onclick="PreShootStudioUI.chooseDirectorClarifyIndex(' +
@@ -1267,6 +1346,7 @@
     }
     if (result.kind === 'action' && result.proposal) {
       var prop = result.proposal;
+      setDirectorStatus('executing', 'Preparing action…');
       var preview =
         global.PreShootDirectorOS && global.PreShootDirectorOS.executeProposed
           ? global.PreShootDirectorOS.executeProposed(prop, { confirmed: false })
@@ -1285,12 +1365,13 @@
             ? global.PreShootDirectorOS.executeProposed(prop, { confirmed: true })
             : null;
         if (opened && opened.open && prop.payload && prop.payload.productionId) {
+          setDirectorStatus('done', 'Opening…');
           openProduction(prop.payload.productionId);
           return;
         }
         handleDirectorCommandResult({
           kind: 'done',
-          message: (opened && opened.ok && 'Done.') || (opened && opened.error) || 'Done.',
+          message: (opened && opened.ok && 'Done') || (opened && opened.error) || 'Done',
           refresh: true
         });
         return;
@@ -1303,17 +1384,18 @@
       return;
     }
     if (result.kind === 'navigate' && result.target) {
-      setDirectorPanel('');
-      setDirectorGoState('idle');
+      setDirectorStatus('done', 'Opening…');
+      setDirectorGoState('done');
+      setTimeout(function () {
+        setDirectorGoState('idle');
+      }, 600);
       if (result.target.type === 'project') openProject(result.target.id);
       else if (result.target.type === 'production') openProduction(result.target.id);
       return;
     }
     if (result.kind === 'done') {
       setDirectorGoState('done');
-      setDirectorPanel(
-        '<div class="dir-cmd-reply dir-cmd-done">' + esc(result.message || 'Done.') + '</div>'
-      );
+      setDirectorStatus('done', shortActionMessage(result.message, 'Done'));
       if (result.section && global.S && global.S.studioView && global.S.studioView.productionId) {
         global.S.studioView.section = result.section;
       }
@@ -1324,39 +1406,44 @@
       if (result.refresh !== false) {
         renderContinueCard();
         renderStudio();
-        /* restore brief done flash after re-render */
         setTimeout(function () {
-          setDirectorPanel(
-            '<div class="dir-cmd-reply dir-cmd-done">' + esc(result.message || 'Done.') + '</div>'
-          );
+          setDirectorStatus('done', shortActionMessage(result.message, 'Done ✓'));
           setDirectorGoState('done');
           setTimeout(function () {
             setDirectorGoState('idle');
-          }, 1200);
+          }, 1400);
         }, 30);
       } else {
         setTimeout(function () {
           setDirectorGoState('idle');
-        }, 1200);
+        }, 1400);
       }
       return;
     }
     if (result.kind === 'explain') {
-      setDirectorGoState('idle');
+      setDirectorGoState('executing');
       requestDirectorExplain(result);
       return;
     }
     if (result.kind === 'reply') {
-      setDirectorPanel('<div class="dir-cmd-reply">' + esc(result.text || '') + '</div>');
-      setDirectorGoState('idle');
+      setDirectorPanel(
+        '<div class="dir-cmd-status-card kind-done">' +
+          '<div class="dir-cmd-status-text">' +
+          esc(shortActionMessage(result.text, 'Done')) +
+          '</div></div>'
+      );
+      setDirectorGoState('done');
+      setTimeout(function () {
+        setDirectorGoState('idle');
+      }, 1400);
       return;
     }
     if (result.kind === 'error') {
-      setDirectorPanel('<div class="dir-cmd-reply">' + esc(result.message || 'Something went wrong.') + '</div>');
+      setDirectorStatus('error', shortActionMessage(result.message, 'Something went wrong'));
       setDirectorGoState('idle');
       return;
     }
-    setDirectorPanel('');
+    setDirectorStatus('error', 'Director didn’t understand that. Try again.');
     setDirectorGoState('idle');
   }
 
@@ -1374,7 +1461,7 @@
 
   function requestDirectorExplain(result) {
     var fallback = (result && result.localFallback) || 'Here’s a concise take based on your current production.';
-    setDirectorPanel('<div class="dir-cmd-reply">' + esc(fallback) + '</div><div class="dir-cmd-status">Refining…</div>');
+    setDirectorStatus('thinking', statusLabelForIntent((result && result.message) || '') || 'Thinking…');
     var ctxLines = '';
     try {
       if (global.PreShootDirectorOS && global.PreShootDirectorOS.buildOSContext) {
@@ -1383,7 +1470,11 @@
     } catch (e) {}
     var msg = String((result && result.message) || '').slice(0, 500);
     if (typeof global.apiFetch !== 'function') {
-      setDirectorPanel('<div class="dir-cmd-reply">' + esc(fallback) + '</div>');
+      setDirectorStatus('done', shortActionMessage(fallback, 'Updated'));
+      setDirectorGoState('done');
+      setTimeout(function () {
+        setDirectorGoState('idle');
+      }, 1400);
       return;
     }
     global
@@ -1392,14 +1483,16 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           stream: false,
-          context: ctxLines + '\n\nMODE: Studio embedded answer. Max 3 short sentences. No ACTION block unless essential.',
+          context:
+            ctxLines +
+            '\n\nMODE: Studio action assistant. Reply in 1 short sentence max. Prefer status like "Updated hook generated" over essays. No markdown. No ACTION block unless essential.',
           messages: [
             {
               role: 'user',
               content:
-                'Answer briefly inside Studio (no chat UI). Question: ' +
+                'Respond as an action assistant inside Studio. Keep it tiny. Question: ' +
                 msg +
-                '\nIf useful, end with one concrete next action the user can type.'
+                '\nIf you changed or proposed something, say what finished (e.g. "Updated hook generated"). Optional: one next command they can type.'
             }
           ]
         })
@@ -1419,64 +1512,67 @@
           global.PreShootDirectorOS && global.PreShootDirectorOS.parseActionFromReply
             ? global.PreShootDirectorOS.parseActionFromReply((block && block.text) || '')
             : null;
-        setDirectorPanel('<div class="dir-cmd-reply">' + esc(text) + '</div>');
+        setDirectorStatus('done', shortActionMessage(text, 'Done'));
+        setDirectorGoState('done');
         if (act) {
           setTimeout(function () {
             proposeDirectorAction(act.action, act.payload || {});
           }, 200);
+        } else {
+          setTimeout(function () {
+            setDirectorGoState('idle');
+          }, 1600);
         }
       })
       .catch(function () {
-        setDirectorPanel('<div class="dir-cmd-reply">' + esc(fallback) + '</div>');
+        setDirectorStatus('done', shortActionMessage(fallback, 'Done'));
+        setDirectorGoState('done');
+        setTimeout(function () {
+          setDirectorGoState('idle');
+        }, 1400);
       });
   }
 
-  var _dirVoiceRec = null;
   function toggleDirectorVoice() {
-    var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
+    var Voice = global.PreShootDirectorVoice;
     var btn = document.getElementById('dir-cmd-mic');
-    if (!SR) {
-      toast('Voice input isn’t supported in this browser yet');
-      return;
-    }
-    if (_dirVoiceRec) {
-      try {
-        _dirVoiceRec.stop();
-      } catch (e) {}
-      _dirVoiceRec = null;
+    if (Voice && Voice.isOpen && Voice.isOpen()) {
+      Voice.close({ cancel: true });
       if (btn) btn.classList.remove('listening');
       return;
     }
-    var rec = new SR();
-    _dirVoiceRec = rec;
-    rec.lang = 'en-US';
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
+    if (!Voice || typeof Voice.open !== 'function') {
+      setDirectorStatus('error', 'Voice mode isn’t loaded. Refresh and try again.');
+      toast('Voice mode isn’t available');
+      return;
+    }
+    if (!Voice.isSupported || !Voice.isSupported()) {
+      var msg = 'Voice mode isn’t available in this browser. Type your request instead.';
+      setDirectorStatus('error', msg);
+      toast(msg);
+      return;
+    }
     if (btn) btn.classList.add('listening');
-    rec.onresult = function (ev) {
-      var said = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : '';
-      var inp = document.getElementById('dir-cmd-input');
-      if (inp && said) {
-        inp.value = said;
-        submitDirectorCommand();
+    setDirectorStatus('listening', 'Listening…');
+    Voice.open({
+      onFinal: function (said) {
+        if (btn) btn.classList.remove('listening');
+        var text = String(said || '').trim();
+        if (!text) {
+          setDirectorStatus('error', 'I didn’t catch that. Try again.');
+          return;
+        }
+        var inp = document.getElementById('dir-cmd-input');
+        if (inp) inp.value = text;
+        setDirectorStatus('thinking', statusLabelForIntent(text));
+        submitDirectorCommand(text);
+      },
+      onError: function (errMsg) {
+        if (btn) btn.classList.remove('listening');
+        setDirectorStatus('error', errMsg || 'Microphone access failed.');
+        toast(errMsg || 'Microphone access failed.');
       }
-    };
-    rec.onerror = function () {
-      if (btn) btn.classList.remove('listening');
-      _dirVoiceRec = null;
-      toast('Couldn’t hear that — try again');
-    };
-    rec.onend = function () {
-      if (btn) btn.classList.remove('listening');
-      _dirVoiceRec = null;
-    };
-    try {
-      rec.start();
-    } catch (e) {
-      if (btn) btn.classList.remove('listening');
-      _dirVoiceRec = null;
-      toast('Microphone unavailable');
-    }
+    });
   }
 
   function openDirectorForProduction(productionId) {
@@ -2195,11 +2291,11 @@
     renderContinueCard();
     renderStudio();
     setTimeout(function () {
-      setDirectorPanel('<div class="dir-cmd-reply dir-cmd-done">Done.</div>');
+      setDirectorStatus('done', 'Done ✓');
       setDirectorGoState('done');
       setTimeout(function () {
         setDirectorGoState('idle');
-      }, 1200);
+      }, 1400);
     }, 40);
   }
 

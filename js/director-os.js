@@ -636,7 +636,7 @@
 
     if (target === 'sections') {
       var built = Studio.buildWorkspaceFromIdea(productionId);
-      return { ok: !!built, message: 'Generated missing production sections.', refresh: true };
+      return { ok: !!built, message: 'Production sections generated', refresh: true };
     }
 
     if (target === 'shot') {
@@ -657,7 +657,7 @@
         action: 'add_shot',
         object: { type: 'shot', id: shot.id, name: shot.purpose }
       });
-      return { ok: true, message: 'Added a new shot to the list.', refresh: true, section: 'shots' };
+      return { ok: true, message: 'Shot list updated', refresh: true, section: 'shots' };
     }
 
     if (target === 'script') {
@@ -693,7 +693,7 @@
           action: 'shorten_script',
           object: { type: 'script', id: productionId, name: 'Script' }
         });
-        return { ok: true, message: 'Tightened the script for short-form pacing.', refresh: true, section: 'script' };
+        return { ok: true, message: 'Script tightened', refresh: true, section: 'script' };
       }
       /* better / new line */
       var nextOrder = lines.length + 1;
@@ -717,7 +717,7 @@
       });
       return {
         ok: true,
-        message: mode === 'better' ? 'Strengthened the opening line.' : 'Added a script line.',
+        message: mode === 'better' ? 'Opening line updated' : 'Script line added',
         refresh: true,
         section: 'script'
       };
@@ -744,7 +744,7 @@
         action: 'hook',
         object: { type: 'hook', id: productionId, name: stronger }
       });
-      return { ok: true, message: 'Updated the hook.', refresh: true, section: 'overview' };
+      return { ok: true, message: 'Updated hook generated', refresh: true, section: 'overview' };
     }
 
     return { ok: false, error: 'unsupported_generate' };
@@ -914,28 +914,15 @@
   function buildLocalExplain(text, ctx) {
     var lower = String(text || '').toLowerCase();
     if (/\bhook\b/i.test(lower)) {
-      var hook = ctx.hook || 'your opening line';
-      return (
-        'Your hook should create curiosity in under 2 seconds. Right now it’s “' +
-        String(hook).slice(0, 80) +
-        '”. Make the first 5 words more specific to the scene or payoff.'
-      );
+      return 'Hook tip ready — make the first 5 words more specific.';
     }
     if (/\bfilm|shot|camera\b/i.test(lower)) {
-      return (
-        'Film the hero visual first, then one detail close-up, then a reaction/payoff. Keep each shot under ' +
-        (String(ctx.platform || '').toLowerCase().indexOf('tiktok') >= 0 ? '3' : '4') +
-        ' seconds if you can.'
-      );
+      return 'Film hero → detail → payoff. Keep shots short.';
     }
     if (ctx.production) {
-      return (
-        'You’re in “' +
-        ctx.production.name +
-        '”. Tell me what to change — name, status, script, shots, or hook — and I’ll do it here.'
-      );
+      return 'Ready in “' + ctx.production.name + '”. Say what to change.';
     }
-    return 'Ask me to rename, move, generate, improve, or find something in Studio.';
+    return 'Say rename, move, generate, improve, or find.';
   }
 
   function resolveClarifyChoice(value) {
