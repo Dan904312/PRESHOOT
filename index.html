@@ -269,9 +269,13 @@ nav.visible{transform:translateY(0);opacity:1}
 
 /* ── Hero first paint (identical message to animated headline — no alternate page) ── */
 .hero-first-frame{
-  position:absolute;z-index:12;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  /* Above .card-stage (z-index:20) so first hero always wins initial paint —
+     including prefers-reduced-motion and slow GSAP boot. */
+  position:absolute;z-index:40;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;padding:0 24px;pointer-events:none;will-change:opacity,transform;
+  opacity:1;visibility:visible;
 }
+#cinematic-hero[data-hero-phase="intro-done"] .hero-first-frame{z-index:12}
 .hero-first-brand{font-family:var(--fd);font-size:clamp(1.35rem,3.5vw,1.75rem);font-weight:700;letter-spacing:-.03em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .hero-first-brand span{color:var(--accent)}
 .hero-first-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent-glow)}
@@ -1143,9 +1147,9 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="/js/kinetic-grid.js?v=293"></script>
-<script src="/js/cinematic-hero.js?v=293"></script>
-<script src="/js/landing-scroll.js?v=293"></script>
+<script src="/js/kinetic-grid.js?v=294"></script>
+<script src="/js/cinematic-hero.js?v=294"></script>
+<script src="/js/landing-scroll.js?v=294"></script>
 <script>
 (function() {
 'use strict';
@@ -1153,6 +1157,12 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 document.documentElement.classList.add('js-ready');
 /* First paint already shows the Hero. Unlock the rest of the page without swapping messages. */
 document.documentElement.classList.add('hero-ready');
+
+/* Prevent browser scroll restoration from landing mid-hero pin */
+try {
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+} catch (e) {}
+window.scrollTo(0, 0);
 
 /* One fixed kinetic grid — behind the page */
 new KineticGrid('#kinetic-hero', { fixed: true, interactive: true });
@@ -1165,6 +1175,7 @@ requestAnimationFrame(function() {
 });
 
 function startHeroMotion() {
+  window.scrollTo(0, 0);
   if (window.initCinematicHero) {
     initCinematicHero(document.getElementById('cinematic-hero'));
   }
@@ -1173,7 +1184,8 @@ function startHeroMotion() {
   }
 }
 
-/* Start motion only after layout + fonts settle — avoids flash / jump */
+/* Start after fonts settle so first-frame metrics match animated headline —
+   first hero content is already in the DOM/CSS regardless of font timing. */
 var start = function () {
   requestAnimationFrame(function () {
     requestAnimationFrame(startHeroMotion);
