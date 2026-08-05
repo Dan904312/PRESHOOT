@@ -76,17 +76,28 @@
     };
   }
 
+  function markHeroLive() {
+    document.documentElement.classList.add('hero-live');
+  }
+
   function markIntroDone(root) {
     if (root) root.setAttribute('data-hero-phase', 'intro-done');
     document.documentElement.classList.add('hero-intro-done');
-    /* Allow card-stage CSS gate to open; GSAP still owns transform / opacity */
+    markHeroLive();
   }
 
   function showStaticFirstHero(root, gsap) {
-    /* Accessible / reduced-motion: stay on first hero. Never jump to mid-scroll card. */
-    gsap.set('.hero-first-frame', { autoAlpha: 1, visibility: 'visible' });
-    gsap.set('.hero-text-wrapper', { autoAlpha: 0 });
-    gsap.set('.text-track, .text-days, .text-secs', { autoAlpha: 0 });
+    /* Reduced-motion: cinematic headline only (no static duplicate frame). */
+    gsap.set('.hero-first-frame', { display: 'none', autoAlpha: 0 });
+    gsap.set('.hero-text-wrapper', { autoAlpha: 1, visibility: 'visible' });
+    gsap.set('.text-track, .text-days, .text-secs', {
+      autoAlpha: 1,
+      y: 0,
+      scale: 1,
+      filter: 'none',
+      rotationX: 0,
+      visibility: 'visible'
+    });
     gsap.set('.main-card', {
       y: getViewportHeight() + 200,
       autoAlpha: 1,
@@ -136,7 +147,7 @@
           scrub: true,
           onUpdate: function (self) {
             var p = self.progress;
-            gsap.set('.hero-first-frame', { autoAlpha: Math.max(0, 1 - p * 1.35) });
+            gsap.set('.hero-text-wrapper', { autoAlpha: Math.max(0, 1 - p * 1.35) });
             if (p > 0.2) {
               var rise = Math.min(1, (p - 0.2) / 0.45);
               gsap.set('.main-card', {
@@ -187,18 +198,18 @@
 
     var isMobile = window.innerWidth < 768;
     var ctx = gsap.context(function () {
-      /* First paint already shows correct copy via .hero-first-frame. */
-      gsap.set('.hero-first-frame', { autoAlpha: 1, visibility: 'visible' });
-      gsap.set('.hero-text-wrapper', { autoAlpha: 1 });
-      gsap.set('.text-track', {
-        autoAlpha: 0,
-        y: 18,
-        scale: 0.98,
-        filter: 'blur(6px)',
-        rotationX: -4
+      /* Boot straight into the cinematic headline — never show the static duplicate. */
+      gsap.set('.hero-first-frame', { display: 'none', autoAlpha: 0 });
+      gsap.set('.hero-text-wrapper', { autoAlpha: 1, visibility: 'visible' });
+      gsap.set('.text-track, .text-days, .text-secs', {
+        autoAlpha: 1,
+        y: 0,
+        scale: 1,
+        filter: 'none',
+        rotationX: 0,
+        visibility: 'visible',
+        clearProps: 'filter'
       });
-      gsap.set('.text-days', { autoAlpha: 0, y: 14 });
-      gsap.set('.text-secs', { autoAlpha: 0, y: 10 });
       gsap.set('.main-card', { y: getViewportHeight() + 200, autoAlpha: 1, visibility: 'visible' });
       gsap.set(
         ['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'],
@@ -207,44 +218,21 @@
       gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, filter: 'blur(30px)' });
 
       lockScrollToTop();
+      markHeroLive();
+      if (!stopAnything) stopAnything = runAnythingSync(anythingEl);
 
+      /* Brief settle, then unlock scroll pin — headline is already the final animated hero */
       var introTl = gsap.timeline({
-        delay: 0.35,
+        delay: 0.05,
         onComplete: function () {
           introComplete = true;
           markIntroDone(root);
           lockScrollToTop();
-          /* Attach scrubbed scroll timeline only after first hero has finished intro */
           buildScrollTimeline();
           if (global.ScrollTrigger) global.ScrollTrigger.refresh();
         }
       });
-
-      introTl
-        .to('.hero-first-frame', { duration: 0.55, autoAlpha: 0, ease: 'power2.inOut' }, 0)
-        .to(
-          '.text-track',
-          {
-            duration: 0.9,
-            autoAlpha: 1,
-            y: 0,
-            scale: 1,
-            filter: 'blur(0px)',
-            rotationX: 0,
-            ease: 'expo.out'
-          },
-          0.15
-        )
-        .to('.text-days', { duration: 0.75, autoAlpha: 1, y: 0, ease: 'power3.out' }, 0.28)
-        .to('.text-secs', { duration: 0.7, autoAlpha: 1, y: 0, ease: 'power3.out' }, 0.4)
-        .add(function () {
-          gsap.set('.text-track', { clearProps: 'filter' });
-          if (!stopAnything) stopAnything = runAnythingSync(anythingEl);
-          var ff = root.querySelector('.hero-first-frame');
-          if (ff) ff.setAttribute('aria-hidden', 'true');
-          var tw = root.querySelector('.hero-text-wrapper');
-          if (tw) tw.removeAttribute('aria-hidden');
-        });
+      introTl.to({}, { duration: 0.35 });
 
       function buildScrollTimeline() {
         if (scrollTriggerInstance) return;
@@ -260,7 +248,6 @@
             anticipatePin: 1,
             invalidateOnRefresh: true,
             onRefreshInit: function () {
-              /* Avoid refresh applying mid-progress from restored scroll */
               if (!introComplete) lockScrollToTop();
             }
           }

@@ -47,80 +47,132 @@
     var title = document.getElementById('hooks-title');
     var sub = document.getElementById('hooks-sub');
     var chips = document.getElementById('hooks-chips');
+    var copyEls = [title, sub, chips].filter(Boolean);
 
-    // Section head is animated by revealHeader — only stage + odometer here
     stage.classList.add('revealed');
-    gsap.set([title, sub, chips].filter(Boolean), { autoAlpha: 0, y: 16, filter: 'blur(6px)' });
+    gsap.set(copyEls, { autoAlpha: 0, y: 16, filter: 'blur(6px)' });
     gsap.set(stage, { autoAlpha: 0, y: mobile ? 24 : 40, scale: 0.985 });
 
     var digitH = function () {
       var el = odo.querySelector('.odo-num');
-      return el ? el.offsetHeight : (mobile ? 72 : 112);
+      return el ? el.offsetHeight : mobile ? 72 : 112;
     };
 
-    // Reset reels to 0
-    digits.forEach(function (digit) {
-      var reel = digit.querySelector('.odo-reel');
-      gsap.set(reel, { y: 0 });
-    });
+    var activeTl = null;
+    var visible = false;
 
-    var played = false;
+    function killActive() {
+      if (activeTl) {
+        activeTl.kill();
+        activeTl = null;
+      }
+      digits.forEach(function (digit) {
+        var reel = digit.querySelector('.odo-reel');
+        if (reel) gsap.killTweensOf(reel);
+      });
+      gsap.killTweensOf(copyEls);
+      gsap.killTweensOf(stage);
+    }
+
+    function resetOdo() {
+      killActive();
+      digits.forEach(function (digit) {
+        var reel = digit.querySelector('.odo-reel');
+        if (reel) gsap.set(reel, { y: 0 });
+      });
+      gsap.set(copyEls, { autoAlpha: 0, y: 16, filter: 'blur(6px)' });
+      gsap.set(stage, { autoAlpha: 0, y: mobile ? 24 : 40, scale: 0.985 });
+    }
+
     function playOdo() {
-      if (played) return;
-      played = true;
+      if (visible) return;
+      visible = true;
+      killActive();
 
-      gsap.to(stage, {
+      var h = digitH() || (mobile ? 72 : 112);
+      var target = [1, 0, 0]; // 100
+      activeTl = gsap.timeline();
+
+      activeTl.to(stage, {
         autoAlpha: 1,
         y: 0,
         scale: 1,
         duration: 1.05,
         ease: 'expo.out'
+      }, 0);
+
+      digits.forEach(function (digit, i) {
+        var reel = digit.querySelector('.odo-reel');
+        if (!reel) return;
+        gsap.set(reel, { y: 0 });
+        var goal = target[i];
+        var endY = -((10 + goal) * h);
+        activeTl.fromTo(
+          reel,
+          { y: 0 },
+          {
+            y: endY,
+            duration: 1.55 + i * 0.18,
+            ease: 'power3.inOut'
+          },
+          0.15
+        );
       });
 
-      // Measure after stage is paint-ready so reel height is correct
-      requestAnimationFrame(function () {
-        var h = digitH() || (mobile ? 72 : 112);
-        var target = [1, 0, 0]; // 100
-        digits.forEach(function (digit, i) {
-          var reel = digit.querySelector('.odo-reel');
-          var goal = target[i];
-          var endY = -((10 + goal) * h);
-          gsap.fromTo(
-            reel,
-            { y: 0 },
-            {
-              y: endY,
-              duration: 1.55 + i * 0.18,
-              delay: 0.15,
-              ease: 'power3.inOut'
-            }
-          );
-        });
-
-        gsap.to([title, sub, chips].filter(Boolean), {
+      activeTl.to(
+        copyEls,
+        {
           autoAlpha: 1,
           y: 0,
           filter: 'blur(0px)',
           duration: 0.95,
           ease: 'expo.out',
           stagger: 0.12,
-          delay: 1.35,
           clearProps: 'filter'
-        });
+        },
+        1.35
+      );
+    }
+
+    function leaveOdo() {
+      if (!visible) {
+        resetOdo();
+        return;
+      }
+      visible = false;
+      resetOdo();
+    }
+
+    /* Replay every time the section enters the viewport */
+    if (typeof IntersectionObserver === 'function') {
+      var io = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting && entry.intersectionRatio > 0.12) {
+              playOdo();
+            } else {
+              leaveOdo();
+            }
+          });
+        },
+        { threshold: [0, 0.12, 0.25], rootMargin: '0px 0px -8% 0px' }
+      );
+      io.observe(stage);
+    } else {
+      ScrollTrigger.create({
+        trigger: stage,
+        start: 'top 88%',
+        end: 'bottom 12%',
+        onEnter: playOdo,
+        onEnterBack: playOdo,
+        onLeave: leaveOdo,
+        onLeaveBack: leaveOdo
       });
     }
 
-    ScrollTrigger.create({
-      trigger: stage,
-      start: 'top 88%',
-      once: true,
-      onEnter: playOdo
-    });
-
-    // Deep-link / already-in-view: ensure counter still runs
     requestAnimationFrame(function () {
       var rect = stage.getBoundingClientRect();
-      if (rect.top < window.innerHeight * 0.92 && rect.bottom > 0) {
+      if (rect.top < window.innerHeight * 0.88 && rect.bottom > window.innerHeight * 0.12) {
         playOdo();
       }
     });
