@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style data-hero-boot>html,body{background:#161618;color:#f4f4f6}html:not(.hero-ready) .site>:not(nav):not(#cinematic-hero){visibility:hidden}</style>
+<style data-hero-boot>
+html,body{background:#161618;color:#f4f4f6}
+/* Freeze first paint on the first hero — kill scroll-restoration flash of mid-page / old card */
+html.hero-booting{overflow:hidden!important;height:100%!important}
+html.hero-booting body{position:fixed!important;inset:0!important;width:100%!important;overflow:hidden!important}
+html:not(.hero-ready) .site>:not(nav):not(#cinematic-hero){visibility:hidden}
+/* Mid-scroll “Ideas, redefined” card must never paint before intro finishes */
+#cinematic-hero:not([data-hero-phase="intro-done"]) .card-stage,
+#cinematic-hero:not([data-hero-phase="intro-done"]) .cta-wrapper{visibility:hidden!important;pointer-events:none!important}
+</style>
 <title>PreShoot: AI Video Ideas for Creators</title>
 <meta name="description" content="Scan anything. Get six film-ready ideas. In thirty seconds. AI built for content creators.">
 <link rel="icon" type="image/png" href="/favicon.png">
@@ -12,9 +21,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
 <script>
 (function () {
+  var html = document.documentElement;
+  html.classList.add('hero-booting');
+  try {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  } catch (e) {}
+  function snapTop() {
+    window.scrollTo(0, 0);
+    if (html) html.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }
+  snapTop();
   function syncHeroHeight() {
     var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    document.documentElement.style.setProperty('--hero-height', Math.round(h) + 'px');
+    html.style.setProperty('--hero-height', Math.round(h) + 'px');
   }
   syncHeroHeight();
   window.addEventListener('resize', syncHeroHeight, { passive: true });
@@ -22,6 +42,14 @@
     visualViewport.addEventListener('resize', syncHeroHeight, { passive: true });
     visualViewport.addEventListener('scroll', syncHeroHeight, { passive: true });
   }
+  /* Catch late scroll restoration before bottom scripts run */
+  window.addEventListener('scroll', function onBootScroll() {
+    if (!html.classList.contains('hero-booting')) {
+      window.removeEventListener('scroll', onBootScroll);
+      return;
+    }
+    snapTop();
+  }, { passive: true });
 })();
 </script>
 <style>
@@ -287,6 +315,9 @@ nav.visible{transform:translateY(0);opacity:1}
 html:not(.hero-ready) .site > *:not(nav):not(#cinematic-hero){visibility:hidden}
 html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 #cinematic-hero{visibility:visible!important}
+/* Keep scroll-scrub layers inert until intro completes (duplicates boot CSS for cascade safety) */
+#cinematic-hero:not([data-hero-phase="intro-done"]) .card-stage,
+#cinematic-hero:not([data-hero-phase="intro-done"]) .cta-wrapper{visibility:hidden!important;pointer-events:none!important}
 
 /* ── Before / after proof ── */
 .proof-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}
@@ -611,7 +642,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 </nav>
 
 <!-- CINEMATIC HERO: kinetic grid background + GSAP scroll -->
-<section class="cinematic-hero" id="cinematic-hero" data-metric="6" aria-label="PreShoot cinematic introduction">
+<section class="cinematic-hero" id="cinematic-hero" data-hero-phase="first" data-metric="6" aria-label="PreShoot cinematic introduction">
       <div class="film-grain" aria-hidden="true"></div>
       <div class="bg-grid-theme" style="position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5" aria-hidden="true"></div>
 
@@ -1147,55 +1178,91 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="/js/kinetic-grid.js?v=294"></script>
-<script src="/js/cinematic-hero.js?v=294"></script>
-<script src="/js/landing-scroll.js?v=294"></script>
+<script src="/js/kinetic-grid.js?v=295"></script>
+<script src="/js/cinematic-hero.js?v=295"></script>
+<script src="/js/landing-scroll.js?v=295"></script>
 <script>
 (function() {
 'use strict';
 
-document.documentElement.classList.add('js-ready');
-/* First paint already shows the Hero. Unlock the rest of the page without swapping messages. */
-document.documentElement.classList.add('hero-ready');
+var html = document.documentElement;
+html.classList.add('js-ready');
 
-/* Prevent browser scroll restoration from landing mid-hero pin */
+function snapTop() {
+  window.scrollTo(0, 0);
+  html.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+}
+
 try {
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 } catch (e) {}
-window.scrollTo(0, 0);
+snapTop();
 
 /* One fixed kinetic grid — behind the page */
 new KineticGrid('#kinetic-hero', { fixed: true, interactive: true });
 
-requestAnimationFrame(function() {
-  setTimeout(function() {
+function unlockPage() {
+  snapTop();
+  html.classList.add('hero-ready');
+  html.classList.remove('hero-booting');
+  snapTop();
+  requestAnimationFrame(function () {
     var nav = document.getElementById('nav');
     if (nav) nav.classList.add('visible');
-  }, 180);
-});
+  });
+}
 
 function startHeroMotion() {
-  window.scrollTo(0, 0);
+  snapTop();
   if (window.initCinematicHero) {
     initCinematicHero(document.getElementById('cinematic-hero'));
   }
   if (window.initLandingScroll) {
     initLandingScroll();
   }
+  /* Unlock only after hero init has forced first-phase state */
+  requestAnimationFrame(function () {
+    requestAnimationFrame(unlockPage);
+  });
 }
 
 /* Start after fonts settle so first-frame metrics match animated headline —
    first hero content is already in the DOM/CSS regardless of font timing. */
+var started = false;
 var start = function () {
+  if (started) return;
+  started = true;
   requestAnimationFrame(function () {
     requestAnimationFrame(startHeroMotion);
   });
 };
+/* Don’t wait forever on fonts — unlock path still gated on hero init */
+var fontTimer = setTimeout(start, 420);
 if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(start).catch(start);
+  document.fonts.ready.then(function () {
+    clearTimeout(fontTimer);
+    start();
+  }).catch(function () {
+    clearTimeout(fontTimer);
+    start();
+  });
 } else {
+  clearTimeout(fontTimer);
   start();
 }
+
+/* Back-forward cache can restore a scrolled paint — snap to first hero */
+window.addEventListener('pageshow', function (ev) {
+  if (ev.persisted) {
+    html.classList.add('hero-booting');
+    html.classList.remove('hero-ready');
+    snapTop();
+    var hero = document.getElementById('cinematic-hero');
+    if (hero) hero.setAttribute('data-hero-phase', 'first');
+    startHeroMotion();
+  }
+});
 
 
 /* Product walkthrough autoplay */
