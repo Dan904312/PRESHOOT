@@ -79,6 +79,7 @@
   function markIntroDone(root) {
     if (root) root.setAttribute('data-hero-phase', 'intro-done');
     document.documentElement.classList.add('hero-intro-done');
+    /* Allow card-stage CSS gate to open; GSAP still owns transform / opacity */
   }
 
   function showStaticFirstHero(root, gsap) {
