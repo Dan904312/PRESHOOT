@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.5"
+CURRENT_VERSION = "v2.7.6"
 LAST_UPDATED = "2026-08-07"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,50 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0016",
+        "version": "v2.7.6",
+        "date": "2026-08-07",
+        "categories": ["Security", "Backend", "API", "Database", "Dependency", "Infrastructure"],
+        "title": "Phase 6 — Webhook idempotency, atomic quotas, sync limits, deps",
+        "what_changed": (
+            "Hardened production reliability: Stripe webhooks now enforce a 256KB body cap, "
+            "verify signatures before work, and claim event IDs via processed_stripe_events / "
+            "claim_stripe_event (duplicates ignored). Usage quotas use atomic bump_usage_daily "
+            "RPC. /api/sync hard-rejects oversized payloads with per-field caps. package.json "
+            "slimmed to pinned stripe@17.7.0 with lockfile; unused latest deps removed. "
+            "Webhook errors no longer echo Stripe internals to clients."
+        ),
+        "files": [
+            "api/webhook.js",
+            "api/sync.js",
+            "lib/security.js",
+            "supabase_setup.sql",
+            "package.json",
+            "package-lock.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Production reliability vulnerabilities including webhook duplication, quota race "
+            "conditions, oversized sync payloads, and dependency risks from floating latest packages."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Incorrect billing states, quota bypasses, storage abuse, and future supply-chain "
+            "vulnerabilities."
+        ),
+        "fix_applied": (
+            "Added webhook idempotency, atomic usage handling, sync validation, and dependency "
+            "hardening."
+        ),
+        "testing": (
+            "node --check webhook/sync/security; mocked duplicate webhook claim returns duplicate; "
+            "sync rejects oversized payload; npm lockfile generated for stripe@17.7.0."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0015",
         "version": "v2.7.5",
@@ -742,6 +786,14 @@ UPDATES = [
 SECURITY_HISTORY = [
     {
         "date": "2026-08-07",
+        "title": "Reliability security cleanup (UPDATE-0016)",
+        "detail": (
+            "Phase 6 hardening: Stripe webhook size limits + idempotent event claims; atomic "
+            "usage_daily increments; sync payload hard limits; pinned stripe dependency + lockfile."
+        ),
+    },
+    {
+        "date": "2026-08-07",
         "title": "CSP / header hardening (UPDATE-0015)",
         "detail": (
             "Phase 5 hardening: removed unsafe-eval and unused CDNs; narrowed connect-src and "
@@ -891,6 +943,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.6",
+        "date": "2026-08-07",
+        "label": "Security Phase 6 — Reliability cleanup",
+        "changes": [
+            "Webhook idempotency + body limits; atomic quotas; sync payload caps (UPDATE-0016)",
+            "Pinned stripe@17.7.0 and removed unused floating dependencies",
+        ],
+    },
     {
         "version": "v2.7.5",
         "date": "2026-08-07",
