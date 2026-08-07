@@ -4,8 +4,8 @@ import {
   handleOptions,
   timingSafeEqualStr,
   sanitizePostgrestSearch,
-  rateLimit,
-  clientIp
+  gateRouteRateLimit,
+  sendRateLimitResponse
 } from '../lib/security.js';
 
 export default async function handler(req, res) {
@@ -13,9 +13,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!rateLimit('admin:' + clientIp(req), 60, 60 * 1000)) {
-    return res.status(429).json({ error: 'Too many requests' });
-  }
+  const rl = await gateRouteRateLimit(req, {
+    route: 'admin',
+    max: 60,
+    windowMs: 60 * 1000
+  });
+  if (!rl.allowed) return sendRateLimitResponse(res, rl, 'plain');
 
   const adminKey = req.headers['x-admin-key'];
   const secret = process.env.ADMIN_SECRET || '';

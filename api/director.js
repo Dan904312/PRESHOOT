@@ -5,8 +5,8 @@ import {
   handleOptions,
   requireUser,
   requireDirectorAccess,
-  rateLimit,
-  clientIp,
+  gateRouteRateLimit,
+  sendRateLimitResponse,
   sanitizeContext,
   sanitizeImage
 } from '../lib/security.js';
@@ -207,11 +207,15 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!rateLimit('director:' + clientIp(req), 40, 60 * 1000)) {
-    return res.status(429).json({ error: { message: 'Too many requests' } });
-  }
-
   const auth = await requireUser(req);
+  const rl = await gateRouteRateLimit(req, {
+    route: 'director',
+    max: 40,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) return sendRateLimitResponse(res, rl);
+
   if (auth.error) {
     return res.status(auth.status).json({ error: { message: auth.error } });
   }

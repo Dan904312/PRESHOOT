@@ -3,8 +3,8 @@ import {
   setCors,
   handleOptions,
   requireUser,
-  rateLimit,
-  clientIp,
+  gateRouteRateLimit,
+  sendRateLimitResponse,
   serviceHeaders
 } from '../lib/security.js';
 
@@ -19,11 +19,15 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!rateLimit('sync:' + clientIp(req), 60, 60 * 1000)) {
-    return res.status(429).json({ error: 'Too many requests' });
-  }
-
   const auth = await requireUser(req);
+  const rl = await gateRouteRateLimit(req, {
+    route: 'sync',
+    max: 60,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) return sendRateLimitResponse(res, rl, 'plain');
+
   if (auth.error) return res.status(auth.status).json({ error: auth.error });
 
   const user_id = auth.user.id;

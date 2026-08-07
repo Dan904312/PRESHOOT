@@ -4,8 +4,7 @@ import {
   handleOptions,
   requireUser,
   getSubscription,
-  rateLimit,
-  clientIp
+  gateRouteRateLimit
 } from '../lib/security.js';
 
 export default async function handler(req, res) {
@@ -13,11 +12,23 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!rateLimit('plan:' + clientIp(req), 60, 60 * 1000)) {
-    return res.status(429).json({ plan: 'free', status: 'rate_limited' });
+  const auth = await requireUser(req);
+  const rl = await gateRouteRateLimit(req, {
+    route: 'plan',
+    max: 60,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) {
+    const sec = Math.max(1, rl.retryAfterSec || 60);
+    try { res.setHeader('Retry-After', String(sec)); } catch (e) { /* ignore */ }
+    return res.status(429).json({
+      plan: 'free',
+      status: 'rate_limited',
+      message: `Too many requests. Please try again in ${sec} seconds.`
+    });
   }
 
-  const auth = await requireUser(req);
   if (auth.error) {
     return res.status(auth.status).json({ plan: 'free', status: auth.error });
   }
