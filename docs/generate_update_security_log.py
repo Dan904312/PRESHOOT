@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.1"
+CURRENT_VERSION = "v2.7.2"
 LAST_UPDATED = "2026-08-07"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,45 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0012",
+        "version": "v2.7.2",
+        "date": "2026-08-07",
+        "categories": ["Security", "API", "Backend", "Database", "Authentication"],
+        "title": "Phase 2 — Promo code redemption limits + expiry",
+        "what_changed": (
+            "Secured /api/promo against unlimited shared Pro grants. Added promo_codes catalog "
+            "(max_redemptions, redemption_count, expires_at, active), unique per-user promo_usage, "
+            "and atomic redeem_promo_code RPC. API validates active/expiry/limit/already-redeemed "
+            "server-side before granting Pro. Env PROMO_CODES still seeds limited DB rows."
+        ),
+        "files": [
+            "api/promo.js",
+            "supabase_setup.sql",
+            ".env.example",
+            "app.html",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Promo codes could grant unlimited shared Pro access with no expiry, max redemptions, "
+            "or per-user redemption protection."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Unauthorized Pro account creation and subscription abuse via leaked or shared codes."
+        ),
+        "fix_applied": (
+            "Added redemption limits, expiry validation, and per-user redemption tracking via "
+            "promo_codes + redeem_promo_code; client user_id/email no longer trusted for grant."
+        ),
+        "testing": (
+            "node --check api/promo.js; mocked redeem paths for valid, expired, limit_reached, "
+            "already_redeemed, and env-seed bootstrap; frontend shows server message on reject."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0011",
         "version": "v2.7.1",
@@ -577,6 +616,14 @@ UPDATES = [
 SECURITY_HISTORY = [
     {
         "date": "2026-08-07",
+        "title": "Promo redemption controls (UPDATE-0012)",
+        "detail": (
+            "Phase 2 hardening: promo_codes with max/expiry/active; unique per-user redemptions; "
+            "atomic redeem_promo_code RPC; /api/promo no longer grants unlimited Pro from env list alone."
+        ),
+    },
+    {
+        "date": "2026-08-07",
         "title": "Research cost protection (UPDATE-0011)",
         "detail": (
             "Phase 1 hardening: /api/research now requires Pro from server subscription state and "
@@ -694,6 +741,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.2",
+        "date": "2026-08-07",
+        "label": "Security Phase 2 — Promo redemption hardening",
+        "changes": [
+            "promo_codes limits/expiry + per-user redemption tracking (UPDATE-0012)",
+            "Atomic redeem_promo_code RPC before Pro grant",
+        ],
+    },
     {
         "version": "v2.7.1",
         "date": "2026-08-07",
