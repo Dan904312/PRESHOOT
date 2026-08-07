@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.3"
+CURRENT_VERSION = "v2.7.4"
 LAST_UPDATED = "2026-08-07"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,47 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0014",
+        "version": "v2.7.4",
+        "date": "2026-08-07",
+        "categories": ["Security", "Authentication", "API", "Backend", "Database"],
+        "title": "Phase 4 — Admin HttpOnly session cookies",
+        "what_changed": (
+            "Removed browser-stored admin secrets (sessionStorage ak / x-admin-key). Added "
+            "/api/admin-auth login-logout-session flow that sets an HttpOnly SameSite cookie and "
+            "stores only a SHA-256 token hash in admin_sessions. /api/admin-data now requires a "
+            "valid unexpired server session and explicitly rejects legacy x-admin-key headers."
+        ),
+        "files": [
+            "lib/admin-session.js",
+            "api/admin-auth.js",
+            "api/admin-data.js",
+            "admin.html",
+            "lib/security.js",
+            "supabase_setup.sql",
+            ".env.example",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Admin secret stored in browser sessionStorage and resent on every admin API call."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Admin account compromise through XSS, browser extensions, or shared devices."
+        ),
+        "fix_applied": (
+            "Implemented secure server-side admin sessions using HttpOnly cookies with hashed "
+            "tokens in Supabase; logout revokes the session server-side and clears the cookie."
+        ),
+        "testing": (
+            "node --check admin session modules; mocked login creates cookie session; "
+            "admin-data rejects x-admin-key; logout/revoke invalidates session."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0013",
         "version": "v2.7.3",
@@ -662,6 +703,14 @@ UPDATES = [
 SECURITY_HISTORY = [
     {
         "date": "2026-08-07",
+        "title": "Admin session cookies (UPDATE-0014)",
+        "detail": (
+            "Phase 4 hardening: removed sessionStorage admin secret; HttpOnly cookie sessions with "
+            "hashed admin_sessions rows; legacy x-admin-key rejected."
+        ),
+    },
+    {
+        "date": "2026-08-07",
         "title": "Distributed rate limiting (UPDATE-0013)",
         "detail": (
             "Phase 3 hardening: shared Supabase rate_limits + check_rate_limit RPC across serverless "
@@ -795,6 +844,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.4",
+        "date": "2026-08-07",
+        "label": "Security Phase 4 — Admin session hardening",
+        "changes": [
+            "HttpOnly admin session cookies + admin_sessions table (UPDATE-0014)",
+            "Removed browser-stored ADMIN_SECRET / x-admin-key auth path",
+        ],
+    },
     {
         "version": "v2.7.3",
         "date": "2026-08-07",
