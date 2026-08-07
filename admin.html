@@ -295,45 +295,84 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="toast-bar" id="toast"></div>
 
 <script>
-var KEY = '';
 var ALL_USERS = [];
 var searchTimer = null;
 var userFilter = 'all';
 
 function doLogin() {
-  var k = document.getElementById('admin-key-inp').value.trim();
+  var inp = document.getElementById('admin-key-inp');
+  var k = (inp.value || '').trim();
   if (!k) return;
-  api('overview_stats', {}, k).then(function(d) {
-    if (d.error) { document.getElementById('login-err').textContent = 'Invalid password'; return; }
-    KEY = k;
-    sessionStorage.setItem('ak', k);
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    boot();
-  }).catch(function() { document.getElementById('login-err').textContent = 'Server error'; });
+  document.getElementById('login-err').textContent = '';
+  fetch('/api/admin-auth', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'login', secret: k })
+  })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (res) {
+      inp.value = '';
+      if (!res.ok || !res.d.ok) {
+        document.getElementById('login-err').textContent =
+          (res.d && res.d.message) || 'Invalid password';
+        return;
+      }
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      boot();
+    })
+    .catch(function () {
+      document.getElementById('login-err').textContent = 'Server error';
+    });
 }
 
-function logout() { KEY = ''; sessionStorage.removeItem('ak'); location.reload(); }
+function logout() {
+  fetch('/api/admin-auth', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'logout' })
+  })
+    .catch(function () {})
+    .then(function () {
+      location.reload();
+    });
+}
 
-window.onload = function() {
-  var s = sessionStorage.getItem('ak');
-  if (!s) return;
-  KEY = s;
-  document.getElementById('admin-key-inp').value = s;
-  api('overview_stats', {}, s).then(function(d) {
-    if (d.error) { sessionStorage.removeItem('ak'); KEY = ''; return; }
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    boot();
-  }).catch(function() { sessionStorage.removeItem('ak'); });
+window.onload = function () {
+  fetch('/api/admin-auth', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'session' })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) return;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      boot();
+    })
+    .catch(function () {});
 };
 
-function api(action, params, key) {
+function api(action, params) {
   return fetch('/api/admin-data', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-admin-key': key || KEY },
-    body: JSON.stringify(Object.assign({ action: action }, params))
-  }).then(function(r) { return r.json(); });
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ action: action }, params || {}))
+  }).then(function (r) {
+    return r.json().then(function (d) {
+      if (r.status === 401) {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('login-err').textContent = 'Session expired. Sign in again.';
+      }
+      return d;
+    });
+  });
 }
 
 function showPage(name, btn) {
