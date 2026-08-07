@@ -12,7 +12,28 @@
     lastObject: null,
     lastAction: null,
     lastIntent: null,
+    lastFocus: null,
     pendingClarify: null
+  };
+
+  var TITLE_SMALL = {
+    a: 1,
+    an: 1,
+    the: 1,
+    and: 1,
+    or: 1,
+    of: 1,
+    for: 1,
+    to: 1,
+    in: 1,
+    on: 1,
+    at: 1,
+    by: 1,
+    with: 1,
+    from: 1,
+    vs: 1,
+    via: 1,
+    into: 1
   };
 
   function registerTool(tool) {
@@ -64,14 +85,34 @@
   function surfaceGuidance(surface) {
     var map = {
       home: 'Help the user decide what to create or continue next.',
-      studio: 'Help organise projects and productions. Prefer actions over chat.',
-      project: 'User is inside a project. Prefer production organisation actions.',
-      production: 'User is inside a production workspace. Never ask them to re-explain it.',
+      studio:
+        'Studio list. Hierarchy: Workspace → Projects → Productions. Projects are campaign containers. Productions are individual content pieces.',
+      project:
+        'Inside a Project (campaign container). Prefer organising or creating Productions. Do not confuse Project with Production.',
+      production:
+        'Inside a Production workspace (a specific content piece with shot list, script, gear, references, status). Prefer production-scoped actions.',
       library: 'Help find scans and send ideas into Studio.',
       menu: 'Help with preferences and settings.',
       profile: 'Help with identity and plan context.'
     };
     return map[surface] || 'Adapt to the current PreShoot surface.';
+  }
+
+  function locationLabel(ctx) {
+    if (!ctx) return 'Unknown';
+    if (ctx.mode === 'production' && ctx.production) {
+      return (
+        'Production · ' +
+        ctx.production.name +
+        (ctx.section ? ' / ' + ctx.section : '') +
+        (ctx.project ? ' (in project ' + ctx.project.name + ')' : '')
+      );
+    }
+    if (ctx.mode === 'project' && ctx.project) {
+      return 'Project · ' + ctx.project.name;
+    }
+    if (ctx.surface === 'studio') return 'Studio · Projects list';
+    return 'PreShoot · ' + (ctx.surface || 'home');
   }
 
   function gatherContext() {
@@ -83,6 +124,7 @@
       surface: surface,
       section: view.section || null,
       mode: view.mode || null,
+      page: S.tab || 'home',
       productionId: view.productionId || S.activeProductionId || null,
       projectId: view.projectId || null,
       skillLevel: null,
@@ -99,15 +141,21 @@
       references: null,
       assets: [],
       status: null,
+      hierarchy: 'Workspace → Projects → Productions → Shots/Scripts/Assets',
+      availableActions: [],
+      focus: null,
+      location: null,
       memory: {
         lastObject: memory.lastObject,
         lastAction: memory.lastAction,
-        lastIntent: memory.lastIntent
+        lastIntent: memory.lastIntent,
+        lastFocus: memory.lastFocus
       }
     };
 
     if (Studio && Studio.getSkillLevel) ctx.skillLevel = Studio.getSkillLevel();
-    if (S.platformFocus) ctx.platform = S.platformFocus.primaryPlatform || (S.platformFocus.platforms || [])[0];
+    if (S.platformFocus)
+      ctx.platform = S.platformFocus.primaryPlatform || (S.platformFocus.platforms || [])[0];
 
     if (Studio && ctx.productionId) {
       var found = Studio.findProduction(ctx.productionId);
@@ -130,10 +178,43 @@
         ctx.assets = (prod.workspace && prod.workspace.assets) || [];
         if (prod.ideaSnapshot && prod.ideaSnapshot.hook) ctx.hook = prod.ideaSnapshot.hook;
         if (!ctx.platform && ctx.overview.platform) ctx.platform = ctx.overview.platform;
+        ctx.focus = {
+          type: 'production',
+          id: prod.id,
+          name: prod.name,
+          parentProjectId: found.project.id,
+          parentProjectName: found.project.name
+        };
       }
     } else if (Studio && ctx.projectId) {
       var p = Studio.findProject(ctx.projectId);
-      if (p) ctx.project = { id: p.id, name: p.name };
+      if (p) {
+        ctx.project = { id: p.id, name: p.name };
+        ctx.focus = { type: 'project', id: p.id, name: p.name };
+      }
+    }
+
+    ctx.location = locationLabel(ctx);
+    if (ctx.mode === 'production') {
+      ctx.availableActions = [
+        'rename_production',
+        'update_status',
+        'move_production',
+        'archive_production',
+        'generate_sections',
+        'improve_hook',
+        'improve_script',
+        'add_shot'
+      ];
+    } else if (ctx.mode === 'project') {
+      ctx.availableActions = [
+        'rename_project',
+        'create_production',
+        'archive_project',
+        'duplicate_project'
+      ];
+    } else if (ctx.surface === 'studio') {
+      ctx.availableActions = ['create_project', 'find_projects', 'organize_projects'];
     }
 
     return ctx;
@@ -159,21 +240,28 @@
     var live = gatherContext();
     var lines = [];
     lines.push('DIRECTOR OS');
+    lines.push('Hierarchy: ' + live.hierarchy);
     lines.push('Surface: ' + surface);
+    lines.push('Location: ' + (live.location || 'n/a'));
     lines.push('Section: ' + (live.section || 'n/a'));
     lines.push(surfaceGuidance(surface));
-    lines.push('Be concise. Prefer actions. Never require chatbot UX inside Studio.');
-    lines.push('Mutations require user Confirm in the app UI.');
-    if (live.project) lines.push('Project: ' + live.project.name + ' (' + live.project.id + ')');
+    lines.push('Be a creative assistant. Prefer precise actions over essays.');
+    lines.push('Never confuse Project (campaign container) with Production (single content piece).');
+    lines.push('All names must use professional Title Case.');
+    lines.push('Mutations require user Confirm / Go in the app UI.');
+    if (live.project) lines.push('Current Project: ' + live.project.name + ' (' + live.project.id + ')');
     if (live.production) {
       lines.push(
-        'Production: ' +
+        'Current Production: ' +
           live.production.name +
           ' [' +
           live.production.status +
           '] id=' +
           live.production.id
       );
+    }
+    if (live.focus) {
+      lines.push('Focus object: ' + live.focus.type + ' · ' + (live.focus.name || live.focus.id));
     }
     if (live.hook) lines.push('Hook: ' + live.hook);
     if (live.overview && live.overview.goal) lines.push('Goal: ' + live.overview.goal);
@@ -183,9 +271,12 @@
     }
     if (live.skillLevel) lines.push('Skill: ' + live.skillLevel);
     if (live.platform) lines.push('Platform: ' + live.platform);
+    if (live.availableActions && live.availableActions.length) {
+      lines.push('Available here: ' + live.availableActions.join(', '));
+    }
     if (memory.lastObject) {
       lines.push(
-        'Conversation focus: ' +
+        'Session focus: ' +
           memory.lastObject.type +
           ' · ' +
           (memory.lastObject.name || memory.lastObject.id || '')
@@ -216,7 +307,10 @@
   function rememberTurn(entry) {
     memory.turns.push(Object.assign({ at: Date.now() }, entry || {}));
     if (memory.turns.length > 24) memory.turns = memory.turns.slice(-24);
-    if (entry && entry.object) memory.lastObject = entry.object;
+    if (entry && entry.object) {
+      memory.lastObject = entry.object;
+      memory.lastFocus = entry.object;
+    }
     if (entry && entry.action) memory.lastAction = entry.action;
     if (entry && entry.intent) memory.lastIntent = entry.intent;
   }
@@ -226,9 +320,13 @@
     var q = raw.match(/[“"]([^”"]+)[”"]/);
     if (q) return q[1].trim();
     var call = raw.match(
-      /\b(?:can we call|call(?:ed)?|rename|name)\s+(?:this|it)\s+(?:to\s+|as\s+)?(.+?)\s*$/i
+      /\b(?:can we call|call(?:ed)?|rename|name)\s+(?:this|it|the\s+(?:project|production|campaign|title|video)?)\s+(?:to\s+|as\s+)?(.+?)\s*$/i
     );
     if (call) return call[1].replace(/[?.!]+$/, '').trim();
+    var changeTo = raw.match(
+      /\b(?:change|set|update)\s+(?:the\s+)?(?:name|title|campaign(?:\s+name)?)\s+(?:to|as)\s+(.+?)\s*$/i
+    );
+    if (changeTo) return changeTo[1].replace(/[?.!]+$/, '').trim();
     var re = new RegExp('(?:' + words + ')\\s+[\'\"]?(.+?)[\'\"]?\\s*$', 'i');
     var m = raw.match(re);
     if (m) return m[1].replace(/[?.!]+$/, '').trim();
@@ -237,35 +335,166 @@
     return '';
   }
 
-  function shortenName(name) {
-    var n = String(name || '').trim();
-    if (!n) return 'Untitled';
-    var words = n.split(/\s+/);
-    if (words.length > 3) return words.slice(0, 3).join(' ');
-    if (n.length > 28) return n.slice(0, 24).replace(/\s+\S*$/, '') || n.slice(0, 24);
-    return n.replace(/\b(the|a|an|campaign|launch|advert|video|final|v\d+)\b/gi, '').replace(/\s+/g, ' ').trim() || n;
-  }
-
-  function improveName(name, ctx) {
-    var base = String(name || '').trim();
-    if (!base && ctx.hook) base = String(ctx.hook).split(/[.!?]/)[0];
-    if (!base && ctx.overview && ctx.overview.summary) base = ctx.overview.summary.split(/[.!?]/)[0];
-    base = base || 'Untitled Production';
-    base = base
-      .replace(/\b(sucks|bad|temp|test|untitled|this name|the name)\b/gi, '')
+  function toTitleCase(str) {
+    var raw = String(str || '')
+      .replace(/[_]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    if (base.length < 3) base = 'Campaign';
-    var plat = ctx.platform ? String(ctx.platform).split(/\s+/)[0] : '';
-    if (plat && !new RegExp(plat, 'i').test(base) && base.split(/\s+/).length < 4) {
-      return base + ' ' + (plat.charAt(0).toUpperCase() + plat.slice(1));
-    }
-    return base
-      .split(/\s+/)
-      .map(function (w) {
-        return w.charAt(0).toUpperCase() + w.slice(1);
+    if (!raw) return '';
+    var words = raw.split(' ');
+    return words
+      .map(function (w, i) {
+        if (!w) return w;
+        /* Keep short ALL-CAPS brands (BMW, NYC, POV) */
+        if (/^[A-Z0-9]{2,5}$/.test(w) && w === w.toUpperCase()) return w;
+        var parts = w.split('-');
+        return parts
+          .map(function (part, pi) {
+            var lower = part.toLowerCase();
+            if (!lower) return part;
+            if (i > 0 && i < words.length - 1 && pi === 0 && TITLE_SMALL[lower]) return lower;
+            return lower.charAt(0).toUpperCase() + lower.slice(1);
+          })
+          .join('-');
       })
       .join(' ');
+  }
+
+  function cleanNameSeed(name) {
+    return String(name || '')
+      .replace(/\b(sucks|bad|temp|test|untitled|this name|the name|rename|call this|something better|cleaner|professional)\b/gi, '')
+      .replace(/\b(video\s*\d+|content|scan|draft|new project|new production)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function shortenName(name) {
+    var n = toTitleCase(cleanNameSeed(name));
+    if (!n) return 'Untitled';
+    var words = n.split(/\s+/);
+    if (words.length > 4) return words.slice(0, 4).join(' ');
+    if (n.length > 32) return n.slice(0, 28).replace(/\s+\S*$/, '') || n.slice(0, 28);
+    return n;
+  }
+
+  function suggestProfessionalName(base, kind, ctx) {
+    ctx = ctx || {};
+    kind = kind || 'production';
+    var seed = cleanNameSeed(base);
+    if (!seed && ctx.hook) seed = String(ctx.hook).split(/[.!?]/)[0];
+    if (!seed && ctx.overview && ctx.overview.summary) seed = String(ctx.overview.summary).split(/[.!?]/)[0];
+    if (!seed && ctx.production && ctx.production.name) seed = ctx.production.name;
+    if (!seed && ctx.project && ctx.project.name) seed = ctx.project.name;
+    seed = cleanNameSeed(seed);
+
+    var niche = '';
+    if (ctx.niche) {
+      niche =
+        ctx.niche.contentType ||
+        ctx.niche.style ||
+        (typeof ctx.niche.platform === 'string' ? '' : '') ||
+        '';
+    }
+    var plat = ctx.platform ? String(ctx.platform).split(/[\s,&/]+/)[0] : '';
+
+    if (!seed || seed.length < 2) {
+      if (kind === 'project') seed = niche ? niche + ' Campaign' : 'Creative Campaign';
+      else seed = niche ? niche + ' Reel' : 'Cinematic Reel';
+    }
+
+    var titled = toTitleCase(seed);
+    var lower = titled.toLowerCase();
+
+    /* Avoid generic leftovers */
+    if (/^(videos?|content|scan|untitled|project|production)$/i.test(titled)) {
+      titled = kind === 'project' ? 'Creative Campaign' : 'Signature Reel';
+    }
+
+    if (kind === 'project') {
+      if (!/\b(campaign|series|brand|studio|launch|growth)\b/i.test(lower)) {
+        if (/\b(cafe|coffee|restaurant|shop)\b/i.test(lower)) titled += ' Launch Campaign';
+        else if (/\b(car|auto|bmw|porsche|mercedes|audi)\b/i.test(lower)) titled += ' Content Campaign';
+        else titled += ' Campaign';
+      }
+    } else {
+      if (!/\b(reel|video|film|spot|advert|ad|showcase|bts|behind|opening|launch)\b/i.test(lower)) {
+        if (/\b(cafe|coffee|restaurant)\b/i.test(lower)) titled += ' Launch Reel';
+        else if (/\b(product|bmw|porsche|car)\b/i.test(lower)) titled += ' Cinematic Showcase';
+        else if (/\b(behind|bts)\b/i.test(lower)) titled += ' Production';
+        else titled += ' Reel';
+      }
+    }
+
+    titled = toTitleCase(titled.replace(/\s+/g, ' ').trim());
+    /* Soft platform hint only when short */
+    if (plat && titled.split(/\s+/).length < 3 && !new RegExp(plat, 'i').test(titled)) {
+      titled = toTitleCase(titled + ' ' + plat);
+    }
+    return titled;
+  }
+
+  function improveName(name, ctx, kind) {
+    return suggestProfessionalName(name, kind || 'production', ctx || {});
+  }
+
+  /**
+   * Resolve whether the user means Project vs Production.
+   * Returns { type, id, name } or { ambiguous: true, candidates: [...] }
+   */
+  function resolveFocusObject(ctx, text) {
+    ctx = ctx || gatherContext();
+    var lower = String(text || '').toLowerCase();
+    var mentionsProject = /\b(project|campaign|folder|series)\b/.test(lower);
+    var mentionsProduction = /\b(production|reel|video|piece|spot|advert|ad|film|title)\b/.test(lower);
+    /* "campaign name" → project; bare "title" inside production → production */
+    if (/\bcampaign\b/.test(lower)) mentionsProject = true;
+    if (/\b(production name|reel name|video name|this reel|this video)\b/.test(lower)) {
+      mentionsProduction = true;
+      mentionsProject = false;
+    }
+    if (/\b(project name|campaign name|this project|this campaign)\b/.test(lower)) {
+      mentionsProject = true;
+      mentionsProduction = false;
+    }
+
+    var prodObj =
+      ctx.productionId && ctx.production
+        ? {
+            type: 'production',
+            id: ctx.productionId,
+            name: ctx.production.name,
+            parentProjectId: ctx.projectId,
+            parentProjectName: ctx.project && ctx.project.name
+          }
+        : null;
+    var projObj =
+      ctx.projectId && ctx.project
+        ? { type: 'project', id: ctx.projectId, name: ctx.project.name }
+        : null;
+
+    if (mentionsProject && !mentionsProduction && projObj) return projObj;
+    if (mentionsProduction && !mentionsProject && prodObj) return prodObj;
+
+    if (mentionsProject && mentionsProduction && projObj && prodObj) {
+      return { ambiguous: true, candidates: [prodObj, projObj] };
+    }
+
+    /* Location wins for “this / title / rename” */
+    if (ctx.mode === 'production' && prodObj) return prodObj;
+    if (ctx.mode === 'project' && projObj) return projObj;
+
+    if (memory.lastFocus && memory.lastFocus.type === 'production' && prodObj && memory.lastFocus.id === prodObj.id) {
+      return prodObj;
+    }
+    if (memory.lastFocus && memory.lastFocus.type === 'project' && projObj && memory.lastFocus.id === projObj.id) {
+      return projObj;
+    }
+    if (memory.lastObject && memory.lastObject.type === 'production' && prodObj) return prodObj;
+    if (memory.lastObject && memory.lastObject.type === 'project' && projObj) return projObj;
+
+    if (prodObj) return prodObj;
+    if (projObj) return projObj;
+    return null;
   }
 
   function classifyIntent(text, ctx) {
@@ -275,12 +504,12 @@
     /* Follow-ups using memory */
     if (
       memory.lastObject &&
-      /^(?:(?:actually|instead|wait|no,)\s+)?(?:make it|make this|call it|rename it|shorter|better|longer)\b/i.test(
+      /^(?:(?:actually|instead|wait|no,)\s+)?(?:make it|make this|call it|rename it|shorter|better|longer|cleaner|more professional)\b/i.test(
         lower
       )
     ) {
       if (/short/i.test(lower)) return { kind: 'improve', target: memory.lastObject.type, mode: 'shorter', confidence: 0.88 };
-      if (/better|stronger|cinematic|fix|improve|sound/i.test(lower))
+      if (/better|stronger|cinematic|fix|improve|sound|professional|cleaner/i.test(lower))
         return { kind: 'improve', target: memory.lastObject.type, mode: 'better', confidence: 0.86 };
       if (/call it|rename|name it/i.test(lower))
         return { kind: 'rename', confidence: 0.84, followUp: true };
@@ -290,9 +519,21 @@
       return { kind: 'explain', confidence: 0.8 };
     }
 
-    if (/\b(rename|call (this|it)|change (the )?name|name sucks|yo change|can we call|let'?s rename)\b/i.test(lower) ||
-        /\b(this name sucks|make this sound better)\b/i.test(lower)) {
-      return { kind: 'rename', confidence: 0.86 };
+    if (
+      /\b(rename|call (this|it)|change (the )?(name|title)|campaign name|project name|production name|name sucks|yo change|can we call|let'?s rename|call this something|something better|title cleaner|cleaner title)\b/i.test(
+        lower
+      ) ||
+      /\b(this name sucks|make this sound better|make the title cleaner|change this campaign name)\b/i.test(lower)
+    ) {
+      return { kind: 'rename', confidence: 0.9 };
+    }
+
+    if (/\b(make this look more professional|more professional)\b/i.test(lower)) {
+      /* Name polish when user is on project/production chrome; content polish in script/shots */
+      if (ctx && (ctx.section === 'script' || ctx.section === 'shots')) {
+        return { kind: 'improve', confidence: 0.8, mode: 'better' };
+      }
+      return { kind: 'rename', confidence: 0.82, mode: 'better' };
     }
 
     if (/\b(move|put this in|send (this )?to)\b/i.test(lower)) return { kind: 'move', confidence: 0.82 };
@@ -301,19 +542,26 @@
     if (/\b(create|new)\b.+\bproject\b/i.test(lower)) return { kind: 'create_project', confidence: 0.84 };
     if (/\b(create|new)\b.+\bproduction\b/i.test(lower)) return { kind: 'create_production', confidence: 0.84 };
 
-    if (/\b(generate|build|make|give me)\b.+\b(script|shot|hook|section|workspace)\b/i.test(lower) ||
-        /\b(another|more|new)\b.+\b(shot|hook|line)\b/i.test(lower) ||
-        /\badd (another |a )?(close-?up|shot|line)\b/i.test(lower)) {
+    if (
+      /\b(generate|build|make|give me)\b.+\b(script|shot|hook|section|workspace)\b/i.test(lower) ||
+      /\b(another|more|new)\b.+\b(shot|hook|line)\b/i.test(lower) ||
+      /\badd (another |a )?(close-?up|shot|line)\b/i.test(lower)
+    ) {
       return { kind: 'generate', confidence: 0.84 };
     }
 
-    if (/\b(shorter|tighten|trim|improve|stronger|cinematic|better hook|fix (this|the)|i don'?t (really )?like|this sucks)\b/i.test(lower)) {
+    if (
+      /\b(shorter|tighten|trim|improve|stronger|cinematic|better hook|fix (this|the)|i don'?t (really )?like|this sucks)\b/i.test(
+        lower
+      )
+    ) {
       return { kind: 'improve', confidence: 0.83 };
     }
 
     if (/\b(find|open|show|search)\b/i.test(lower)) return { kind: 'search', confidence: 0.78 };
     if (/\b(status|ready to film|mark as|set to)\b/i.test(lower)) return { kind: 'status', confidence: 0.8 };
-    if (/\b(organise|organize|what (should|next)|continue)\b/i.test(lower)) return { kind: 'organise', confidence: 0.7 };
+    if (/\b(organise|organize|what (should|next)|continue)\b/i.test(lower))
+      return { kind: 'organise', confidence: 0.7 };
 
     /* Section-aware defaults */
     if (ctx.section === 'script' && /\b(short|long|better|rewrite)\b/i.test(lower)) {
@@ -327,6 +575,32 @@
     }
 
     return { kind: 'explain', confidence: 0.55 };
+  }
+
+  function buildRenameProposal(focus, newName) {
+    newName = toTitleCase(newName);
+    if (focus.type === 'project') {
+      return {
+        kind: 'action',
+        proposal: {
+          tool: 'project',
+          action: 'rename_project',
+          payload: { projectId: focus.id, name: newName }
+        },
+        object: { type: 'project', id: focus.id, name: newName },
+        confidence: 0.93
+      };
+    }
+    return {
+      kind: 'action',
+      proposal: {
+        tool: 'production',
+        action: 'rename_production',
+        payload: { productionId: focus.id, name: newName }
+      },
+      object: { type: 'production', id: focus.id, name: newName },
+      confidence: 0.93
+    };
   }
 
   function resolveIntent(message, opts) {
@@ -351,7 +625,7 @@
           var options = [];
           prods.slice(0, 5).forEach(function (p) {
             options.push({
-              label: p.name + (p.projectName ? ' · ' + p.projectName : ''),
+              label: 'Production · ' + p.name + (p.projectName ? ' · ' + p.projectName : ''),
               value: { type: 'production', id: p.id }
             });
           });
@@ -388,69 +662,95 @@
     }
 
     if (classified.kind === 'rename') {
-      var focusProd = ctx.productionId;
-      var focusProj = ctx.projectId;
-      var wantProject = /\bproject\b/i.test(lower) && !/\bproduction\b/i.test(lower);
+      var focus = resolveFocusObject(ctx, text);
       var newName = extractQuotedOrTail(text, 'to|as|called|named');
-      var baseName =
-        (memory.lastObject && memory.lastObject.name) ||
-        (wantProject ? ctx.project && ctx.project.name : null) ||
-        (ctx.production && ctx.production.name) ||
-        (ctx.project && ctx.project.name) ||
-        '';
-      if (!newName && (/sucks|better|sound|fix|improve|don'?t like|change (this|it)|yo change/i.test(lower) || classified.followUp)) {
-        if (classified.mode === 'shorter' || /short/i.test(lower)) {
-          newName = shortenName(baseName);
-        } else {
-          newName = improveName(baseName, ctx);
+      var wantsSuggestion =
+        !newName &&
+        (/sucks|better|sound|fix|improve|don'?t like|change (this|it)|yo change|something better|cleaner|professional|look more/i.test(
+          lower
+        ) ||
+          classified.followUp ||
+          classified.mode === 'better' ||
+          classified.mode === 'shorter');
+
+      if (focus && focus.ambiguous && focus.candidates && focus.candidates.length) {
+        if (!newName && wantsSuggestion) {
+          newName = suggestProfessionalName(
+            focus.candidates[0].name,
+            focus.candidates[0].type,
+            ctx
+          );
         }
-      }
-      if (!newName) {
+        if (!newName) {
+          return {
+            kind: 'clarify',
+            question: 'Rename the project or the production? Then tell me the new name.',
+            options: focus.candidates.map(function (c) {
+              return {
+                label: (c.type === 'project' ? 'Project · ' : 'Production · ') + c.name,
+                value: {
+                  type: 'rename_pick',
+                  objectType: c.type,
+                  id: c.id,
+                  currentName: c.name
+                }
+              };
+            }),
+            freeText: false,
+            confidence: 0.88
+          };
+        }
         return {
           kind: 'clarify',
-          question: 'What should I rename it to?',
-          options: [],
-          freeText: true,
-          pending: { kind: 'rename', wantProject: wantProject },
-          confidence: 0.7
-        };
-      }
-      if (wantProject && focusProj) {
-        return {
-          kind: 'action',
-          proposal: {
-            tool: 'project',
-            action: 'rename_project',
-            payload: { projectId: focusProj, name: newName }
-          },
-          object: { type: 'project', id: focusProj, name: newName },
-          confidence: 0.9
-        };
-      }
-      if (focusProd) {
-        return {
-          kind: 'action',
-          proposal: {
-            tool: 'production',
-            action: 'rename_production',
-            payload: { productionId: focusProd, name: newName }
-          },
-          object: { type: 'production', id: focusProd, name: newName },
+          question: 'Rename which one to “' + toTitleCase(newName) + '”?',
+          options: focus.candidates.map(function (c) {
+            return {
+              label: (c.type === 'project' ? 'Project · ' : 'Production · ') + c.name,
+              value: {
+                type: 'rename_target',
+                objectType: c.type,
+                id: c.id,
+                name: toTitleCase(newName)
+              }
+            };
+          }),
           confidence: 0.92
         };
       }
-      if (focusProj) {
+
+      if (!focus) {
         return {
-          kind: 'action',
-          proposal: {
-            tool: 'project',
-            action: 'rename_project',
-            payload: { projectId: focusProj, name: newName }
-          },
-          object: { type: 'project', id: focusProj, name: newName },
-          confidence: 0.85
+          kind: 'clarify',
+          question: 'Open a project or production first, then I can rename it.',
+          options: [],
+          confidence: 0.7
         };
       }
+
+      var baseName = focus.name || '';
+      if (wantsSuggestion) {
+        if (classified.mode === 'shorter' || /short/i.test(lower)) {
+          newName = shortenName(baseName);
+        } else {
+          newName = suggestProfessionalName(baseName, focus.type, ctx);
+        }
+      }
+
+      if (!newName) {
+        return {
+          kind: 'clarify',
+          question:
+            'What should I rename this ' +
+            (focus.type === 'project' ? 'project' : 'production') +
+            ' to?',
+          options: [],
+          freeText: true,
+          pending: { kind: 'rename', objectType: focus.type, id: focus.id },
+          confidence: 0.75
+        };
+      }
+
+      return buildRenameProposal(focus, newName);
     }
 
     if (classified.kind === 'archive' && ctx.productionId) {
@@ -511,16 +811,21 @@
     }
 
     if (classified.kind === 'create_project') {
-      var cn = extractQuotedOrTail(text, 'called|named') || 'Untitled Project';
+      var cn =
+        toTitleCase(extractQuotedOrTail(text, 'called|named')) ||
+        suggestProfessionalName('', 'project', ctx);
       return {
         kind: 'action',
         proposal: { tool: 'project', action: 'create_project', payload: { name: cn } },
+        object: { type: 'project', name: cn },
         confidence: 0.86
       };
     }
 
     if (classified.kind === 'create_production' && ctx.projectId) {
-      var cnp = extractQuotedOrTail(text, 'called|named') || 'Untitled Production';
+      var cnp =
+        toTitleCase(extractQuotedOrTail(text, 'called|named')) ||
+        suggestProfessionalName('', 'production', ctx);
       return {
         kind: 'action',
         proposal: {
@@ -528,6 +833,7 @@
           action: 'create_production',
           payload: { projectId: ctx.projectId, name: cnp }
         },
+        object: { type: 'production', name: cnp },
         confidence: 0.86
       };
     }
@@ -572,30 +878,48 @@
       };
     }
 
-    if (classified.kind === 'improve' && ctx.productionId) {
+    if (classified.kind === 'improve') {
       var itarget = classified.target || null;
       if (!itarget) {
         if (/\bhook\b/i.test(lower)) itarget = 'hook';
         else if (/\bscript\b/i.test(lower) || ctx.section === 'script') itarget = 'script';
         else if (ctx.section === 'shots' || /\bshot\b/i.test(lower)) itarget = 'shot';
-        else if (/name|title|call/i.test(lower)) itarget = 'production';
+        else if (/name|title|call|professional|cleaner/i.test(lower)) itarget = 'name';
         else if (memory.lastObject && memory.lastObject.type) itarget = memory.lastObject.type;
         else itarget = ctx.section === 'overview' ? 'hook' : 'script';
       }
       if (itarget === 'production' || itarget === 'project' || itarget === 'name') {
-        var improved = /short/i.test(lower)
-          ? shortenName(ctx.production && ctx.production.name)
-          : improveName(ctx.production && ctx.production.name, ctx);
-        return {
-          kind: 'action',
-          proposal: {
-            tool: 'production',
-            action: 'rename_production',
-            payload: { productionId: ctx.productionId, name: improved }
-          },
-          object: { type: 'production', id: ctx.productionId, name: improved },
-          confidence: 0.84
-        };
+        var focusImp = resolveFocusObject(ctx, text);
+        if (focusImp && focusImp.ambiguous) {
+          return {
+            kind: 'clarify',
+            question: 'Polish the project name or the production name?',
+            options: focusImp.candidates.map(function (c) {
+              var suggestion = suggestProfessionalName(c.name, c.type, ctx);
+              return {
+                label: (c.type === 'project' ? 'Project · ' : 'Production · ') + c.name + ' → ' + suggestion,
+                value: {
+                  type: 'rename_target',
+                  objectType: c.type,
+                  id: c.id,
+                  name: suggestion
+                }
+              };
+            }),
+            confidence: 0.9
+          };
+        }
+        if (!focusImp) {
+          return { kind: 'reply', text: 'Open a project or production first.', confidence: 1 };
+        }
+        var improved =
+          classified.mode === 'shorter' || /short/i.test(lower)
+            ? shortenName(focusImp.name)
+            : suggestProfessionalName(focusImp.name, focusImp.type, ctx);
+        return buildRenameProposal(focusImp, improved);
+      }
+      if (!ctx.productionId) {
+        return { kind: 'reply', text: 'Open a production to improve that section.', confidence: 1 };
       }
       return {
         kind: 'generate',
@@ -812,7 +1136,36 @@
         memory.pendingClarify = null;
         var pendingKind = (pending.pending && pending.pending.kind) || 'rename';
         if (pendingKind === 'rename' || pending.freeText) {
-          text = 'Rename this to ' + text;
+          if (pending.pending && pending.pending.id && pending.pending.objectType) {
+            var named = buildRenameProposal(
+              {
+                type: pending.pending.objectType,
+                id: pending.pending.id,
+                name: text
+              },
+              text
+            );
+            rememberTurn({ intent: 'rename', text: text, object: named.object || null });
+            var previewNamed = executeProposed(named.proposal, { confirmed: false });
+            if (previewNamed && previewNamed.needsConfirmation) {
+              return {
+                kind: 'confirm',
+                proposal: named.proposal,
+                message: previewNamed.message,
+                object: named.object || null
+              };
+            }
+            return {
+              kind: 'confirm',
+              proposal: named.proposal,
+              message: (previewNamed && previewNamed.message) || 'Confirm this rename?',
+              object: named.object || null
+            };
+          }
+          var otype = (pending.pending && pending.pending.objectType) || '';
+          if (otype === 'project') text = 'Rename project to ' + text;
+          else if (otype === 'production') text = 'Rename production to ' + text;
+          else text = 'Rename this to ' + text;
         }
       }
     }
@@ -951,6 +1304,31 @@
           payload: { productionId: value.productionId, toProjectId: value.toProjectId }
         },
         message: 'Move this production to the selected project?'
+      };
+    }
+    if (value.type === 'rename_target') {
+      var focus = {
+        type: value.objectType === 'project' ? 'project' : 'production',
+        id: value.id,
+        name: value.name
+      };
+      return buildRenameProposal(focus, value.name || '');
+    }
+    if (value.type === 'rename_pick') {
+      return {
+        kind: 'clarify',
+        question:
+          'What should I rename this ' +
+          (value.objectType === 'project' ? 'project' : 'production') +
+          ' to?',
+        options: [],
+        freeText: true,
+        pending: {
+          kind: 'rename',
+          objectType: value.objectType === 'project' ? 'project' : 'production',
+          id: value.id
+        },
+        confidence: 0.8
       };
     }
     return { kind: 'error', message: 'Unknown choice.' };
@@ -1147,6 +1525,9 @@
     resolveIntent: resolveIntent,
     processStudioCommand: processStudioCommand,
     resolveClarifyChoice: resolveClarifyChoice,
+    toTitleCase: toTitleCase,
+    suggestProfessionalName: suggestProfessionalName,
+    resolveFocusObject: resolveFocusObject,
     applyGeneration: applyGeneration,
     matchIntent: matchIntent,
     parseActionFromReply: parseActionFromReply,

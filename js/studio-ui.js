@@ -1048,6 +1048,10 @@
         current = proj ? proj.name : '';
       }
       rows +=
+        '<div class="dir-action-meta">Action: <strong>' +
+        esc(title) +
+        '</strong></div>';
+      rows +=
         '<div class="dir-action-row"><span>Current</span><strong>' +
         esc(current || '—') +
         '</strong></div>';
@@ -1095,7 +1099,7 @@
       esc(statusLabel) +
       '</div>' +
       (status === 'waiting'
-        ? '<div class="dir-action-hint">Press Go to apply</div>'
+        ? '<div class="dir-action-hint">Confirm? Press Go to apply · or edit the request</div>'
         : '') +
       '</div>'
     );

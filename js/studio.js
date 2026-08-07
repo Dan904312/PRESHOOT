@@ -1039,7 +1039,11 @@
 
   function createProject(input) {
     var store = getStore();
-    var name = String((input && input.name) || 'Untitled Project').trim() || 'Untitled Project';
+    var rawName = String((input && input.name) || 'Untitled Project').trim() || 'Untitled Project';
+    var name =
+      global.PreShootDirectorOS && global.PreShootDirectorOS.toTitleCase
+        ? global.PreShootDirectorOS.toTitleCase(rawName) || rawName
+        : rawName;
     var project = {
       id: uid('proj'),
       name: name,
@@ -1060,7 +1064,11 @@
     var store = getStore();
     var p = findProject(store, projectId);
     if (!p) return null;
-    p.name = String(name || '').trim() || p.name;
+    var titled =
+      global.PreShootDirectorOS && global.PreShootDirectorOS.toTitleCase
+        ? global.PreShootDirectorOS.toTitleCase(name)
+        : String(name || '').trim();
+    p.name = titled || p.name;
     p.updatedAt = now();
     saveStore(store);
     return p;
@@ -1458,9 +1466,9 @@
   function confirmMessage(action, payload) {
     payload = payload || {};
     if (action === 'rename_project')
-      return 'Rename project to “' + (payload.name || '') + '”?';
+      return 'Rename Project to “' + (payload.name || '') + '”?';
     if (action === 'rename_production')
-      return 'Rename production to “' + (payload.name || '') + '”?';
+      return 'Rename Production to “' + (payload.name || '') + '”?';
     if (action === 'move_production')
       return 'Move this production to the selected project?';
     if (action === 'archive_production') return 'Archive this production?';
@@ -1515,7 +1523,14 @@
       }
       if (action === 'rename_production') {
         if (!payload.productionId || !payload.name) return { ok: false, error: 'missing_fields' };
-        return { ok: !!updateProduction(payload.productionId, { name: payload.name }), result: true };
+        var prodName =
+          global.PreShootDirectorOS && global.PreShootDirectorOS.toTitleCase
+            ? global.PreShootDirectorOS.toTitleCase(payload.name)
+            : String(payload.name || '').trim();
+        return {
+          ok: !!updateProduction(payload.productionId, { name: prodName }),
+          result: true
+        };
       }
       if (action === 'move_production') {
         if (!payload.productionId || !payload.toProjectId) return { ok: false, error: 'missing_fields' };
