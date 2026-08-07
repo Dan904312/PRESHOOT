@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.4"
+CURRENT_VERSION = "v2.7.5"
 LAST_UPDATED = "2026-08-07"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,45 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0015",
+        "version": "v2.7.5",
+        "date": "2026-08-07",
+        "categories": ["Security", "Infrastructure", "Deployment"],
+        "title": "Phase 5 — CSP and browser security header hardening",
+        "what_changed": (
+            "Hardened vercel.json Content-Security-Policy: removed unsafe-eval and unused script "
+            "CDNs (esm.sh, unpkg); restricted connect-src to self + Supabase only (dropped browser "
+            "Anthropic/Google API/Stripe connect); tightened img-src to trusted hosts; added "
+            "object-src/frame-src none, upgrade-insecure-requests, HSTS, and COOP "
+            "same-origin-allow-popups. Retained script/style unsafe-inline required by current "
+            "HTML inline boot + app scripts."
+        ),
+        "files": [
+            "vercel.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Weak Content Security Policy increased XSS risk (unsafe-eval, broad connect-src, "
+            "unused script CDNs)."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Injected scripts could access user data or sessions; overly broad connect-src "
+            "expanded blast radius if XSS occurred."
+        ),
+        "fix_applied": (
+            "Hardened CSP rules and improved browser security headers while preserving required "
+            "jsDelivr (GSAP/Supabase/OGL), Google Fonts, and inline script/style compatibility."
+        ),
+        "testing": (
+            "Validated CSP string for required app hosts; confirmed no eval/new Function in repo; "
+            "documented residual unsafe-inline until inline scripts are externalized."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0014",
         "version": "v2.7.4",
@@ -703,6 +742,14 @@ UPDATES = [
 SECURITY_HISTORY = [
     {
         "date": "2026-08-07",
+        "title": "CSP / header hardening (UPDATE-0015)",
+        "detail": (
+            "Phase 5 hardening: removed unsafe-eval and unused CDNs; narrowed connect-src and "
+            "img-src; added object/frame denial, HSTS, and COOP. Inline script/style still required."
+        ),
+    },
+    {
+        "date": "2026-08-07",
         "title": "Admin session cookies (UPDATE-0014)",
         "detail": (
             "Phase 4 hardening: removed sessionStorage admin secret; HttpOnly cookie sessions with "
@@ -844,6 +891,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.5",
+        "date": "2026-08-07",
+        "label": "Security Phase 5 — CSP / browser headers",
+        "changes": [
+            "Removed unsafe-eval; tightened connect-src and img-src (UPDATE-0015)",
+            "Added HSTS, COOP, object-src/frame-src none",
+        ],
+    },
     {
         "version": "v2.7.4",
         "date": "2026-08-07",
