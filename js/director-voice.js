@@ -1,6 +1,7 @@
 /**
  * Director Voice Mode — overlay listening UI with live captions + volume rings.
- * Uses Web Speech API + getUserMedia AnalyserNode for reactive animation.
+ * Pipeline: user gesture → getUserMedia (volume) → SpeechRecognition (transcript).
+ * Never silently fails; surfaces permission / unsupported / network errors.
  */
 (function (global) {
   'use strict';
@@ -15,7 +16,10 @@
     finalText: '',
     interimText: '',
     onFinal: null,
-    stopping: false
+    onError: null,
+    stopping: false,
+    starting: false,
+    autoFinishTimer: 0
   };
 
   function $(id) {
@@ -28,7 +32,7 @@
     ov = document.createElement('div');
     ov.id = 'dir-voice-ov';
     ov.className = 'dir-voice-ov';
-    ov.hidden = true;
+    ov.setAttribute('hidden', '');
     ov.setAttribute('role', 'dialog');
     ov.setAttribute('aria-modal', 'true');
     ov.setAttribute('aria-label', 'Director voice mode');
@@ -45,7 +49,7 @@
       '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>' +
       '</button>' +
       '</div>' +
-      '<div class="dir-voice-hint" id="dir-voice-hint">Speak naturally — Director is listening</div>' +
+      '<div class="dir-voice-hint" id="dir-voice-hint">Speak naturally. Director is listening</div>' +
       '<div class="dir-voice-captions" id="dir-voice-captions" aria-live="polite">' +
       '<span class="dir-voice-cap-placeholder">Start speaking…</span>' +
       '</div>' +
@@ -87,6 +91,11 @@
     el.className = 'dir-voice-status' + (cls ? ' ' + cls : '');
   }
 
+  function setHint(text) {
+    var el = $('dir-voice-hint');
+    if (el) el.textContent = text || '';
+  }
+
   function setCaptions(finalText, interimText) {
     var el = $('dir-voice-captions');
     if (!el) return;
@@ -123,13 +132,23 @@
   }
 
   function isSecureContextOk() {
-    return !!(global.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+    return !!(
+      global.isSecureContext ||
+      location.protocol === 'https:' ||
+      location.hostname === 'localhost' ||
+      location.hostname === '127.0.0.1'
+    );
   }
 
   function errorMessage(err) {
     var name = (err && (err.name || err.error || err.message)) || '';
     var n = String(name).toLowerCase();
-    if (n.indexOf('notallowed') >= 0 || n.indexOf('permission') >= 0 || n === 'not-allowed') {
+    if (
+      n.indexOf('notallowed') >= 0 ||
+      n.indexOf('permission') >= 0 ||
+      n === 'not-allowed' ||
+      n.indexOf('denied') >= 0
+    ) {
       return 'Microphone access is disabled. Enable it in settings to use voice mode.';
     }
     if (n.indexOf('notfound') >= 0 || n === 'audio-capture') {
@@ -141,13 +160,35 @@
     if (n === 'network') {
       return 'Voice recognition needs a network connection. Check your connection and try again.';
     }
-    if (n === 'service-not-allowed' || n === 'not-supported') {
+    if (n === 'service-not-allowed' || n === 'not-supported' || n.indexOf('unsupported') >= 0) {
       return 'Voice mode isn’t available in this browser. Type your request instead.';
     }
     if (n.indexOf('secure') >= 0) {
       return 'Voice mode requires a secure connection (HTTPS).';
     }
     return 'Couldn’t start voice mode. Check microphone permissions and try again.';
+  }
+
+  function emitError(msg) {
+    if (typeof state.onError === 'function') state.onError(msg);
+  }
+
+  function clearAutoFinish() {
+    if (state.autoFinishTimer) {
+      clearTimeout(state.autoFinishTimer);
+      state.autoFinishTimer = 0;
+    }
+  }
+
+  function scheduleAutoFinish() {
+    clearAutoFinish();
+    /* After a final utterance settles, auto-send like a typed Go */
+    state.autoFinishTimer = setTimeout(function () {
+      state.autoFinishTimer = 0;
+      if (!state.open || state.stopping) return;
+      var t = String(state.finalText || state.interimText || '').trim();
+      if (t) finishWithText(t);
+    }, 1100);
   }
 
   function stopAudio() {
@@ -182,6 +223,7 @@
       rec.onresult = null;
       rec.onerror = null;
       rec.onend = null;
+      rec.onstart = null;
       rec.stop();
     } catch (e) {
       try {
@@ -210,30 +252,39 @@
     state.raf = requestAnimationFrame(tickVolume);
   }
 
-  function startVolumeMeter() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve(false);
-    return navigator.mediaDevices
-      .getUserMedia({ audio: true, video: false })
-      .then(function (stream) {
-        state.stream = stream;
-        var AC = global.AudioContext || global.webkitAudioContext;
-        if (!AC) return true;
-        state.audioCtx = new AC();
-        state.analyser = state.audioCtx.createAnalyser();
-        state.analyser.fftSize = 512;
-        state.analyser.smoothingTimeConstant = 0.82;
-        var src = state.audioCtx.createMediaStreamSource(stream);
-        src.connect(state.analyser);
-        if (state.audioCtx.state === 'suspended') {
-          state.audioCtx.resume().catch(function () {});
-        }
-        tickVolume();
-        return true;
-      });
+  function attachStream(stream) {
+    state.stream = stream;
+    var AC = global.AudioContext || global.webkitAudioContext;
+    if (!AC) return;
+    state.audioCtx = new AC();
+    state.analyser = state.audioCtx.createAnalyser();
+    state.analyser.fftSize = 512;
+    state.analyser.smoothingTimeConstant = 0.82;
+    var src = state.audioCtx.createMediaStreamSource(stream);
+    src.connect(state.analyser);
+    if (state.audioCtx.state === 'suspended') {
+      state.audioCtx.resume().catch(function () {});
+    }
+    tickVolume();
+  }
+
+  function requestMic() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return Promise.reject({ name: 'NotSupportedError', message: 'unsupported' });
+    }
+    return navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
+      video: false
+    });
   }
 
   function finishWithText(text) {
     var t = String(text || '').trim();
+    clearAutoFinish();
     state.stopping = true;
     stopRecognition();
     stopAudio();
@@ -245,25 +296,44 @@
     setCaptions(t, '');
     var ov = $('dir-voice-ov');
     if (ov) ov.classList.add('processing');
+    var cb = state.onFinal;
     setTimeout(function () {
-      var cb = state.onFinal;
-      closeVoiceMode({ cancel: false, keepPanel: false });
+      closeVoiceMode({ cancel: false });
       if (typeof cb === 'function') cb(t);
-    }, 220);
+    }, 180);
+  }
+
+  function failAndClose(msg) {
+    clearAutoFinish();
+    state.stopping = true;
+    stopRecognition();
+    stopAudio();
+    setStatus('Can’t start', 'error');
+    setHint(msg);
+    var ov = $('dir-voice-ov');
+    if (ov) ov.classList.add('error');
+    emitError(msg);
+    setTimeout(function () {
+      closeVoiceMode({ cancel: true });
+    }, 1600);
   }
 
   function closeVoiceMode(opts) {
     opts = opts || {};
+    clearAutoFinish();
     state.stopping = true;
+    state.starting = false;
     stopRecognition();
     stopAudio();
     state.open = false;
     state.finalText = '';
     state.interimText = '';
     state.onFinal = null;
+    state.onError = null;
     var ov = $('dir-voice-ov');
     if (ov) {
       ov.classList.remove('open', 'processing', 'error');
+      ov.setAttribute('hidden', '');
       ov.hidden = true;
     }
     document.documentElement.classList.remove('dir-voice-active');
@@ -271,11 +341,94 @@
     if (btn) btn.classList.remove('listening');
   }
 
+  function startRecognition(SR, lang) {
+    var rec = new SR();
+    state.rec = rec;
+    rec.lang = lang || 'en-US';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = function () {
+      if (!state.open || state.stopping) return;
+      setStatus('Listening…', 'listening');
+      setHint('Speak naturally. Director is listening');
+    };
+
+    rec.onresult = function (ev) {
+      if (!state.open || state.stopping) return;
+      var finalChunk = '';
+      var interim = '';
+      for (var i = ev.resultIndex; i < ev.results.length; i++) {
+        var res = ev.results[i];
+        var txt = res[0] && res[0].transcript ? res[0].transcript : '';
+        if (res.isFinal) finalChunk += txt;
+        else interim += txt;
+      }
+      if (finalChunk) {
+        state.finalText = (state.finalText + ' ' + finalChunk).replace(/\s+/g, ' ').trim();
+        scheduleAutoFinish();
+      } else {
+        clearAutoFinish();
+      }
+      state.interimText = interim;
+      setCaptions(state.finalText, state.interimText);
+      setStatus('Listening…', 'listening');
+    };
+
+    rec.onerror = function (ev) {
+      if (state.stopping || !state.open) return;
+      var code = (ev && ev.error) || 'error';
+      if (code === 'no-speech' || code === 'aborted') {
+        if (!state.finalText && !state.interimText) {
+          setStatus('Listening…', 'listening');
+        }
+        return;
+      }
+      if (code === 'not-allowed' || code === 'service-not-allowed') {
+        failAndClose(errorMessage({ error: code }));
+        return;
+      }
+      var msg = errorMessage({ error: code });
+      setStatus('Can’t hear', 'error');
+      setHint(msg);
+      var ov = $('dir-voice-ov');
+      if (ov) ov.classList.add('error');
+      emitError(msg);
+      /* Keep overlay open for soft network blips so user can tap Done if they already spoke */
+      if (code !== 'network' || !(state.finalText || state.interimText)) {
+        stopAudio();
+      }
+    };
+
+    rec.onend = function () {
+      if (state.stopping || !state.open) return;
+      /* Chrome ends continuous sessions — restart while overlay open */
+      try {
+        state.rec = rec;
+        rec.start();
+      } catch (e) {
+        if (state.finalText || state.interimText) {
+          finishWithText(state.finalText || state.interimText);
+        } else {
+          setStatus('Ready', 'ok');
+          setHint('Tap the mic again, or type your request');
+        }
+      }
+    };
+
+    try {
+      rec.start();
+    } catch (e) {
+      failAndClose(errorMessage(e));
+    }
+  }
+
   function openVoiceMode(opts) {
     opts = opts || {};
-    if (state.open) {
+    if (state.open || state.starting) {
       closeVoiceMode({ cancel: true });
-      return;
+      /* Allow immediate re-open from the same tap cycle via next call */
     }
 
     if (!isSecureContextOk()) {
@@ -295,116 +448,61 @@
 
     var ov = ensureOverlay();
     state.open = true;
+    state.starting = true;
     state.stopping = false;
     state.finalText = '';
     state.interimText = '';
     state.onFinal = opts.onFinal || null;
+    state.onError = opts.onError || null;
     ov.hidden = false;
+    ov.removeAttribute('hidden');
     ov.classList.remove('processing', 'error');
     requestAnimationFrame(function () {
       ov.classList.add('open');
     });
     document.documentElement.classList.add('dir-voice-active');
-    setStatus('Listening…', 'listening');
+    setStatus('Starting…', 'listening');
     setCaptions('', '');
-    var hint = $('dir-voice-hint');
-    if (hint) hint.textContent = 'Speak naturally — Director is listening';
+    setHint('Allow microphone access if prompted');
     var micBtn = $('dir-cmd-mic');
     if (micBtn) micBtn.classList.add('listening');
 
-    startVolumeMeter().catch(function (err) {
-      /* Mic for viz failed — still try speech recognition; surface permission errors */
-      var msg = errorMessage(err);
-      if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-        setStatus('Mic blocked', 'error');
-        ov.classList.add('error');
-        if (hint) hint.textContent = msg;
-        if (typeof opts.onError === 'function') opts.onError(msg);
-        setTimeout(function () {
-          closeVoiceMode({ cancel: true });
-        }, 1600);
-      }
-    });
-
-    var rec = new SR();
-    state.rec = rec;
-    rec.lang = opts.lang || 'en-US';
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-
-    rec.onresult = function (ev) {
-      var finalChunk = '';
-      var interim = '';
-      for (var i = ev.resultIndex; i < ev.results.length; i++) {
-        var res = ev.results[i];
-        var txt = res[0] && res[0].transcript ? res[0].transcript : '';
-        if (res.isFinal) finalChunk += txt;
-        else interim += txt;
-      }
-      if (finalChunk) {
-        state.finalText = (state.finalText + ' ' + finalChunk).replace(/\s+/g, ' ').trim();
-      }
-      state.interimText = interim;
-      setCaptions(state.finalText, state.interimText);
-      setStatus('Listening…', 'listening');
-    };
-
-    rec.onerror = function (ev) {
-      if (state.stopping) return;
-      var code = (ev && ev.error) || 'error';
-      if (code === 'no-speech' || code === 'aborted') {
-        /* Soft — keep UI open so user can retry / tap Done */
-        if (!state.finalText && !state.interimText) {
-          setStatus('Listening…', 'listening');
+    /* Mic first (volume + permission), then recognition — avoids mobile dual-start races */
+    requestMic()
+      .then(function (stream) {
+        if (!state.open || state.stopping) {
+          try {
+            stream.getTracks().forEach(function (t) {
+              t.stop();
+            });
+          } catch (e) {}
+          return;
         }
-        return;
-      }
-      var msg = errorMessage({ error: code });
-      setStatus('Can’t hear', 'error');
-      ov.classList.add('error');
-      var hintEl = $('dir-voice-hint');
-      if (hintEl) hintEl.textContent = msg;
-      stopAudio();
-      if (typeof opts.onError === 'function') opts.onError(msg);
-    };
-
-    rec.onend = function () {
-      if (state.stopping || !state.open) return;
-      /* Chrome often ends continuous sessions — restart while overlay open */
-      if (state.finalText && !state.interimText) {
-        /* Brief pause then allow Done; also auto-finish if clear utterance */
-        setStatus('Ready', 'ok');
-        var hintEl = $('dir-voice-hint');
-        if (hintEl) hintEl.textContent = 'Tap Done to send, or keep speaking';
-        try {
-          state.rec = rec;
-          rec.start();
-        } catch (e) {}
-        return;
-      }
-      try {
-        rec.start();
-      } catch (e) {
-        /* If restart fails and we have text, finish */
-        if (state.finalText || state.interimText) {
-          finishWithText(state.finalText || state.interimText);
+        attachStream(stream);
+        state.starting = false;
+        setStatus('Listening…', 'listening');
+        setHint('Speak naturally. Director is listening');
+        startRecognition(SR, opts.lang || 'en-US');
+      })
+      .catch(function (err) {
+        if (!state.open || state.stopping) return;
+        /* Some desktop browsers allow SpeechRecognition without getUserMedia —
+           still try recognition, but show a clear permission error if hard-denied. */
+        var hardDeny =
+          err &&
+          (err.name === 'NotAllowedError' ||
+            err.name === 'PermissionDeniedError' ||
+            err.name === 'SecurityError');
+        if (hardDeny) {
+          state.starting = false;
+          failAndClose(errorMessage(err));
+          return;
         }
-      }
-    };
-
-    try {
-      rec.start();
-    } catch (e) {
-      stopAudio();
-      var msg = errorMessage(e);
-      setStatus('Can’t start', 'error');
-      ov.classList.add('error');
-      if (typeof opts.onError === 'function') opts.onError(msg);
-      setTimeout(function () {
-        closeVoiceMode({ cancel: true });
-      }, 1400);
-    }
+        state.starting = false;
+        setStatus('Listening…', 'listening');
+        setHint('Speak naturally. Director is listening');
+        startRecognition(SR, opts.lang || 'en-US');
+      });
   }
 
   function isOpen() {

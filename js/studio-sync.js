@@ -158,10 +158,13 @@
   function flush() {
     if (!authUser()) return Promise.resolve();
     var dirty = Studio() ? Studio().isDirty() : false;
-    return pullNow({ force: true }).then(function () {
-      if (dirty || (Studio() && Studio().isDirty())) return pushNow();
-      return { ok: true };
-    });
+    /* Push first when dirty so deletions / renames win before cloud merge */
+    if (dirty) {
+      return pushNow().then(function () {
+        return pullNow({ force: true });
+      });
+    }
+    return pullNow({ force: true });
   }
 
   function startRealtime() {
@@ -242,7 +245,9 @@
     });
 
     window.addEventListener('focus', function () {
-      if (authUser()) pullNow({ force: false });
+      if (!authUser()) return;
+      if (Studio() && Studio().isDirty()) flush();
+      else pullNow({ force: false });
     });
   }
 

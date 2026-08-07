@@ -2740,45 +2740,105 @@
     var menu = document.getElementById('st-project-menu');
     if (menu) menu.hidden = true;
     var p = Studio().findProject(projectId);
-    if (!p) return;
+    if (!p) {
+      toast('Project not found');
+      return;
+    }
     var name = prompt('Rename project', p.name);
     if (name == null) return;
-    Studio().renameProject(projectId, name);
+    var updated = Studio().renameProject(projectId, name);
+    if (!updated) {
+      toast('Couldn’t rename project');
+      return;
+    }
     toast('Project renamed');
     openProject(projectId);
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    }
   }
 
   function duplicateProject(projectId) {
     var menu = document.getElementById('st-project-menu');
     if (menu) menu.hidden = true;
     var copy = Studio().duplicateProject(projectId);
-    if (!copy) return;
+    if (!copy) {
+      toast('Couldn’t duplicate project');
+      return;
+    }
     toast('Project duplicated');
     openProject(copy.id);
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    }
   }
 
   function archiveProject(projectId) {
     var menu = document.getElementById('st-project-menu');
     if (menu) menu.hidden = true;
     if (!confirm('Archive this project? You can restore it anytime from Studio.')) return;
-    Studio().archiveProject(projectId, true);
+    var updated = Studio().archiveProject(projectId, true);
+    if (!updated) {
+      toast('Couldn’t archive project');
+      return;
+    }
     toast('Project archived');
     backToList();
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    }
   }
 
   function restoreProject(projectId) {
-    Studio().restoreProject(projectId);
+    var updated = Studio().restoreProject(projectId);
+    if (!updated) {
+      toast('Couldn’t restore project');
+      return;
+    }
     toast('Project restored');
     backToList();
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    }
   }
 
   function deleteProject(projectId) {
     var menu = document.getElementById('st-project-menu');
     if (menu) menu.hidden = true;
-    if (!confirm('Permanently delete this project and its productions?')) return;
-    Studio().deleteProject(projectId);
+    if (!projectId) {
+      toast('Couldn’t delete project');
+      return;
+    }
+    if (!confirm('Permanently delete this project and its productions? This cannot be undone.')) {
+      return;
+    }
+    if (!Studio() || typeof Studio().deleteProject !== 'function') {
+      toast('Studio isn’t ready. Try again.');
+      return;
+    }
+    var ok = false;
+    try {
+      ok = !!Studio().deleteProject(projectId);
+    } catch (e) {
+      ok = false;
+    }
+    if (!ok) {
+      toast('Couldn’t delete project. Try again.');
+      return;
+    }
     toast('Project deleted');
+    if (global.S && global.S.studioView) {
+      if (global.S.studioView.projectId === projectId) {
+        global.S.studioView = { mode: 'list' };
+      }
+    }
     backToList();
+    /* Force immediate sync so other devices don’t resurrect the project */
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    } else if (typeof global.scheduleCloudSync === 'function') {
+      global.scheduleCloudSync();
+    }
   }
 
   function setStatus(productionId, status) {
@@ -2828,13 +2888,31 @@
     var menu = document.getElementById('st-production-menu');
     if (menu) menu.hidden = true;
     if (!confirm('Delete this production? This cannot be undone.')) return;
+    if (!Studio() || typeof Studio().deleteProduction !== 'function') {
+      toast('Studio isn’t ready. Try again.');
+      return;
+    }
     var found = Studio().findProduction(productionId);
     var projectId = found && found.project ? found.project.id : null;
-    Studio().deleteProduction(productionId);
+    var ok = false;
+    try {
+      ok = !!Studio().deleteProduction(productionId);
+    } catch (e) {
+      ok = false;
+    }
+    if (!ok) {
+      toast('Couldn’t delete production. Try again.');
+      return;
+    }
     toast('Production deleted');
     renderContinueCard();
     if (projectId) openProject(projectId);
     else backToList();
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    } else if (typeof global.scheduleCloudSync === 'function') {
+      global.scheduleCloudSync();
+    }
   }
 
   global.PreShootStudioUI = {

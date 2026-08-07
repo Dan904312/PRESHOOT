@@ -7,8 +7,9 @@
   'use strict';
 
   var STORAGE_KEY = 'studio';
-  var VERSION = 2;
+  var VERSION = 3;
   var DIRTY_KEY = 'studio_dirty';
+  var TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
   var STATUSES = [
     { id: 'planning', label: 'Planning', order: 0 },
@@ -57,7 +58,61 @@
 
   function emptyStore() {
     /* updatedAt:0 so a fresh device never looks "newer" than cloud */
-    return { version: VERSION, projects: [], continueProductionId: null, updatedAt: 0 };
+    return {
+      version: VERSION,
+      projects: [],
+      continueProductionId: null,
+      updatedAt: 0,
+      deletedProjects: {},
+      deletedProductions: {}
+    };
+  }
+
+  function normalizeTombstones(map) {
+    var out = {};
+    if (!map || typeof map !== 'object') return out;
+    Object.keys(map).forEach(function (id) {
+      var ts = Number(map[id]) || 0;
+      if (!id || !ts) return;
+      if (Date.now() - ts > TOMBSTONE_TTL_MS) return;
+      out[id] = ts;
+    });
+    return out;
+  }
+
+  function mergeTombstoneMaps(a, b) {
+    var out = {};
+    [a, b].forEach(function (map) {
+      if (!map || typeof map !== 'object') return;
+      Object.keys(map).forEach(function (id) {
+        var ts = Number(map[id]) || 0;
+        if (!id || !ts) return;
+        out[id] = Math.max(out[id] || 0, ts);
+      });
+    });
+    return normalizeTombstones(out);
+  }
+
+  function rememberDeletedProject(store, projectId) {
+    store.deletedProjects = store.deletedProjects || {};
+    store.deletedProjects[projectId] = now();
+  }
+
+  function rememberDeletedProduction(store, productionId) {
+    store.deletedProductions = store.deletedProductions || {};
+    store.deletedProductions[productionId] = now();
+  }
+
+  function clearDeletedProject(store, projectId) {
+    if (store.deletedProjects && store.deletedProjects[projectId]) {
+      delete store.deletedProjects[projectId];
+    }
+  }
+
+  function clearDeletedProduction(store, productionId) {
+    if (store.deletedProductions && store.deletedProductions[productionId]) {
+      delete store.deletedProductions[productionId];
+    }
   }
 
   function hasPersistedStore() {
@@ -342,6 +397,8 @@
       return emptyStore();
     }
     raw.version = VERSION;
+    raw.deletedProjects = normalizeTombstones(raw.deletedProjects);
+    raw.deletedProductions = normalizeTombstones(raw.deletedProductions);
     (raw.projects || []).forEach(function (p) {
       (p.productions || []).forEach(ensureWorkspace);
     });
@@ -365,6 +422,8 @@
     store = store || getStore();
     if (!opts.keepUpdatedAt) store.updatedAt = now();
     store.version = VERSION;
+    store.deletedProjects = normalizeTombstones(store.deletedProjects);
+    store.deletedProductions = normalizeTombstones(store.deletedProductions);
     (store.projects || []).forEach(function (p) {
       (p.productions || []).forEach(ensureWorkspace);
     });
@@ -434,15 +493,17 @@
     return out;
   }
 
-  function mergeProject(localProj, cloudProj) {
+  function mergeProject(localProj, cloudProj, deletedProductions) {
+    deletedProductions = deletedProductions || {};
     var base = pickNewer(localProj, cloudProj);
     var other = base === localProj ? cloudProj : localProj;
     var out = Object.assign({}, other || {}, base || {});
     var map = {};
     ((localProj && localProj.productions) || []).forEach(function (p) {
-      map[p.id] = p;
+      if (p && p.id && !deletedProductions[p.id]) map[p.id] = p;
     });
     ((cloudProj && cloudProj.productions) || []).forEach(function (p) {
+      if (!p || !p.id || deletedProductions[p.id]) return;
       map[p.id] = map[p.id] ? mergeProduction(map[p.id], p) : p;
     });
     out.productions = Object.keys(map)
@@ -459,38 +520,79 @@
     return out;
   }
 
+  function resolveContinueId(continueId, projects, deletedProductions) {
+    if (!continueId) return null;
+    if (deletedProductions && deletedProductions[continueId]) return null;
+    var list = projects || [];
+    for (var i = 0; i < list.length; i++) {
+      var prods = list[i].productions || [];
+      for (var j = 0; j < prods.length; j++) {
+        if (prods[j] && prods[j].id === continueId) return continueId;
+      }
+    }
+    return null;
+  }
+
   function mergeStudioStores(local, cloud) {
     local = local && typeof local === 'object' ? local : emptyStore();
     cloud = cloud && typeof cloud === 'object' ? cloud : emptyStore();
     var localProjects = Array.isArray(local.projects) ? local.projects : [];
     var cloudProjects = Array.isArray(cloud.projects) ? cloud.projects : [];
+    var deletedProjects = mergeTombstoneMaps(local.deletedProjects, cloud.deletedProjects);
+    var deletedProductions = mergeTombstoneMaps(local.deletedProductions, cloud.deletedProductions);
     var localEmpty = !localProjects.length;
     var cloudEmpty = !cloudProjects.length;
     var persisted = hasPersistedStore();
 
+    function filterProjects(list) {
+      return (list || []).filter(function (p) {
+        return p && p.id && !deletedProjects[p.id];
+      });
+    }
+
     if (!persisted || (localEmpty && !cloudEmpty)) {
+      var cloudOnly = filterProjects(cloudProjects).map(function (p) {
+        return mergeProject(null, p, deletedProductions);
+      });
       return {
         version: VERSION,
-        projects: cloudProjects,
-        continueProductionId: cloud.continueProductionId || null,
-        updatedAt: cloud.updatedAt || now()
+        projects: cloudOnly,
+        continueProductionId: resolveContinueId(
+          cloud.continueProductionId,
+          cloudOnly,
+          deletedProductions
+        ),
+        updatedAt: cloud.updatedAt || now(),
+        deletedProjects: deletedProjects,
+        deletedProductions: deletedProductions
       };
     }
     if (cloudEmpty && !localEmpty) {
+      var localOnly = filterProjects(localProjects).map(function (p) {
+        return mergeProject(p, null, deletedProductions);
+      });
       return {
         version: VERSION,
-        projects: localProjects,
-        continueProductionId: local.continueProductionId || null,
-        updatedAt: local.updatedAt || now()
+        projects: localOnly,
+        continueProductionId: resolveContinueId(
+          local.continueProductionId,
+          localOnly,
+          deletedProductions
+        ),
+        updatedAt: local.updatedAt || now(),
+        deletedProjects: deletedProjects,
+        deletedProductions: deletedProductions
       };
     }
 
     var map = {};
-    localProjects.forEach(function (p) {
+    filterProjects(localProjects).forEach(function (p) {
       map[p.id] = p;
     });
-    cloudProjects.forEach(function (p) {
-      map[p.id] = map[p.id] ? mergeProject(map[p.id], p) : p;
+    filterProjects(cloudProjects).forEach(function (p) {
+      map[p.id] = map[p.id]
+        ? mergeProject(map[p.id], p, deletedProductions)
+        : mergeProject(null, p, deletedProductions);
     });
     var projects = Object.keys(map)
       .map(function (id) {
@@ -512,8 +614,10 @@
     return {
       version: VERSION,
       projects: projects,
-      continueProductionId: continueId,
-      updatedAt: Math.max(local.updatedAt || 0, cloud.updatedAt || 0)
+      continueProductionId: resolveContinueId(continueId, projects, deletedProductions),
+      updatedAt: Math.max(local.updatedAt || 0, cloud.updatedAt || 0),
+      deletedProjects: deletedProjects,
+      deletedProductions: deletedProductions
     };
   }
 
@@ -946,6 +1050,7 @@
       updatedAt: now(),
       productions: []
     };
+    clearDeletedProject(store, project.id);
     store.projects.unshift(project);
     saveStore(store);
     return project;
@@ -977,6 +1082,20 @@
 
   function deleteProject(projectId) {
     var store = getStore();
+    var target = findProject(store, projectId);
+    if (!target) {
+      /* Still record tombstone so sync cannot resurrect a missing id */
+      rememberDeletedProject(store, projectId);
+      saveStore(store);
+      return true;
+    }
+    (target.productions || []).forEach(function (prod) {
+      if (prod && prod.id) {
+        rememberDeletedProduction(store, prod.id);
+        if (store.continueProductionId === prod.id) store.continueProductionId = null;
+      }
+    });
+    rememberDeletedProject(store, projectId);
     store.projects = (store.projects || []).filter(function (p) {
       return p.id !== projectId;
     });
@@ -1037,6 +1156,7 @@
       pushTimeline(production, 'script', 'Script generated');
     }
     if (!Array.isArray(project.productions)) project.productions = [];
+    clearDeletedProduction(store, production.id);
     project.productions.unshift(production);
     project.updatedAt = now();
     if (!project.coverImage && production.coverImage) {
@@ -1115,6 +1235,7 @@
     copy.name = found.production.name + ' (Copy)';
     copy.createdAt = now();
     copy.updatedAt = now();
+    clearDeletedProduction(store, copy.id);
     found.project.productions.unshift(copy);
     found.project.updatedAt = now();
     saveStore(store);
@@ -1124,7 +1245,12 @@
   function deleteProduction(productionId) {
     var store = getStore();
     var found = findProduction(store, productionId);
-    if (!found) return false;
+    rememberDeletedProduction(store, productionId);
+    if (!found) {
+      if (store.continueProductionId === productionId) store.continueProductionId = null;
+      saveStore(store);
+      return false;
+    }
     found.project.productions.splice(found.index, 1);
     found.project.updatedAt = now();
     if (store.continueProductionId === productionId) store.continueProductionId = null;
