@@ -30,8 +30,8 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.3.0"
-LAST_UPDATED = "2026-07-29"
+CURRENT_VERSION = "v2.7.1"
+LAST_UPDATED = "2026-08-07"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
 
@@ -40,6 +40,270 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0011",
+        "version": "v2.7.1",
+        "date": "2026-08-07",
+        "categories": ["Security", "API", "Backend", "AI System", "Database"],
+        "title": "Phase 1 — Research endpoint entitlement + usage limits",
+        "what_changed": (
+            "Hardened /api/research so authenticated free users cannot burn Anthropic/YouTube "
+            "quota. Added requireResearchAccess: server-side JWT identity, subscription plan from "
+            "Supabase (never client S.plan), Pro-only gate, and daily research_calls tracking via "
+            "usage_daily. Clear 403/429 errors for free and over-limit Pro users."
+        ),
+        "files": [
+            "lib/security.js",
+            "api/research.js",
+            "supabase_setup.sql",
+            ".env.example",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Research endpoint lacked subscription enforcement. Authenticated users could call "
+            "/api/research without Pro/quota checks, enabling AI/API cost abuse."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Potential AI/API cost abuse: free accounts or stolen sessions could consume expensive "
+            "Anthropic and optional YouTube Data API calls without entitlement limits."
+        ),
+        "fix_applied": (
+            "Added server-side entitlement verification (getSubscription) and usage limits "
+            "(research_calls / RESEARCH_DAILY_CALLS, default 30) before external research calls. "
+            "SQL schema documents research_calls column + ALTER for existing deployments."
+        ),
+        "testing": (
+            "node --check api/research.js lib/security.js; verified free path returns pro_required "
+            "before adapters; Pro path increments research_calls; client plan mutation cannot "
+            "bypass server checks; quota_exceeded after daily limit."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0010",
+        "version": "v2.7.0",
+        "date": "2026-07-30",
+        "categories": ["Bug Fix", "Feature", "Backend", "UI/UX", "AI System"],
+        "title": "Phase 3 — Reliable Studio sync + Production Workspace",
+        "what_changed": (
+            "Fixed multi-device Studio sync: empty local stores no longer stamp updatedAt=now and "
+            "block/overwrite cloud projects. Added per-project/production merge by updatedAt, dirty "
+            "flag + offline-safe push queue, faster debounce, visibility/online flush, focus pull, "
+            "and Supabase realtime listener when available. Built Production Workspace with stage "
+            "rail, Overview (summary/goal/platform/format), and placeholder Shot List / Script / "
+            "References / Assets sections. Director getDirectorContext prepared for later AI."
+        ),
+        "files": [
+            "js/studio.js",
+            "js/studio-sync.js",
+            "js/studio-ui.js",
+            "app.html",
+            "api/sync.js",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Device B login skipped cloud Studio because emptyStore() used Date.now() as "
+            "updatedAt, then subsequent saves could wipe Device A projects via prefs.studio LWW."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Sync bugs could delete user projects across devices. Mitigated with empty-store "
+            "timestamp fix, merge-by-id, dirty queue, and pull-before-push on reconnect."
+        ),
+        "fix_applied": (
+            "mergeStudioStores + applyCloudStudio; PreShootStudioSync push/pull/flush/realtime; "
+            "Production Workspace UI sections."
+        ),
+        "testing": (
+            "node --check studio.js/studio-sync.js/studio-ui.js; Node merge unit tests for fresh "
+            "device hydrate and conflicting edits; verify Home scan / Library / Studio wiring intact."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0009",
+        "version": "v2.6.0",
+        "date": "2026-07-30",
+        "categories": ["UI/UX", "UI Design", "Feature"],
+        "title": "Phase 2 — Studio UI & project management experience",
+        "what_changed": (
+            "Polished Studio into a mobile-first creative workspace. Redesigned project cards "
+            "(progress bars, muted status pills), project dashboard, production cards with "
+            "relative updated dates, stepped New Project flow (name → description → optional "
+            "cover), simplified New Production flow, premium Continue Working card, polished "
+            "empty states, responsive multi-column desktop grid, and Director AI placeholder "
+            "buttons (non-functional). Phase 1 data model and Home/Library scanning preserved."
+        ),
+        "files": [
+            "js/studio-ui.js",
+            "app.html",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Phase 1 Studio was functional but visually basic — needed Files-like polish, "
+            "clearer status UI, and stepped create flows without rebuilding architecture."
+        ),
+        "risk_level": "Low",
+        "risk_description": (
+            "UI-only Studio polish; risk limited to regressions in create/open flows. "
+            "Data layer unchanged; Home scan and Library untouched."
+        ),
+        "fix_applied": (
+            "Reworked PreShootStudioUI rendering + Studio CSS tokens; stepped wizard modal; "
+            "Continue Working premium card; Director placeholders marked Soon."
+        ),
+        "testing": (
+            "node --check studio-ui.js; browser verification of Studio nav, create project "
+            "wizard, production cards, continue card, and preserved Home scan."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0008",
+        "version": "v2.5.0",
+        "date": "2026-07-30",
+        "categories": ["Feature", "UI/UX", "Backend", "Database", "AI System"],
+        "title": "Phase 1 — Studio foundation: Projects, Productions, nav, Send to Studio",
+        "what_changed": (
+            "Phase 1 of the Creative OS redesign. Bottom nav is now Home / Library / Studio / "
+            "Menu / Profile (center Scan replaced by Studio; scanning remains on Home). Added "
+            "Project + Production data models with create/rename/delete/archive/restore/"
+            "duplicate/move, production statuses (Planning → Posted + Archived), Studio "
+            "dashboard, blank productions, Send to Studio confirm flow with project "
+            "recommendation (never auto-moves), Continue Working card on Home (never "
+            "auto-redirects), and Director capability manifest stubs for future project "
+            "actions. Persistence via localStorage + prefs.studio cloud sync (no required "
+            "DB ALTER). Existing Home scan, Library, auth, personalization, and Director chat "
+            "preserved."
+        ),
+        "files": [
+            "js/studio.js",
+            "js/studio-ui.js",
+            "app.html",
+            "api/sync.js",
+            "supabase_setup.sql",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "PreShoot had no production workspace — only scan history/library. Redesign "
+            "required a Project/Production foundation without rewriting or breaking scans."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Nav change could confuse Scan-first users; Studio sync must not wipe existing "
+            "prefs/history. Mitigated by keeping Home scan intact, nesting studio in "
+            "prefs.studio for seamless sync, and never auto-redirecting."
+        ),
+        "fix_applied": (
+            "Modular PreShootStudio data layer + PreShootStudioUI; Studio tab; confirm-only "
+            "Send to Studio; Continue Working prompt; Director action registry not executable yet."
+        ),
+        "testing": (
+            "node --check on studio.js/studio-ui.js; Node data-layer CRUD/recommend/continue/"
+            "director-stub tests; app.html wiring checks for nav-studio, screen-studio, "
+            "modals, Send to Studio, continue-working, and preserved scan-ring/library/director."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0007",
+        "version": "v2.4.0",
+        "date": "2026-07-30",
+        "categories": ["Feature", "AI System", "UI/UX", "API", "Privacy"],
+        "title": "Creative Research System — CapCut connection + ranked YouTube/CapCut recommendations",
+        "what_changed": (
+            "Replaced placeholder CapCut homepage / generic YouTube keyword deep links with a "
+            "modular Creative Research system. Idea sheets now open curated research panels. "
+            "Server /api/research builds creative intent via Anthropic, then returns CapCut "
+            "template strategies and YouTube shortlists (ranked via YouTube Data API when "
+            "YOUTUBE_API_KEY is set; otherwise precision query cards). Added Profile Connected "
+            "Accounts (Google + CapCut), CapCut connect/disconnect flow (honest non-OAuth "
+            "preference storage because CapCut has no public third-party OAuth), sync of "
+            "connected_accounts, and privacy copy updates. Prompt schema now requires precise "
+            "ytSearch/capcutSearch fields."
+        ),
+        "files": [
+            "js/creative-research.js",
+            "api/research.js",
+            "app.html",
+            "privacy.html",
+            "terms.html",
+            ".env.example",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "CapCut button opened generic template center; YouTube used 2–4 word generic searches "
+            "with no ranking, producing irrelevant/low-quality references."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "New API surface and optional YouTube Data API usage; CapCut 'connection' must not "
+            "be misrepresented as full OAuth. Mitigated with auth, rate limits, sanitized "
+            "context, and clear privacy wording."
+        ),
+        "fix_applied": (
+            "Modular platform adapters + authenticated /api/research + in-app curated cards + "
+            "CapCut gate + Connected Accounts UI + optional YOUTUBE_API_KEY."
+        ),
+        "testing": (
+            "node --check on creative-research.js and research.js; app.html wiring checks for "
+            "research shell, modal, sync fields. Live QA with YOUTUBE_API_KEY recommended across "
+            "coffee/auto/gym/real-estate/restaurant/travel/photo/tech/fashion/education niches."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0006",
+        "version": "v2.3.1",
+        "date": "2026-07-30",
+        "categories": ["UI/UX", "UI Design", "Feature", "Performance"],
+        "title": "Premium landing motion system and 100+ Hook Engine showcase",
+        "what_changed": (
+            "Rebuilt post-hero landing scroll motion into one cohesive language (blur→sharp "
+            "headings, staggered cards/images, early ScrollTrigger starts, GPU transform/"
+            "opacity/filter only). Added a polished #hooks showcase with mechanical "
+            "odometer counter animating 0→100+, then title/supporting copy/chips. Introduced "
+            "shared radius tokens (--r-*), section rhythm (--section-y, --stack-gap), and "
+            "safe-area page padding (--page-x). Softened button hover/active feedback. "
+            "Featured Hook Engine in nav, features grid, and footer. Cinematic hero left intact."
+        ),
+        "files": [
+            "index.html",
+            "js/landing-scroll.js",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Landing motion was uneven (some sections unanimated; repetitive fades), Hook Engine "
+            "capability was not visibly marketed, and radius/spacing/safe-area were inconsistent."
+        ),
+        "risk_level": "Low",
+        "risk_description": (
+            "UX/performance risk if scroll animations caused jank or delayed content readability; "
+            "mitigated with GPU-only props, early triggers, and prefers-reduced-motion fallback."
+        ),
+        "fix_applied": (
+            "Unified motion system in landing-scroll.js; odometer reel animation for 100+; CSS "
+            "design tokens for radius/spacing/safe area; reduced-motion path snaps to final state."
+        ),
+        "testing": (
+            "node --check on landing-scroll.js; local static serve of index.html; visual review of "
+            "hooks odometer and section entrances. Manual scroll QA recommended on desktop + mobile."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0005",
         "version": "v2.3.0",
@@ -312,6 +576,32 @@ UPDATES = [
 
 SECURITY_HISTORY = [
     {
+        "date": "2026-08-07",
+        "title": "Research cost protection (UPDATE-0011)",
+        "detail": (
+            "Phase 1 hardening: /api/research now requires Pro from server subscription state and "
+            "enforces daily research_calls usage before Anthropic/YouTube adapters run. Client "
+            "plan/localStorage values are ignored."
+        ),
+    },
+    {
+        "date": "2026-07-30",
+        "title": "Studio multi-device sync integrity (UPDATE-0010)",
+        "detail": (
+            "Fixed cloud Studio wipe risk on secondary devices (empty local updatedAt race). "
+            "Added merge-by-id conflict handling and offline dirty queue before push."
+        ),
+    },
+    {
+        "date": "2026-07-30",
+        "title": "Creative research privacy boundaries (UPDATE-0007)",
+        "detail": (
+            "Documented CapCut connection as preference/display-name storage (no CapCut OAuth API), "
+            "optional YouTube Data API metadata for ranking only, and that photos are not uploaded "
+            "to YouTube/CapCut. Research API requires JWT + rate limits + sanitized context."
+        ),
+    },
+    {
         "date": "2026-07-29",
         "title": "Landing privacy reassurance (UPDATE-0004)",
         "detail": (
@@ -341,6 +631,49 @@ SECURITY_HISTORY = [
 
 UI_DESIGN_HISTORY = [
     {
+        "date": "2026-07-30",
+        "title": "Production Workspace shell (UPDATE-0010)",
+        "detail": (
+            "Production dashboard with stage rail, linked idea/scan, and Overview / Shot List / "
+            "Script / References / Assets sections (placeholders where noted)."
+        ),
+    },
+    {
+        "date": "2026-07-30",
+        "title": "Studio workspace polish (UPDATE-0009)",
+        "detail": (
+            "Files-like Studio home with progress bars and muted status pills; project dashboard; "
+            "production cards with updated dates; stepped project wizard; premium Continue Working "
+            "card; responsive 1/2/3-column grids."
+        ),
+    },
+    {
+        "date": "2026-07-30",
+        "title": "Studio nav + production workspace shell (UPDATE-0008)",
+        "detail": (
+            "Bottom nav center Scan replaced with Studio tab; Studio dashboard project cards with "
+            "status chips/progress; Continue Working card on Home; Send to Studio confirm sheet. "
+            "Home scan ring and Director card preserved."
+        ),
+    },
+    {
+        "date": "2026-07-30",
+        "title": "Creative Research cards + Connected Accounts (UPDATE-0007)",
+        "detail": (
+            "Idea sheet research panel with curated YouTube/CapCut cards; Profile Connected "
+            "Accounts section (Google + CapCut) and CapCut connect bottom sheet."
+        ),
+    },
+    {
+        "date": "2026-07-30",
+        "title": "Premium landing motion + Hook showcase (UPDATE-0006)",
+        "detail": (
+            "Unified post-hero scroll choreography (word/blur reveals, staggered cards, cinematic "
+            "image entrances), mechanical 100+ odometer showcase, shared radius/spacing/safe-area "
+            "tokens, and refined button micro-interactions. Hero cinematic system unchanged."
+        ),
+    },
+    {
         "date": "2026-07-29",
         "title": "Landing conversion & proof sections (UPDATE-0004)",
         "detail": (
@@ -361,6 +694,65 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.1",
+        "date": "2026-08-07",
+        "label": "Security Phase 1 — Research cost protection",
+        "changes": [
+            "Server-side Pro + daily research_calls limits on /api/research (UPDATE-0011)",
+            "Client plan/localStorage cannot bypass research entitlement",
+        ],
+    },
+    {
+        "version": "v2.7.0",
+        "date": "2026-07-30",
+        "label": "Studio sync + Production Workspace (Phase 3)",
+        "changes": [
+            "Reliable multi-device Studio sync (UPDATE-0010)",
+            "Offline dirty queue + realtime/focus refresh",
+            "Production Workspace sections + stage progress",
+        ],
+    },
+    {
+        "version": "v2.6.0",
+        "date": "2026-07-30",
+        "label": "Studio UI polish (Phase 2)",
+        "changes": [
+            "Polished Studio project/production cards (UPDATE-0009)",
+            "Stepped New Project flow + premium Continue Working",
+            "Responsive Studio grids + Director placeholders",
+        ],
+    },
+    {
+        "version": "v2.5.0",
+        "date": "2026-07-30",
+        "label": "Studio foundation (Phase 1)",
+        "changes": [
+            "Projects & Productions architecture (UPDATE-0008)",
+            "Nav: Home / Library / Studio / Menu / Profile",
+            "Send to Studio + Continue Working (confirm-only)",
+        ],
+    },
+    {
+        "version": "v2.4.0",
+        "date": "2026-07-30",
+        "label": "Creative Research System",
+        "changes": [
+            "CapCut + YouTube research redesign (UPDATE-0007)",
+            "Connected Accounts (Google + CapCut)",
+            "Optional YouTube Data API ranked shortlists",
+        ],
+    },
+    {
+        "version": "v2.3.1",
+        "date": "2026-07-30",
+        "label": "Landing motion & Hook Engine showcase",
+        "changes": [
+            "Premium post-hero scroll motion system (UPDATE-0006)",
+            "100+ proven hooks odometer showcase + marketing surfaces",
+            "Rounded design tokens, spacing rhythm, safe-area padding",
+        ],
+    },
     {
         "version": "v2.3.0",
         "date": "2026-07-29",
@@ -688,9 +1080,9 @@ def build():
         p(
             styles,
             "body",
-            "<b>v2.2.4</b> (next patch — not released)<br/>"
+            "<b>v2.4.1</b> (next patch — not released)<br/>"
             "• Reserved for bug fixes, small UI adjustments, security patches, performance.<br/><br/>"
-            "<b>v2.3.0</b> (next minor — not released)<br/>"
+            "<b>v2.5.0</b> (next minor — not released)<br/>"
             "• Reserved for significant features, major UI redesigns, or new AI capabilities.",
         )
     )
