@@ -2,11 +2,14 @@
 import {
   setCors,
   handleOptions,
-  timingSafeEqualStr,
   sanitizePostgrestSearch,
   gateRouteRateLimit,
   sendRateLimitResponse
 } from '../lib/security.js';
+import {
+  requireAdminSession,
+  clearAdminSessionCookie
+} from '../lib/admin-session.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -20,10 +23,18 @@ export default async function handler(req, res) {
   });
   if (!rl.allowed) return sendRateLimitResponse(res, rl, 'plain');
 
-  const adminKey = req.headers['x-admin-key'];
-  const secret = process.env.ADMIN_SECRET || '';
-  if (!secret || !timingSafeEqualStr(adminKey, secret)) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  /* Reject legacy master-key header — sessions only */
+  if (req.headers['x-admin-key']) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Admin password header is no longer accepted. Sign in to create a secure session.'
+    });
+  }
+
+  const session = await requireAdminSession(req);
+  if (!session.ok) {
+    clearAdminSessionCookie(res);
+    return res.status(session.status || 401).json({ error: 'Unauthorized' });
   }
 
   const SUPA_URL = process.env.SUPABASE_URL;
