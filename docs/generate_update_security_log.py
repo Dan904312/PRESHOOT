@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.2"
+CURRENT_VERSION = "v2.7.3"
 LAST_UPDATED = "2026-08-07"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,52 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0013",
+        "version": "v2.7.3",
+        "date": "2026-08-07",
+        "categories": ["Security", "API", "Backend", "Infrastructure", "Database"],
+        "title": "Phase 3 — Distributed rate limiting via Supabase",
+        "what_changed": (
+            "Replaced in-memory Map rate limits with shared Supabase rate_limits table and "
+            "atomic check_rate_limit RPC. Routes gate by user ID when authenticated and by IP "
+            "otherwise. Applied to director, chat, research, sync, promo, admin, track-user, "
+            "check-plan, and billing-portal. 429 responses include Retry-After and clear retry timing."
+        ),
+        "files": [
+            "lib/security.js",
+            "api/director.js",
+            "api/chat.js",
+            "api/research.js",
+            "api/sync.js",
+            "api/promo.js",
+            "api/admin-data.js",
+            "api/track-user.js",
+            "api/check-plan.js",
+            "api/billing-portal.js",
+            "supabase_setup.sql",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "In-memory rate limiting could be bypassed in serverless environments because each "
+            "Vercel instance had separate counters."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "AI/API abuse and unexpected infrastructure costs via cross-instance request spreading."
+        ),
+        "fix_applied": (
+            "Implemented distributed server-side rate limiting with Supabase-backed counters; "
+            "memory Map retained only as degraded fallback if RPC unavailable."
+        ),
+        "testing": (
+            "node --check on security + API routes; mocked RPC verifies allow then 429 with "
+            "retry_after; separate user keys do not collide; memory fallback when RPC missing."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0012",
         "version": "v2.7.2",
@@ -616,6 +662,14 @@ UPDATES = [
 SECURITY_HISTORY = [
     {
         "date": "2026-08-07",
+        "title": "Distributed rate limiting (UPDATE-0013)",
+        "detail": (
+            "Phase 3 hardening: shared Supabase rate_limits + check_rate_limit RPC across serverless "
+            "instances; user-keyed limits when authenticated, IP-keyed otherwise."
+        ),
+    },
+    {
+        "date": "2026-08-07",
         "title": "Promo redemption controls (UPDATE-0012)",
         "detail": (
             "Phase 2 hardening: promo_codes with max/expiry/active; unique per-user redemptions; "
@@ -741,6 +795,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.3",
+        "date": "2026-08-07",
+        "label": "Security Phase 3 — Distributed rate limiting",
+        "changes": [
+            "Supabase-backed rate_limits across Vercel instances (UPDATE-0013)",
+            "User-based + IP-based gating with Retry-After 429 responses",
+        ],
+    },
     {
         "version": "v2.7.2",
         "date": "2026-08-07",
