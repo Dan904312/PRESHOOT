@@ -6,6 +6,7 @@ import {
   setCors,
   handleOptions,
   requireUser,
+  requireResearchAccess,
   rateLimit,
   clientIp
 } from '../lib/security.js';
@@ -509,6 +510,17 @@ export default async function handler(req, res) {
   const auth = await requireUser(req);
   if (auth.error) {
     return res.status(auth.status).json({ error: { message: 'Sign in to use creative research' } });
+  }
+
+  const access = await requireResearchAccess(auth.user);
+  if (!access.ok) {
+    const msg =
+      access.error === 'pro_required'
+        ? 'Creative research requires PreShoot Pro'
+        : access.error === 'quota_exceeded'
+          ? 'Daily research limit reached. Try again tomorrow.'
+          : access.error || 'Access denied';
+    return res.status(access.status || 403).json({ error: { message: msg } });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
