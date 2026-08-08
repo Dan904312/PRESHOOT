@@ -128,7 +128,7 @@
       overview: { summary: '', goal: '', platform: '', format: '' },
       shotList: [],
       script: { body: '', lines: [] },
-      references: { youtube: [], capcut: [], uploads: [], pinterest: [] },
+      references: { youtube: [], capcut: [], uploads: [], other: [], pinterest: [], _cache: {} },
       assets: [],
       performance: {
         views: '',
@@ -188,8 +188,16 @@
       id: input.id || uid('ref'),
       title: String(input.title || input.query || 'Reference'),
       query: String(input.query || input.title || ''),
-      note: String(input.note || ''),
-      url: String(input.url || '')
+      note: String(input.note || input.why || ''),
+      why: String(input.why || input.note || ''),
+      url: String(input.url || ''),
+      platform: String(input.platform || ''),
+      thumbnail: input.thumbnail || null,
+      channel: String(input.channel || ''),
+      viewsLabel: String(input.viewsLabel || ''),
+      publishedAt: String(input.publishedAt || input.date || ''),
+      source: String(input.source || 'manual'),
+      savedAt: typeof input.savedAt === 'number' ? input.savedAt : now()
     };
   }
 
@@ -201,8 +209,181 @@
       kind: String(input.kind || 'upload'),
       name: String(input.name || 'Asset'),
       src: input.src || null,
-      note: String(input.note || '')
+      url: input.url || input.src || null,
+      storagePath: input.storagePath || null,
+      mime: String(input.mime || ''),
+      size: typeof input.size === 'number' ? input.size : 0,
+      sizeLabel: String(input.sizeLabel || ''),
+      folder: String(input.folder || 'Assets'),
+      note: String(input.note || ''),
+      uploadedAt: typeof input.uploadedAt === 'number' ? input.uploadedAt : now()
     };
+  }
+
+  var ASSET_FOLDERS = ['Assets', 'Footage', 'Photos', 'Audio', 'References', 'Brand'];
+
+  function ensureRefBuckets(refs) {
+    refs = refs && typeof refs === 'object' ? refs : {};
+    if (!Array.isArray(refs.youtube)) refs.youtube = [];
+    if (!Array.isArray(refs.capcut)) refs.capcut = [];
+    if (!Array.isArray(refs.uploads)) refs.uploads = [];
+    if (!Array.isArray(refs.other)) refs.other = Array.isArray(refs.pinterest) ? refs.pinterest : [];
+    if (!Array.isArray(refs.pinterest)) refs.pinterest = [];
+    if (!refs._cache || typeof refs._cache !== 'object') refs._cache = {};
+    return refs;
+  }
+
+  function refBucketForPlatform(platform) {
+    var p = String(platform || '').toLowerCase();
+    if (p === 'youtube') return 'youtube';
+    if (p === 'capcut') return 'capcut';
+    if (p === 'upload' || p === 'uploads') return 'uploads';
+    return 'other';
+  }
+
+  function addReference(productionId, item) {
+    var store = getStore();
+    var found = findProduction(store, productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    prod.workspace.references = ensureRefBuckets(prod.workspace.references);
+    var platform = item.platform || (item.url && /youtube\.com|youtu\.be/i.test(item.url) ? 'youtube' : '');
+    if (!platform && item.url && /capcut\.com/i.test(item.url)) platform = 'capcut';
+    var bucket = refBucketForPlatform(platform || 'other');
+    var ref = createRefItem(
+      Object.assign({}, item, { platform: platform || bucket, savedAt: now() })
+    );
+    /* Dedupe by URL */
+    var list = prod.workspace.references[bucket] || [];
+    if (ref.url) {
+      var exists = list.some(function (r) {
+        return r.url && r.url === ref.url;
+      });
+      if (exists) return { production: prod, reference: ref, duplicate: true };
+    }
+    list.unshift(ref);
+    prod.workspace.references[bucket] = list.slice(0, 40);
+    found.project.updatedAt = now();
+    prod.updatedAt = now();
+    saveStore(store);
+    return { production: prod, reference: ref };
+  }
+
+  function removeReference(productionId, refId) {
+    var store = getStore();
+    var found = findProduction(store, productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    prod.workspace.references = ensureRefBuckets(prod.workspace.references);
+    var removed = null;
+    ['youtube', 'capcut', 'uploads', 'other', 'pinterest'].forEach(function (key) {
+      var before = prod.workspace.references[key] || [];
+      prod.workspace.references[key] = before.filter(function (r) {
+        if (r.id === refId) {
+          removed = r;
+          return false;
+        }
+        return true;
+      });
+    });
+    if (!removed) return null;
+    prod.updatedAt = now();
+    saveStore(store);
+    return { production: prod, reference: removed };
+  }
+
+  function listReferences(productionId) {
+    var found = findProduction(getStore(), productionId);
+    if (!found) return [];
+    var prod = ensureWorkspace(found.production);
+    var refs = ensureRefBuckets(prod.workspace.references);
+    return []
+      .concat(refs.youtube || [])
+      .concat(refs.capcut || [])
+      .concat(refs.uploads || [])
+      .concat(refs.other || [])
+      .concat(refs.pinterest || []);
+  }
+
+  function addAsset(productionId, item) {
+    var store = getStore();
+    var found = findProduction(store, productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    var asset = createAsset(item);
+    if (ASSET_FOLDERS.indexOf(asset.folder) < 0) asset.folder = 'Assets';
+    prod.workspace.assets = (prod.workspace.assets || []).concat([]);
+    prod.workspace.assets.unshift(asset);
+    prod.workspace.assets = prod.workspace.assets.slice(0, 60);
+    prod.updatedAt = now();
+    saveStore(store);
+    return { production: prod, asset: asset };
+  }
+
+  function removeAsset(productionId, assetId) {
+    var store = getStore();
+    var found = findProduction(store, productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    var before = prod.workspace.assets || [];
+    var removed = null;
+    prod.workspace.assets = before.filter(function (a) {
+      if (a.id === assetId) {
+        removed = a;
+        return false;
+      }
+      return true;
+    });
+    if (!removed) return null;
+    prod.updatedAt = now();
+    saveStore(store);
+    return { production: prod, asset: removed };
+  }
+
+  function setAssetFolder(productionId, assetId, folder) {
+    var store = getStore();
+    var found = findProduction(store, productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    var hit = (prod.workspace.assets || []).find(function (a) {
+      return a.id === assetId;
+    });
+    if (!hit) return null;
+    hit.folder = ASSET_FOLDERS.indexOf(folder) >= 0 ? folder : 'Assets';
+    prod.updatedAt = now();
+    saveStore(store);
+    return { production: prod, asset: hit };
+  }
+
+  function setResearchCache(productionId, platform, payload, cacheKey) {
+    var store = getStore();
+    var found = findProduction(store, productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    prod.workspace.references = ensureRefBuckets(prod.workspace.references);
+    prod.workspace.references._cache[platform] = {
+      at: now(),
+      key: String(cacheKey || ''),
+      items: (payload && payload.items) || [],
+      mode: (payload && payload.mode) || '',
+      strategy: (payload && payload.strategy) || null,
+      emptyMessage: (payload && payload.emptyMessage) || ''
+    };
+    saveStore(store, { silent: true, keepUpdatedAt: true });
+    return prod.workspace.references._cache[platform];
+  }
+
+  function getResearchCache(productionId, platform, cacheKey, maxAgeMs) {
+    var found = findProduction(getStore(), productionId);
+    if (!found) return null;
+    var prod = ensureWorkspace(found.production);
+    var refs = ensureRefBuckets(prod.workspace.references);
+    var row = refs._cache && refs._cache[platform];
+    if (!row) return null;
+    maxAgeMs = maxAgeMs || 24 * 60 * 60 * 1000;
+    if (cacheKey && row.key && row.key !== cacheKey) return null;
+    if (now() - (row.at || 0) > maxAgeMs) return null;
+    return row;
   }
 
   function seedWorkspaceFromIdea(idea, sceneInfo, meta) {
@@ -305,14 +486,23 @@
       youtube: [],
       capcut: [],
       uploads: [],
-      pinterest: []
+      other: [],
+      pinterest: [],
+      _cache: {}
     };
     if (idea.ytSearch) {
       references.youtube.push(
         createRefItem({
           title: idea.ytSearch,
           query: idea.ytSearch,
-          note: 'YouTube inspiration'
+          note: 'YouTube search from idea',
+          why: 'Seeded from this production’s idea',
+          platform: 'youtube',
+          url:
+            'https://www.youtube.com/results?search_query=' +
+            encodeURIComponent(idea.ytSearch) +
+            '&sp=CAM%253D',
+          source: 'idea'
         })
       );
     }
@@ -321,7 +511,13 @@
         createRefItem({
           title: idea.capcutSearch,
           query: idea.capcutSearch,
-          note: 'CapCut template idea'
+          note: 'CapCut template search from idea',
+          why: 'Editing style match for this production',
+          platform: 'capcut',
+          url:
+            'https://www.capcut.com/template-center?keyword=' +
+            encodeURIComponent(idea.capcutSearch),
+          source: 'idea'
         })
       );
     }
@@ -376,7 +572,15 @@
       if (!Array.isArray(prod.workspace.references.youtube)) prod.workspace.references.youtube = [];
       if (!Array.isArray(prod.workspace.references.capcut)) prod.workspace.references.capcut = [];
       if (!Array.isArray(prod.workspace.references.uploads)) prod.workspace.references.uploads = [];
+      if (!Array.isArray(prod.workspace.references.other)) {
+        prod.workspace.references.other = Array.isArray(prod.workspace.references.pinterest)
+          ? prod.workspace.references.pinterest.slice()
+          : [];
+      }
       if (!Array.isArray(prod.workspace.references.pinterest)) prod.workspace.references.pinterest = [];
+      if (!prod.workspace.references._cache || typeof prod.workspace.references._cache !== 'object') {
+        prod.workspace.references._cache = {};
+      }
       if (!Array.isArray(prod.workspace.assets)) prod.workspace.assets = [];
       prod.workspace.performance = Object.assign(
         {},
@@ -639,7 +843,7 @@
 
   function exportForSync() {
     var store = getStore();
-    /* Slim cover images for sync payload size */
+    /* Slim cover images / inline asset blobs for sync payload size */
     try {
       var slim = JSON.parse(JSON.stringify(store));
       (slim.projects || []).forEach(function (p) {
@@ -648,6 +852,28 @@
           if (typeof prod.coverImage === 'string' && prod.coverImage.length > 180000) {
             prod.coverImage = null;
           }
+          var ws = prod.workspace;
+          if (!ws) return;
+          (ws.assets || []).forEach(function (a) {
+            if (typeof a.src === 'string' && a.src.length > 120000) {
+              if (a.storagePath) a.src = null;
+              else a.src = a.src.slice(0, 0) || null;
+            }
+            if (typeof a.url === 'string' && a.url.indexOf('data:') === 0 && a.url.length > 120000) {
+              if (a.storagePath) a.url = null;
+            }
+            if (typeof a.thumbnail === 'string' && a.thumbnail.length > 80000) a.thumbnail = null;
+          });
+          var refs = ws.references || {};
+          ['youtube', 'capcut', 'uploads', 'other', 'pinterest'].forEach(function (k) {
+            (refs[k] || []).forEach(function (r) {
+              if (typeof r.thumbnail === 'string' && r.thumbnail.indexOf('data:') === 0 && r.thumbnail.length > 40000) {
+                r.thumbnail = null;
+              }
+            });
+          });
+          /* Drop research cache from sync payload (re-fetchable) */
+          if (refs._cache) delete refs._cache;
         });
       });
       return slim;
@@ -1455,6 +1681,12 @@
     update_status: { ready: true, phase: 5, mutates: true },
     generate_sections: { ready: true, phase: 5, mutates: true },
     update_script: { ready: true, phase: 5, mutates: true },
+    add_reference: { ready: true, phase: 5, mutates: true },
+    remove_reference: { ready: true, phase: 5, mutates: true },
+    list_references: { ready: true, phase: 5, mutates: false },
+    find_references: { ready: true, phase: 5, mutates: false },
+    add_asset: { ready: true, phase: 5, mutates: true },
+    remove_asset: { ready: true, phase: 5, mutates: true },
     open_production: { ready: true, phase: 5, mutates: false },
     find_projects: { ready: true, phase: 5, mutates: false },
     search_assets: { ready: true, phase: 5, mutates: false },
@@ -1551,6 +1783,10 @@
       if (m === 'patch_hook') return 'Update the hook / opening of the current script?';
       return 'Update current script?';
     }
+    if (action === 'add_reference') return 'Save this reference to the production?';
+    if (action === 'remove_reference') return 'Remove this reference?';
+    if (action === 'add_asset') return 'Add this asset to the production?';
+    if (action === 'remove_asset') return 'Remove this asset?';
     return 'Confirm this Director action?';
   }
 
@@ -1670,6 +1906,52 @@
           message: modeScript === 'replace' ? 'Script replaced' : 'Script updated'
         };
       }
+      if (action === 'add_reference') {
+        if (!payload.productionId || (!payload.url && !payload.title)) {
+          return { ok: false, error: 'missing_fields' };
+        }
+        var ar = addReference(payload.productionId, payload);
+        return {
+          ok: !!ar,
+          result: ar && ar.reference,
+          message: ar && ar.duplicate ? 'Already saved' : 'Reference saved',
+          duplicate: !!(ar && ar.duplicate)
+        };
+      }
+      if (action === 'remove_reference') {
+        if (!payload.productionId || !payload.refId) return { ok: false, error: 'missing_fields' };
+        var rr = removeReference(payload.productionId, payload.refId);
+        return { ok: !!rr, result: rr && rr.reference, message: rr ? 'Reference removed' : 'Not found' };
+      }
+      if (action === 'list_references') {
+        if (!payload.productionId) return { ok: false, error: 'missing_fields' };
+        var listed = listReferences(payload.productionId);
+        return { ok: true, result: listed, message: listed.length ? listed.length + ' references' : 'No references yet' };
+      }
+      if (action === 'find_references') {
+        /* Non-mutating: UI triggers research; returns current saved refs + cache hint */
+        if (!payload.productionId) return { ok: false, error: 'missing_fields' };
+        return {
+          ok: true,
+          result: {
+            saved: listReferences(payload.productionId),
+            platform: payload.platform || 'youtube',
+            needsResearch: true
+          },
+          message: 'Open Assets & References to load fresh results.',
+          openSection: 'refs'
+        };
+      }
+      if (action === 'add_asset') {
+        if (!payload.productionId || !payload.name) return { ok: false, error: 'missing_fields' };
+        var aa = addAsset(payload.productionId, payload);
+        return { ok: !!aa, result: aa && aa.asset };
+      }
+      if (action === 'remove_asset') {
+        if (!payload.productionId || !payload.assetId) return { ok: false, error: 'missing_fields' };
+        var ra = removeAsset(payload.productionId, payload.assetId);
+        return { ok: !!ra, result: ra && ra.asset };
+      }
       if (action === 'open_production') {
         return { ok: true, result: { productionId: payload.productionId }, open: true };
       }
@@ -1776,6 +2058,15 @@
     createScriptLine: createScriptLine,
     createRefItem: createRefItem,
     createAsset: createAsset,
+    ASSET_FOLDERS: ASSET_FOLDERS,
+    addReference: addReference,
+    removeReference: removeReference,
+    listReferences: listReferences,
+    addAsset: addAsset,
+    removeAsset: removeAsset,
+    setAssetFolder: setAssetFolder,
+    setResearchCache: setResearchCache,
+    getResearchCache: getResearchCache,
     getSkillLevel: getSkillLevel,
     getScriptPlainText: getScriptPlainText,
     applyScriptPlainText: applyScriptPlainText,

@@ -811,88 +811,734 @@
     return h;
   }
 
-  function renderRefsSection(prod, productionId, ws) {
-    var refs = ws.references || {};
-    var h = '';
-    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">References</div>';
-    h += '<div class="pw-section-sub">Inspiration stays inside PreShoot — no random browser jumps</div></div></div>';
-
-    function block(title, items, empty) {
-      var out = '<div class="pw-card"><div class="pw-card-kicker">' + esc(title) + '</div>';
-      if (!items || !items.length) {
-        out += '<div class="pw-section-sub">' + esc(empty) + '</div></div>';
-        return out;
-      }
-      items.forEach(function (item) {
-        out += '<div class="pw-ref-row">';
-        out += '<div class="pw-ref-title">' + esc(item.title || item.query || 'Reference') + '</div>';
-        if (item.note) out += '<div class="pw-ref-note">' + esc(item.note) + '</div>';
-        if (item.query) out += '<div class="pw-ref-query">Search · ' + esc(item.query) + '</div>';
-        out += '</div>';
-      });
-      out += '</div>';
-      return out;
-    }
-
-    h += block('YouTube inspiration', refs.youtube, 'No YouTube references yet. Send an idea with a search cue to seed this.');
-    h += block('CapCut templates', refs.capcut, 'No CapCut template ideas yet.');
-    h += block('Uploaded references', refs.uploads, 'Upload support arrives in a later polish pass. Architecture is ready.');
-    h += block('Pinterest', refs.pinterest, 'Pinterest support is prepared for a future update.');
-
-    if (
-      (!refs.youtube || !refs.youtube.length) &&
-      (!refs.capcut || !refs.capcut.length) &&
-      prod.ideaSnapshot &&
-      (prod.ideaSnapshot.ytSearch || prod.ideaSnapshot.capcutSearch)
-    ) {
-      h +=
-        '<button type="button" class="studio-btn" onclick="PreShootStudioUI.seedFromIdea(\'' +
-        esc(productionId) +
-        '\')">Pull references from idea</button>';
-    }
-    return h;
+  function researchCacheKey(prod) {
+    var idea = prod.ideaSnapshot || {};
+    var ov = (prod.workspace && prod.workspace.overview) || {};
+    return [
+      prod.name || '',
+      idea.title || '',
+      idea.hook || '',
+      idea.ytSearch || '',
+      idea.capcutSearch || '',
+      ov.summary || '',
+      (global.S && global.S.niche && global.S.niche.contentType) || ''
+    ].join('|').slice(0, 240);
   }
 
-  function renderAssetsSection(prod, productionId, ws) {
-    var assets = ws.assets || [];
-    var h = '';
-    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Assets</div>';
-    h += '<div class="pw-section-sub">Scans, images, and files for this production</div></div></div>';
+  function buildProductionResearchContext(prod) {
+    var idea = prod.ideaSnapshot || {};
+    var ov = (prod.workspace && prod.workspace.overview) || {};
+    var base = global.PreShootResearch && PreShootResearch.buildContext
+      ? PreShootResearch.buildContext(idea, global.S)
+      : {};
+    return Object.assign({}, base, {
+      title: idea.title || prod.name || base.title || '',
+      hook: idea.hook || base.hook || '',
+      ytSearch: idea.ytSearch || base.ytSearch || '',
+      capcutSearch: idea.capcutSearch || base.capcutSearch || '',
+      editingStyle: idea.editingStyle || base.editingStyle || '',
+      shotAngle: idea.shotAngle || base.shotAngle || '',
+      whyItWorks: idea.whyItWorks || ov.summary || base.whyItWorks || '',
+      category: idea.category || ov.format || base.category || '',
+      platform: ov.platform || base.platform || ''
+    });
+  }
 
+  function formatBytes(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function renderRefsSection(prod, productionId, ws) {
+    var refs = Studio().ensureWorkspace
+      ? Studio().ensureWorkspace(prod).workspace.references
+      : ws.references || {};
+    refs = refs || {};
+    var assets = (ws.assets || []).slice();
+    var h = '';
+    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Assets &amp; References</div>';
+    h +=
+      '<div class="pw-section-sub">Inspiration and production files for this video</div></div></div>';
+
+    /* ── YouTube ── */
+    h += renderRefCategory({
+      title: 'YouTube',
+      platform: 'youtube',
+      productionId: productionId,
+      items: refs.youtube || [],
+      empty: 'No YouTube references saved yet.',
+      findLabel: 'Find YouTube references',
+      broaden: true
+    });
+
+    /* ── CapCut ── */
+    h += renderRefCategory({
+      title: 'CapCut',
+      platform: 'capcut',
+      productionId: productionId,
+      items: refs.capcut || [],
+      empty: 'No CapCut template searches saved yet.',
+      findLabel: 'Find CapCut templates',
+      broaden: true
+    });
+
+    /* ── Uploaded assets ── */
+    h += '<div class="pw-card ar-card" id="ar-uploads-' + esc(productionId) + '">';
+    h += '<div class="ar-cat-hd"><div class="pw-card-kicker">Uploaded Assets</div>';
+    h +=
+      '<label class="studio-btn ghost sm ar-upload-btn">Upload<input type="file" accept="image/*,video/mp4,video/quicktime,audio/*,.pdf,.doc,.docx,.txt" hidden onchange="PreShootStudioUI.uploadProductionAsset(\'' +
+      esc(productionId) +
+      "',this)\"></label></div>";
+    h += '<div class="ar-folders">';
+    (Studio().ASSET_FOLDERS || ['Assets', 'Footage', 'Photos', 'Audio', 'References', 'Brand']).forEach(
+      function (f) {
+        h +=
+          '<button type="button" class="ar-folder-chip" onclick="PreShootStudioUI.filterAssetFolder(\'' +
+          esc(productionId) +
+          "','" +
+          esc(f) +
+          '\')">' +
+          esc(f) +
+          '</button>';
+      }
+    );
+    h += '</div>';
+    h += '<div class="ar-status" id="ar-upload-status-' + esc(productionId) + '" hidden></div>';
     if (!assets.length && prod.coverImage) {
-      /* Soft-migrate cover into display without forcing save */
       assets = [
         {
           id: 'cover',
           type: 'image',
           kind: 'scan',
           name: 'Original scan',
-          src: prod.coverImage
+          src: prod.coverImage,
+          folder: 'Photos',
+          uploadedAt: prod.createdAt || Date.now()
         }
       ];
     }
-
     if (!assets.length) {
-      h += '<div class="pw-card pw-empty-card">';
-      h += '<div class="studio-empty-t">No assets yet</div>';
-      h += '<div class="studio-empty-s">Scan images and uploads will appear here. Advanced asset tools come later.</div></div>';
-      return h;
-    }
-
-    h += '<div class="pw-asset-grid">';
-    assets.forEach(function (a) {
-      h += '<div class="pw-asset-card">';
-      if (a.type === 'image' && a.src) {
-        h += '<img class="pw-asset-thumb" src="' + esc(a.src) + '" alt="">';
-      } else {
-        h += '<div class="pw-asset-thumb ph">' + esc((a.type || 'file').toUpperCase()) + '</div>';
-      }
-      h += '<div class="pw-asset-name">' + esc(a.name || 'Asset') + '</div>';
-      h += '<div class="pw-asset-kind">' + esc(a.kind || a.type || '') + '</div>';
+      h += '<div class="pw-section-sub">No uploads yet. Add footage, photos, audio, or docs.</div>';
+    } else {
+      h += '<div class="ar-asset-list" id="ar-asset-list-' + esc(productionId) + '">';
+      assets.forEach(function (a) {
+        h += renderAssetCard(productionId, a);
+      });
       h += '</div>';
+    }
+    h += '</div>';
+
+    /* ── Other references ── */
+    h += renderRefCategory({
+      title: 'Other References',
+      platform: 'other',
+      productionId: productionId,
+      items: (refs.other || []).concat(refs.pinterest || []),
+      empty: 'No other references yet. Paste a link via Director or Save from research.',
+      findLabel: null,
+      broaden: false
     });
+
+    if (
+      (!(refs.youtube || []).length || !(refs.capcut || []).length) &&
+      prod.ideaSnapshot &&
+      (prod.ideaSnapshot.ytSearch || prod.ideaSnapshot.capcutSearch)
+    ) {
+      h +=
+        '<button type="button" class="studio-btn" style="margin-top:8px" onclick="PreShootStudioUI.seedFromIdea(\'' +
+        esc(productionId) +
+        '\')">Seed from idea searches</button>';
+    }
+    return h;
+  }
+
+  function renderAssetCard(productionId, a) {
+    var out = '<div class="ar-asset-row" data-folder="' + esc(a.folder || 'Assets') + '">';
+    if ((a.type === 'image' || (a.mime || '').indexOf('image/') === 0) && (a.src || a.url)) {
+      out +=
+        '<img class="ar-asset-thumb" src="' +
+        esc(a.src || a.url) +
+        '" alt="" loading="lazy">';
+    } else {
+      out +=
+        '<div class="ar-asset-thumb ph">' +
+        esc((a.type || 'file').slice(0, 4).toUpperCase()) +
+        '</div>';
+    }
+    out += '<div class="ar-asset-meta">';
+    out += '<div class="ar-asset-name">' + esc(a.name || 'Asset') + '</div>';
+    out +=
+      '<div class="ar-asset-sub">' +
+      esc(a.folder || 'Assets') +
+      ' · ' +
+      esc(a.type || a.mime || 'file') +
+      (a.sizeLabel || a.size ? ' · ' + esc(a.sizeLabel || formatBytes(a.size)) : '') +
+      (a.uploadedAt
+        ? ' · ' + esc(new Date(a.uploadedAt).toLocaleDateString())
+        : '') +
+      '</div></div>';
+    out += '<div class="ar-asset-actions">';
+    if (a.url || a.src) {
+      out +=
+        '<a class="studio-btn ghost sm" href="' +
+        esc(a.url || a.src) +
+        '" target="_blank" rel="noopener noreferrer">Open</a>';
+    }
+    if (a.id && a.id !== 'cover') {
+      out +=
+        '<button type="button" class="studio-btn ghost danger sm" onclick="PreShootStudioUI.removeProductionAsset(\'' +
+        esc(productionId) +
+        "','" +
+        esc(a.id) +
+        '\')">Delete</button>';
+    }
+    out += '</div></div>';
+    return out;
+  }
+
+  function renderRefCategory(opts) {
+    var h = '<div class="pw-card ar-card" id="ar-' + esc(opts.platform) + '-' + esc(opts.productionId) + '">';
+    h += '<div class="ar-cat-hd"><div class="pw-card-kicker">' + esc(opts.title) + '</div>';
+    if (opts.findLabel) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.findProductionReferences(\'' +
+        esc(opts.productionId) +
+        "','" +
+        esc(opts.platform) +
+        "',false)\">" +
+        esc(opts.findLabel) +
+        '</button>';
+    }
+    h += '</div>';
+    h +=
+      '<div class="ar-status" id="ar-status-' +
+      esc(opts.platform) +
+      '-' +
+      esc(opts.productionId) +
+      '" hidden></div>';
+    h +=
+      '<div class="ar-results" id="ar-results-' +
+      esc(opts.platform) +
+      '-' +
+      esc(opts.productionId) +
+      '"></div>';
+
+    var items = opts.items || [];
+    if (!items.length) {
+      h += '<div class="pw-section-sub">' + esc(opts.empty) + '</div>';
+    } else {
+      items.forEach(function (item) {
+        h += renderSavedRefCard(opts.productionId, opts.platform, item);
+      });
+    }
+    if (opts.broaden) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" style="margin-top:8px" onclick="PreShootStudioUI.findProductionReferences(\'' +
+        esc(opts.productionId) +
+        "','" +
+        esc(opts.platform) +
+        "',true)\">Broaden search</button>";
+    }
     h += '</div>';
     return h;
+  }
+
+  function renderSavedRefCard(productionId, platform, item) {
+    var out = '<div class="ar-ref-card">';
+    if (item.thumbnail) {
+      out +=
+        '<img class="ar-ref-thumb" src="' +
+        esc(item.thumbnail) +
+        '" alt="" loading="lazy">';
+    } else {
+      out +=
+        '<div class="ar-ref-thumb ph">' +
+        (platform === 'capcut' ? 'CC' : platform === 'youtube' ? 'YT' : '··') +
+        '</div>';
+    }
+    out += '<div class="ar-ref-body">';
+    out += '<div class="ar-ref-title">' + esc(item.title || item.query || 'Reference') + '</div>';
+    var meta = [];
+    if (item.channel) meta.push(item.channel);
+    if (item.viewsLabel) meta.push(item.viewsLabel);
+    if (item.publishedAt) meta.push(item.publishedAt);
+    if (meta.length) out += '<div class="ar-ref-meta">' + esc(meta.join(' · ')) + '</div>';
+    if (item.why || item.note) {
+      out += '<div class="ar-ref-why">' + esc(item.why || item.note) + '</div>';
+    }
+    out += '<div class="ar-ref-actions">';
+    if (item.url) {
+      out +=
+        '<a class="studio-btn primary sm" href="' +
+        esc(item.url) +
+        '" target="_blank" rel="noopener noreferrer">Open</a>';
+      out +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyRefLink(\'' +
+        esc(item.url) +
+        '\')">Copy link</button>';
+    }
+    out +=
+      '<button type="button" class="studio-btn ghost danger sm" onclick="PreShootStudioUI.removeProductionReference(\'' +
+      esc(productionId) +
+      "','" +
+      esc(item.id) +
+      '\')">Remove</button>';
+    out += '</div></div></div>';
+    return out;
+  }
+
+  function renderResearchResultCard(productionId, platform, item, idx) {
+    var out = '<div class="ar-ref-card research">';
+    if (item.thumbnail) {
+      out +=
+        '<img class="ar-ref-thumb" src="' +
+        esc(item.thumbnail) +
+        '" alt="" loading="lazy">';
+    } else {
+      out +=
+        '<div class="ar-ref-thumb ph">' +
+        (platform === 'capcut' ? 'CC' : 'YT') +
+        '</div>';
+    }
+    out += '<div class="ar-ref-body">';
+    out += '<div class="ar-ref-title">' + esc(item.title || 'Reference') + '</div>';
+    var meta = [];
+    if (item.channel) meta.push(item.channel);
+    if (item.viewsLabel) meta.push(item.viewsLabel);
+    if (item.styleTag) meta.push(item.styleTag);
+    if (meta.length) out += '<div class="ar-ref-meta">' + esc(meta.join(' · ')) + '</div>';
+    if (item.why) out += '<div class="ar-ref-why">' + esc(item.why) + '</div>';
+    out += '<div class="ar-ref-actions">';
+    if (item.url) {
+      out +=
+        '<a class="studio-btn primary sm" href="' +
+        esc(item.url) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        esc(item.cta || 'Open') +
+        '</a>';
+      out +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.saveResearchItem(\'' +
+        esc(productionId) +
+        "','" +
+        esc(platform) +
+        "'," +
+        idx +
+        ')">Save</button>';
+    }
+    out += '</div></div></div>';
+    return out;
+  }
+
+  var _arResearchPayload = {};
+
+  function setArStatus(productionId, platform, message, kind) {
+    var el = document.getElementById('ar-status-' + platform + '-' + productionId);
+    if (!el) return;
+    if (!message) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.className = 'ar-status' + (kind ? ' kind-' + kind : '');
+    el.textContent = message;
+  }
+
+  function findProductionReferences(productionId, platform, broaden) {
+    if (!Studio() || !productionId) return;
+    if (global.S && global.S.plan !== 'pro') {
+      if (typeof global.openM === 'function') global.openM('pw-modal');
+      return;
+    }
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var key = researchCacheKey(prod) + (broaden ? '|broad' : '');
+    var resultsEl = document.getElementById('ar-results-' + platform + '-' + productionId);
+
+    if (!broaden) {
+      var cached = Studio().getResearchCache(productionId, platform, key);
+      if (cached && cached.items && cached.items.length) {
+        _arResearchPayload[platform + ':' + productionId] = cached;
+        setArStatus(productionId, platform, 'References loaded (cached).', 'ok');
+        if (resultsEl) {
+          resultsEl.innerHTML = cached.items
+            .map(function (item, i) {
+              return renderResearchResultCard(productionId, platform, item, i);
+            })
+            .join('');
+        }
+        return;
+      }
+    }
+
+    setArStatus(productionId, platform, 'Loading references…', 'loading');
+    if (resultsEl) resultsEl.innerHTML = '';
+
+    if (platform === 'capcut' && global.PreShootResearch && !PreShootResearch.isCapCutConnected()) {
+      setArStatus(
+        productionId,
+        platform,
+        'Connect CapCut in Menu to unlock template research (preference only — no CapCut API).',
+        'error'
+      );
+      if (typeof global.openM === 'function') global.openM('capcut-connect-modal');
+      return;
+    }
+
+    var ctx = buildProductionResearchContext(prod);
+    if (broaden) {
+      ctx.ytSearch = (ctx.ytSearch || ctx.title || 'cinematic short form') + ' reference';
+      ctx.capcutSearch = (ctx.capcutSearch || 'cinematic reel') + ' template';
+    }
+
+    if (typeof global.apiFetch !== 'function') {
+      setArStatus(productionId, platform, 'Unable to load references.', 'error');
+      return;
+    }
+
+    global
+      .apiFetch('/api/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: platform, context: ctx })
+      })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || data.error) {
+          setArStatus(
+            productionId,
+            platform,
+            data && data.message
+              ? String(data.message).slice(0, 120)
+              : 'Unable to load references. Retry.',
+            'error'
+          );
+          if (resultsEl) {
+            resultsEl.innerHTML =
+              '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.findProductionReferences(\'' +
+              esc(productionId) +
+              "','" +
+              esc(platform) +
+              "'," +
+              (broaden ? 'true' : 'false') +
+              ')">Retry</button>';
+          }
+          return;
+        }
+        var items = data.items || [];
+        Studio().setResearchCache(productionId, platform, data, key);
+        _arResearchPayload[platform + ':' + productionId] = data;
+        if (!items.length) {
+          setArStatus(
+            productionId,
+            platform,
+            data.emptyMessage || 'No strong references found.',
+            'empty'
+          );
+          if (resultsEl) {
+            resultsEl.innerHTML =
+              '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.findProductionReferences(\'' +
+              esc(productionId) +
+              "','" +
+              esc(platform) +
+              "',true)\">Broaden search</button>";
+          }
+          return;
+        }
+        setArStatus(productionId, platform, 'References loaded.', 'ok');
+        if (resultsEl) {
+          resultsEl.innerHTML = items
+            .map(function (item, i) {
+              return renderResearchResultCard(productionId, platform, item, i);
+            })
+            .join('');
+        }
+      })
+      .catch(function () {
+        setArStatus(productionId, platform, 'Unable to load references. Retry.', 'error');
+      });
+  }
+
+  function saveResearchItem(productionId, platform, idx) {
+    var payload = _arResearchPayload[platform + ':' + productionId];
+    if (!payload || !payload.items || !payload.items[idx]) {
+      toast('Nothing to save');
+      return;
+    }
+    var item = payload.items[idx];
+    if (!item.url) {
+      toast('No link to save');
+      return;
+    }
+    var result = Studio().addReference(productionId, {
+      title: item.title,
+      url: item.url,
+      thumbnail: item.thumbnail,
+      channel: item.channel,
+      viewsLabel: item.viewsLabel,
+      why: item.why,
+      note: item.why,
+      query: item.keyword || item.title,
+      platform: platform,
+      source: 'research',
+      publishedAt: item.publishedAt || ''
+    });
+    if (!result) {
+      toast('Could not save reference');
+      return;
+    }
+    if (global.PreShootStudioSync && PreShootStudioSync.flush) {
+      PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
+    } else if (typeof global.scheduleCloudSync === 'function') {
+      global.scheduleCloudSync();
+    }
+    toast(result.duplicate ? 'Already saved' : 'Reference saved');
+    renderStudio();
+  }
+
+  function removeProductionReference(productionId, refId) {
+    var result = Studio().removeReference(productionId, refId);
+    if (!result) {
+      toast('Reference not found');
+      return;
+    }
+    if (global.PreShootStudioSync && PreShootStudioSync.flush) {
+      PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
+    }
+    toast('Reference removed');
+    renderStudio();
+  }
+
+  function copyRefLink(url) {
+    if (!url) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        function () {
+          toast('Link copied');
+        },
+        function () {
+          toast(url);
+        }
+      );
+    } else {
+      prompt('Copy link', url);
+    }
+  }
+
+  function filterAssetFolder(productionId, folder) {
+    var list = document.getElementById('ar-asset-list-' + productionId);
+    if (!list) return;
+    var rows = list.querySelectorAll('.ar-asset-row');
+    rows.forEach(function (row) {
+      var f = row.getAttribute('data-folder') || 'Assets';
+      row.style.display = !folder || folder === 'Assets' || f === folder ? '' : 'none';
+    });
+  }
+
+  function guessAssetType(mime, name) {
+    mime = String(mime || '').toLowerCase();
+    name = String(name || '').toLowerCase();
+    if (mime.indexOf('image/') === 0 || /\.(jpe?g|png|gif|webp)$/.test(name)) return 'image';
+    if (mime.indexOf('video/') === 0 || /\.(mp4|mov|webm)$/.test(name)) return 'video';
+    if (mime.indexOf('audio/') === 0 || /\.(mp3|wav|m4a)$/.test(name)) return 'audio';
+    if (mime === 'application/pdf' || /\.pdf$/.test(name)) return 'pdf';
+    return 'document';
+  }
+
+  function defaultFolderForType(type) {
+    if (type === 'image') return 'Photos';
+    if (type === 'video') return 'Footage';
+    if (type === 'audio') return 'Audio';
+    return 'Assets';
+  }
+
+  function uploadProductionAsset(productionId, input) {
+    var file = input && input.files && input.files[0];
+    if (!file) return;
+    var status = document.getElementById('ar-upload-status-' + productionId);
+    function setStatus(msg, kind) {
+      if (!status) return;
+      status.hidden = !msg;
+      status.className = 'ar-status' + (kind ? ' kind-' + kind : '');
+      status.textContent = msg || '';
+    }
+    if (!global.S || !global.S.authUser) {
+      setStatus('Sign in to upload assets.', 'error');
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setStatus('File too large (max 12MB).', 'error');
+      input.value = '';
+      return;
+    }
+    setStatus('Uploading…', 'loading');
+    var mime = file.type || 'application/octet-stream';
+    var type = guessAssetType(mime, file.name);
+    var folder = defaultFolderForType(type);
+
+    function persistAsset(meta) {
+      var added = Studio().addAsset(productionId, meta);
+      if (!added) {
+        setStatus('Could not save asset.', 'error');
+        return;
+      }
+      if (global.PreShootStudioSync && PreShootStudioSync.flush) {
+        PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
+      }
+      setStatus('Uploaded.', 'ok');
+      input.value = '';
+      renderStudio();
+    }
+
+    /* Prefer server storage; fall back to compressed image data URL under 400KB */
+    if (typeof global.apiFetch !== 'function') {
+      setStatus('Upload API unavailable.', 'error');
+      return;
+    }
+
+    global
+      .apiFetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          production_id: productionId,
+          mime: mime,
+          name: file.name,
+          size: file.size
+        })
+      })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (created) {
+        if (!created || !created.ok) {
+          if (type === 'image' && file.size < 400000) {
+            return readFileAsDataUrl(file).then(function (dataUrl) {
+              persistAsset({
+                name: file.name,
+                type: type,
+                kind: 'upload',
+                mime: mime,
+                size: file.size,
+                sizeLabel: formatBytes(file.size),
+                src: dataUrl,
+                url: dataUrl,
+                folder: folder
+              });
+              setStatus('Saved locally (cloud storage not configured).', 'ok');
+            });
+          }
+          setStatus(
+            (created && created.message) || 'Unable to upload. Storage may be unconfigured.',
+            'error'
+          );
+          return;
+        }
+        return readFileAsDataUrl(file).then(function (dataUrl) {
+          return global
+            .apiFetch('/api/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'put',
+                path: created.path,
+                mime: mime,
+                data: dataUrl
+              })
+            })
+            .then(function (r2) {
+              return r2.json();
+            })
+            .then(function (putRes) {
+              if (!putRes || !putRes.ok) {
+                if (type === 'image' && file.size < 400000) {
+                  persistAsset({
+                    name: file.name,
+                    type: type,
+                    kind: 'upload',
+                    mime: mime,
+                    size: file.size,
+                    sizeLabel: formatBytes(file.size),
+                    src: dataUrl,
+                    url: dataUrl,
+                    folder: folder
+                  });
+                  setStatus('Saved (fallback).', 'ok');
+                  return;
+                }
+                setStatus((putRes && putRes.message) || 'Upload failed.', 'error');
+                return;
+              }
+              persistAsset({
+                id: created.assetId,
+                name: file.name,
+                type: type,
+                kind: 'upload',
+                mime: mime,
+                size: putRes.size || file.size,
+                sizeLabel: formatBytes(putRes.size || file.size),
+                storagePath: created.path,
+                url: putRes.url,
+                src: type === 'image' ? putRes.url : null,
+                folder: folder
+              });
+            });
+        });
+      })
+      .catch(function () {
+        setStatus('Upload failed. Retry.', 'error');
+      });
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        resolve(reader.result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removeProductionAsset(productionId, assetId) {
+    var found = Studio().findProduction(productionId);
+    var asset =
+      found &&
+      found.production &&
+      (found.production.workspace.assets || []).find(function (a) {
+        return a.id === assetId;
+      });
+    var removed = Studio().removeAsset(productionId, assetId);
+    if (!removed) {
+      toast('Asset not found');
+      return;
+    }
+    if (asset && asset.storagePath && typeof global.apiFetch === 'function') {
+      global
+        .apiFetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', path: asset.storagePath })
+        })
+        .catch(function () {});
+    }
+    if (global.PreShootStudioSync && PreShootStudioSync.flush) {
+      PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
+    }
+    toast('Asset deleted');
+    renderStudio();
+  }
+
+  function renderAssetsSection(prod, productionId, ws) {
+    /* Merged into Assets & References */
+    return renderRefsSection(prod, productionId, ws);
   }
 
 
@@ -1330,7 +1976,6 @@
             return { ok: false, message: 'New script content was not saved' };
           }
           if (want && plain.indexOf(want.slice(0, Math.min(40, want.length))) < 0) {
-            /* Continuation may be merged — require growth or snippet */
             if (payload.previousLength != null && plain.length <= payload.previousLength) {
               return { ok: false, message: 'Script did not grow after append' };
             }
@@ -1340,9 +1985,7 @@
             return { ok: false, message: 'Hook update was not saved' };
           }
         } else {
-          /* replace / replace_soft */
           if (want && plain.replace(/\s+/g, ' ').trim() !== want.replace(/\s+/g, ' ').trim()) {
-            /* Allow whitespace normalization differences */
             if (plain.indexOf(want.slice(0, Math.min(48, want.length))) < 0) {
               return { ok: false, message: 'Script replace was not saved' };
             }
@@ -1350,12 +1993,36 @@
         }
         return { ok: true, label: 'script' };
       }
+      if (action === 'add_reference' && payload.productionId) {
+        var refs = Studio().listReferences(payload.productionId) || [];
+        var hit = refs.some(function (r) {
+          return (payload.url && r.url === payload.url) || (payload.refId && r.id === payload.refId);
+        });
+        if (!hit && payload.url) {
+          hit = refs.some(function (r) {
+            return r.url === payload.url;
+          });
+        }
+        if (!hit) return { ok: false, message: 'Reference was not saved' };
+        return { ok: true };
+      }
+      if (action === 'remove_reference' && payload.productionId && payload.refId) {
+        var still = (Studio().listReferences(payload.productionId) || []).some(function (r) {
+          return r.id === payload.refId;
+        });
+        if (still) return { ok: false, message: 'Reference still present' };
+        return { ok: true };
+      }
       if (
         action === 'generate_sections' ||
         action === 'open_production' ||
         action === 'archive_production' ||
         action === 'link_scan' ||
-        action === 'unlink_scan'
+        action === 'unlink_scan' ||
+        action === 'list_references' ||
+        action === 'find_references' ||
+        action === 'add_asset' ||
+        action === 'remove_asset'
       ) {
         return { ok: true };
       }
@@ -1628,6 +2295,33 @@
     }
     if (result.kind === 'script_ai') {
       requestScriptAiEdit(result);
+      return;
+    }
+    if (result.kind === 'find_refs') {
+      var pid =
+        result.productionId ||
+        (global.S && global.S.studioView && global.S.studioView.productionId);
+      if (!pid) {
+        setDirectorStatus('error', 'Open a production first.');
+        setDirectorGoState('idle');
+        return;
+      }
+      if (global.S) {
+        global.S.studioView = global.S.studioView || {};
+        global.S.studioView.mode = 'production';
+        global.S.studioView.productionId = pid;
+        global.S.studioView.section = 'refs';
+      }
+      renderStudio();
+      setDirectorStatus('thinking', 'Loading references…');
+      setTimeout(function () {
+        findProductionReferences(pid, result.platform || 'youtube', false);
+        setDirectorStatus('done', 'Opened Assets & Refs');
+        setDirectorGoState('done');
+        setTimeout(function () {
+          setDirectorGoState('idle');
+        }, 1200);
+      }, 80);
       return;
     }
     if (result.kind === 'reply') {
@@ -2046,15 +2740,14 @@
       { id: 'overview', label: 'Overview' },
       { id: 'shots', label: 'Shot List' },
       { id: 'script', label: 'Script' },
-      { id: 'refs', label: 'References' },
-      { id: 'assets', label: 'Assets' },
+      { id: 'refs', label: 'Assets & Refs' },
       { id: 'performance', label: 'Performance' }
     ];
     h += '<div class="st-tabs">';
     tabs.forEach(function (t) {
       h +=
         '<button type="button" class="st-tab' +
-        (section === t.id ? ' on' : '') +
+        (section === t.id || (t.id === 'refs' && section === 'assets') ? ' on' : '') +
         '" onclick="PreShootStudioUI.setProdSection(\'' +
         esc(productionId) +
         "','" +
@@ -2069,8 +2762,7 @@
     if (section === 'overview') h += renderOverviewSection(prod, project, productionId, ov, pct);
     else if (section === 'shots') h += renderShotsSection(prod, productionId, ws);
     else if (section === 'script') h += renderScriptSection(prod, productionId, ws);
-    else if (section === 'refs') h += renderRefsSection(prod, productionId, ws);
-    else if (section === 'assets') h += renderAssetsSection(prod, productionId, ws);
+    else if (section === 'refs' || section === 'assets') h += renderRefsSection(prod, productionId, ws);
     else if (section === 'performance') h += renderPerformanceSection(prod, productionId, ws);
     h += '</div>';
 
@@ -3534,6 +4226,13 @@
     linkScriptLine: linkScriptLine,
     deleteScriptLine: deleteScriptLine,
     convertScriptBody: convertScriptBody,
+    findProductionReferences: findProductionReferences,
+    saveResearchItem: saveResearchItem,
+    removeProductionReference: removeProductionReference,
+    copyRefLink: copyRefLink,
+    uploadProductionAsset: uploadProductionAsset,
+    removeProductionAsset: removeProductionAsset,
+    filterAssetFolder: filterAssetFolder,
     seedFromIdea: seedFromIdea,
     proposeDirectorAction: proposeDirectorAction,
     confirmDirectorAction: confirmDirectorAction,

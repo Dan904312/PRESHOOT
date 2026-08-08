@@ -535,6 +535,31 @@
         return { kind: 'rename', confidence: 0.84, followUp: true };
     }
 
+    if (
+      /\b(find|show|get|give)\b.+\b(reference|references|youtube|capcut|cinematic example|template)\b/i.test(
+        lower
+      ) ||
+      /\breferences?\s+(for|on)\s+this\b/i.test(lower) ||
+      /\bwhat references\b|\breferences do i\b/i.test(lower)
+    ) {
+      if (/\bwhat references|do i (currently )?have|list\b/i.test(lower)) {
+        return { kind: 'list_refs', confidence: 0.9 };
+      }
+      var plat = /\bcapcut\b/i.test(lower) ? 'capcut' : 'youtube';
+      return { kind: 'find_refs', platform: plat, confidence: 0.9 };
+    }
+
+    if (
+      /\b(add|save)\b.+\b(reference|youtube|video|this)\b/i.test(lower) ||
+      /\badd this (youtube )?video\b/i.test(lower)
+    ) {
+      return { kind: 'add_ref', confidence: 0.85 };
+    }
+
+    if (/\b(remove|delete)\b.+\b(reference|that)\b/i.test(lower)) {
+      return { kind: 'remove_ref', confidence: 0.85 };
+    }
+
     if (/\b(why|how should|what.?s a better|explain|help me understand)\b/i.test(lower)) {
       /* Script edit verbs override pure Q&A */
       if (
@@ -930,6 +955,101 @@
       }
     }
 
+    if (classified.kind === 'list_refs') {
+      if (!ctx.productionId) {
+        return { kind: 'reply', text: 'Open a production first to see its references.', confidence: 1 };
+      }
+      return {
+        kind: 'action',
+        proposal: {
+          tool: 'reference',
+          action: 'list_references',
+          payload: { productionId: ctx.productionId },
+          mutates: false
+        },
+        confidence: 0.95
+      };
+    }
+
+    if (classified.kind === 'find_refs') {
+      if (!ctx.productionId) {
+        return { kind: 'reply', text: 'Open a production first.', confidence: 1 };
+      }
+      return {
+        kind: 'find_refs',
+        platform: classified.platform || 'youtube',
+        productionId: ctx.productionId,
+        confidence: classified.confidence
+      };
+    }
+
+    if (classified.kind === 'add_ref') {
+      if (!ctx.productionId) {
+        return { kind: 'reply', text: 'Open a production first.', confidence: 1 };
+      }
+      var urlMatch = text.match(/https?:\/\/[^\s]+/i);
+      if (urlMatch) {
+        return {
+          kind: 'action',
+          proposal: {
+            tool: 'reference',
+            action: 'add_reference',
+            payload: {
+              productionId: ctx.productionId,
+              url: urlMatch[0],
+              title: 'Saved reference',
+              platform: /capcut/i.test(urlMatch[0])
+                ? 'capcut'
+                : /youtu/i.test(urlMatch[0])
+                  ? 'youtube'
+                  : 'other'
+            }
+          },
+          confidence: 0.92
+        };
+      }
+      return {
+        kind: 'reply',
+        text: 'Open Assets & Refs, tap Find, then Save on a result — or paste a YouTube/CapCut link.',
+        confidence: 1
+      };
+    }
+
+    if (classified.kind === 'remove_ref') {
+      if (!ctx.productionId) {
+        return { kind: 'reply', text: 'Open a production first.', confidence: 1 };
+      }
+      var refsList =
+        global.PreShootStudio && global.PreShootStudio.listReferences
+          ? global.PreShootStudio.listReferences(ctx.productionId)
+          : [];
+      if (!refsList.length) {
+        return { kind: 'reply', text: 'There are no saved references to remove.', confidence: 1 };
+      }
+      if (refsList.length === 1) {
+        return {
+          kind: 'action',
+          proposal: {
+            tool: 'reference',
+            action: 'remove_reference',
+            payload: { productionId: ctx.productionId, refId: refsList[0].id }
+          },
+          confidence: 0.9
+        };
+      }
+      return {
+        kind: 'clarify',
+        question: 'Remove which reference?',
+        options: refsList.slice(0, 6).map(function (r) {
+          return {
+            label: (r.platform || 'ref') + ' · ' + (r.title || r.url || r.id),
+            value: { type: 'remove_ref', productionId: ctx.productionId, refId: r.id }
+          };
+        }),
+        confidence: 0.9
+      };
+    }
+
     if (classified.kind === 'generate' && ctx.productionId) {
       var target = classified.target || null;
       if (!target) {
@@ -1301,6 +1421,29 @@
         };
       }
       /* Never claim Done from an unconfirmed preview — mutations must stage for GO */
+      if (resolved.proposal.action === 'list_references') {
+        var listed = executeProposed(resolved.proposal, { confirmed: true });
+        var items = (listed && listed.result) || [];
+        if (!items.length) {
+          return { kind: 'reply', text: 'No references saved on this production yet.', refresh: false };
+        }
+        return {
+          kind: 'reply',
+          text:
+            'You have ' +
+            items.length +
+            ' reference' +
+            (items.length === 1 ? '' : 's') +
+            ': ' +
+            items
+              .slice(0, 5)
+              .map(function (r) {
+                return r.title || r.url || 'untitled';
+              })
+              .join(' · '),
+          refresh: false
+        };
+      }
       if (resolved.proposal.mutates === false || resolved.proposal.action === 'open_production') {
         var done = executeProposed(resolved.proposal, { confirmed: true });
         return {
@@ -1337,6 +1480,15 @@
         mode: resolved.mode || 'append',
         productionId: resolved.productionId,
         message: resolved.message || text,
+        confidence: resolved.confidence || 0.9
+      };
+    }
+
+    if (resolved.kind === 'find_refs') {
+      return {
+        kind: 'find_refs',
+        platform: resolved.platform || 'youtube',
+        productionId: resolved.productionId,
         confidence: resolved.confidence || 0.9
       };
     }
@@ -1459,6 +1611,17 @@
           id: value.id
         },
         confidence: 0.8
+      };
+    }
+    if (value.type === 'remove_ref') {
+      return {
+        kind: 'confirm',
+        proposal: {
+          tool: 'reference',
+          action: 'remove_reference',
+          payload: { productionId: value.productionId, refId: value.refId }
+        },
+        message: 'Remove this reference?'
       };
     }
     return { kind: 'error', message: 'Unknown choice.' };
@@ -1601,8 +1764,13 @@
     id: 'reference',
     name: 'Reference Tool',
     description: 'Work with production references.',
-    surfaces: ['*', 'production'],
-    actions: {}
+    surfaces: ['*', 'production', 'studio'],
+    actions: {
+      add_reference: { label: 'Add reference', mutates: true },
+      remove_reference: { label: 'Remove reference', mutates: true },
+      list_references: { label: 'List references', mutates: false },
+      find_references: { label: 'Find references', mutates: false }
+    }
   });
 
   registerTool({
