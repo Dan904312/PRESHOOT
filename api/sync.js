@@ -93,13 +93,22 @@ export default async function handler(req, res) {
         };
       });
 
-      const prefsRaw =
+      const prefs =
         data.prefs && typeof data.prefs === 'object' ? Object.assign({}, data.prefs) : {};
-      if (data.studio && typeof data.studio === 'object' && !prefsRaw.studio) {
-        prefsRaw.studio = data.studio;
+      if (data.studio && typeof data.studio === 'object' && !prefs.studio) {
+        prefs.studio = data.studio;
       }
-      const prefs = clampObject(prefsRaw, MAX_FIELD_JSON);
-      if (prefs === null) {
+      /* Persist Director chats + connected accounts inside prefs (no extra SQL columns) */
+      if (Array.isArray(data.director_convs)) {
+        prefs.director_convs = clipArray(data.director_convs, 20);
+      }
+      if (data.active_dir_conv) prefs.active_dir_conv = String(data.active_dir_conv).slice(0, 80);
+      if (data.connected_accounts && typeof data.connected_accounts === 'object') {
+        prefs.connected_accounts = data.connected_accounts;
+      }
+
+      const prefsClamped = clampObject(prefs, MAX_FIELD_JSON);
+      if (prefsClamped === null) {
         return res.status(413).json({
           error: 'payload_too_large',
           message: 'Studio/prefs data exceeds the maximum allowed size.'
@@ -142,6 +151,7 @@ export default async function handler(req, res) {
         });
       }
 
+      const updatedAt = new Date().toISOString();
       const payload = {
         user_id,
         history: historyClean,
@@ -152,8 +162,8 @@ export default async function handler(req, res) {
         aesthetic,
         gear,
         profile,
-        prefs,
-        updated_at: new Date().toISOString()
+        prefs: prefsClamped,
+        updated_at: updatedAt
       };
 
       let serialized = JSON.stringify(payload);
@@ -176,7 +186,7 @@ export default async function handler(req, res) {
       if (!write.ok) {
         return res.status(500).json({ error: 'sync_failed' });
       }
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, updated_at: updatedAt });
     }
 
     return res.status(400).json({ error: 'unknown action' });
