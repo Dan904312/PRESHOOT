@@ -30,8 +30,8 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.7"
-LAST_UPDATED = "2026-08-08"
+CURRENT_VERSION = "v2.7.10"
+LAST_UPDATED = "2026-08-09"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
 
@@ -40,6 +40,139 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0020",
+        "version": "v2.7.10",
+        "date": "2026-08-09",
+        "categories": ["Bug Fix", "AI System", "API", "Backend"],
+        "title": "Director execute/modify failures — context truncation + script/shot routing",
+        "what_changed": (
+            "Fixed Director mutation failures that surfaced as generic Unable/Retry. "
+            "Preserved MODE mutation directives when creator context is long; raised "
+            "sanitizeContext and max_tokens for script rewrites; hardened [[SCRIPT:]] "
+            "JSON parsing with brace-aware extraction and plain-text fallback. "
+            "Surfaced upstream Anthropic/API errors in Studio (especially on localhost). "
+            "Classified 'rewrite this script' / modify script correctly; routed "
+            "'redo this shot list' to confirmed rebuild_shot_list without wiping script/refs."
+        ),
+        "files": [
+            "api/director.js",
+            "lib/security.js",
+            "js/director-os.js",
+            "js/studio.js",
+            "js/studio-ui.js",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "sanitizeContext sliced CREATOR CONTEXT to 4000 chars, often dropping trailing "
+            "MODE: Script mutation instructions after CURRENT_SCRIPT. Combined with "
+            "max_tokens=1000, script rewrites truncated mid-JSON so parseScriptPatch failed; "
+            "UI swallowed API errors as Action failed / Retry. 'redo this shot list' and "
+            "'rewrite this script' were mis-classified (redo→explain; rewrite this→missed)."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Creators could not execute Director mutations on scripts/shot lists; failures "
+            "looked identical regardless of auth, quota, or provider errors."
+        ),
+        "fix_applied": (
+            "Keep MODE tail outside truncated head context; raise token/context limits; "
+            "robust SCRIPT parse; expose real API errors in development; rebuild_shot_list "
+            "confirm→execute→verify path; fix intent classifiers."
+        ),
+        "testing": (
+            "node --check on all changed JS; Node VM smoke: classify rewrite/redo/modify, "
+            "processStudioCommand→rebuild_shot_list confirm, rebuild + update_script "
+            "persistence, parseScriptPatch marker/nested/plain, MODE preservation vs old "
+            "4000 truncate; api/director.js ESM import."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0019",
+        "version": "v2.7.9",
+        "date": "2026-08-08",
+        "categories": ["Feature", "UI/UX", "API", "Backend", "AI System", "Database"],
+        "title": "Studio Assets & References — YouTube, CapCut, uploads, Director",
+        "what_changed": (
+            "Replaced placeholder References/Assets UI with a unified Assets & Refs section. "
+            "YouTube/CapCut research via existing /api/research with per-production cache, "
+            "Save/Open/Remove/Copy actions, CapCut template-center keyword URLs (no invented API). "
+            "Added /api/upload for Supabase Storage-backed assets with MIME/size limits and "
+            "user-scoped paths. Director actions add/remove/list/find references with verify. "
+            "Research cache excluded from sync payload; large data-URL assets stripped on export."
+        ),
+        "files": [
+            "api/upload.js",
+            "js/studio.js",
+            "js/studio-ui.js",
+            "js/director-os.js",
+            "app.html",
+            "supabase_setup.sql",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Studio references were display-only seeds without URLs; CapCut/YouTube buttons did "
+            "not drive a working Studio experience; uploads were deferred placeholders."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Without server storage configured, larger non-image uploads fail clearly; small "
+            "images may fall back to constrained data URLs."
+        ),
+        "fix_applied": (
+            "Functional research + save pipeline, upload API, Director mutations, mobile card UI."
+        ),
+        "testing": (
+            "node --check on studio/studio-ui/director-os/upload; static review of save/remove/"
+            "verify and CapCut URL construction."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0018",
+        "version": "v2.7.8",
+        "date": "2026-08-08",
+        "categories": ["Bug Fix", "AI System", "Feature", "UI/UX", "Backend"],
+        "title": "Director script execution — real mutations + full-screen editor",
+        "what_changed": (
+            "Eliminated fake Done on script/advice paths. Added update_script action with "
+            "confirm → execute → verify. Script finish/continue/hook/ending intents call "
+            "/api/director for [[SCRIPT:...]] patches, then stage GO. Full-screen script "
+            "editor with Expand, in-editor Director + voice, mobile-stable 16px textarea. "
+            "Advice replies no longer show Done status."
+        ),
+        "files": [
+            "js/studio.js",
+            "js/director-os.js",
+            "js/studio-ui.js",
+            "js/studio-keyboard.js",
+            "app.html",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Director acknowledged script edits without mutating workspace; finish/continue "
+            "fell through to explain or local heuristics; no full-screen script mode."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Creators lose trust when Director claims Done while script state is unchanged."
+        ),
+        "fix_applied": (
+            "Authoritative update_script pipeline with verification; script_ai intent routing; "
+            "full-screen editor with contextual Director."
+        ),
+        "testing": (
+            "node --check on modified JS; static verification of script_ai → stage → verify path."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0017",
         "version": "v2.7.7",
@@ -928,6 +1061,22 @@ SECURITY_HISTORY = [
 UI_DESIGN_HISTORY = [
     {
         "date": "2026-08-08",
+        "title": "Assets & References mobile cards (UPDATE-0019)",
+        "detail": (
+            "Merged Studio References/Assets into compact categorized cards (YouTube, CapCut, "
+            "Uploads, Other) with Find/Save/Open/Remove actions and folder chips for uploads."
+        ),
+    },
+    {
+        "date": "2026-08-08",
+        "title": "Full-screen script editor (UPDATE-0018)",
+        "detail": (
+            "Added ⛶ Expand full-screen script mode with 16px textarea, frozen app-height shell, "
+            "and contextual Director bar + voice inside the editor (no full Director chat)."
+        ),
+    },
+    {
+        "date": "2026-08-08",
         "title": "Studio mobile layout stability (UPDATE-0017)",
         "detail": (
             "Removed double bottom padding in Studio shell; kept Director command bar in-flow "
@@ -999,6 +1148,33 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.10",
+        "date": "2026-08-09",
+        "label": "Director mutation reliability (script/shot execute)",
+        "changes": [
+            "Preserve MODE context + higher max_tokens; SCRIPT parse hardening (UPDATE-0020)",
+            "Expose real Director API errors; rebuild_shot_list + rewrite classification",
+        ],
+    },
+    {
+        "version": "v2.7.9",
+        "date": "2026-08-08",
+        "label": "Studio Assets & References system",
+        "changes": [
+            "YouTube/CapCut research + save in Studio; upload API (UPDATE-0019)",
+            "Director add/remove/list/find references with verification",
+        ],
+    },
+    {
+        "version": "v2.7.8",
+        "date": "2026-08-08",
+        "label": "Director script execution + full-screen editor",
+        "changes": [
+            "update_script confirm/execute/verify; script_ai finish/continue (UPDATE-0018)",
+            "Full-screen script editor with Expand + in-editor Director",
+        ],
+    },
     {
         "version": "v2.7.7",
         "date": "2026-08-08",
