@@ -49,12 +49,12 @@
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/hook-engine.js"></script>
 <script src="/js/creative-research.js"></script>
-<script src="/js/studio.js?v=300"></script>
-<script src="/js/studio-sync.js?v=300"></script>
-<script src="/js/director-voice.js?v=300"></script>
-<script src="/js/studio-ui.js?v=300"></script>
-<script src="/js/studio-keyboard.js?v=300"></script>
-<script src="/js/director-os.js?v=300"></script>
+<script src="/js/studio.js?v=301"></script>
+<script src="/js/studio-sync.js?v=301"></script>
+<script src="/js/director-voice.js?v=301"></script>
+<script src="/js/studio-ui.js?v=301"></script>
+<script src="/js/studio-keyboard.js?v=301"></script>
+<script src="/js/director-os.js?v=301"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js"></script>
 <style>
@@ -861,6 +861,19 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 .studio-shell{padding-bottom:120px}
 .studio-fade{animation:studioIn .32s cubic-bezier(.22,1,.36,1) both}
 @keyframes studioIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Full-screen script editor */
+.script-fs-ov{position:fixed;inset:0;z-index:420;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);background:var(--bg);display:none;flex-direction:column}
+.script-fs-ov.open{display:flex}
+.script-fs-ov[hidden]{display:none!important}
+.script-fs-shell{display:flex;flex-direction:column;height:100%;min-height:0;padding:max(10px,env(safe-area-inset-top,0px)) 14px max(10px,env(safe-area-inset-bottom,0px))}
+.script-fs-hd{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:4px 0 10px}
+.script-fs-title{flex:1;min-width:0;font-family:var(--fd);font-weight:700;font-size:16px;color:var(--text);text-align:center}
+.script-fs-input{flex:1;min-height:0;width:100%;resize:none;border:1px solid var(--border);border-radius:16px;background:var(--s1);color:var(--text);font:inherit;font-size:16px;line-height:1.55;padding:14px;outline:none;-webkit-text-size-adjust:100%;box-sizing:border-box}
+.script-fs-dir{flex-shrink:0;margin-top:10px;max-height:42%;overflow:auto}
+.script-fs-dir .dir-cmd{margin:0;width:100%;max-width:none}
+html.script-fs-active .bnav{display:none!important}
+html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .studio-hd,.studio-detail-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:56px 20px 14px;position:relative}
 .studio-hd-text{flex:1;min-width:0}
 .studio-title{font-family:var(--fd);font-size:30px;font-weight:700;color:var(--text);letter-spacing:-.02em}
