@@ -268,7 +268,19 @@
     if (live.shotList && live.shotList.length) lines.push('Shots: ' + live.shotList.length);
     if (live.script && ((live.script.lines && live.script.lines.length) || live.script.body)) {
       lines.push('Script present');
+      var scriptText = '';
+      try {
+        scriptText = global.PreShootStudio
+          ? global.PreShootStudio.getScriptPlainText({ script: live.script })
+          : '';
+      } catch (e) {
+        scriptText = (live.script.body || '').slice(0, 1200);
+      }
+      if (scriptText) {
+        lines.push('CURRENT_SCRIPT:\n' + String(scriptText).slice(0, 1800));
+      }
     }
+    lines.push('Script actions: update_script (modes: append|patch_hook|patch_ending|replace)');
     if (live.skillLevel) lines.push('Skill: ' + live.skillLevel);
     if (live.platform) lines.push('Platform: ' + live.platform);
     if (live.availableActions && live.availableActions.length) {
@@ -524,7 +536,55 @@
     }
 
     if (/\b(why|how should|what.?s a better|explain|help me understand)\b/i.test(lower)) {
-      return { kind: 'explain', confidence: 0.8 };
+      /* Script edit verbs override pure Q&A */
+      if (
+        !/\b(finish|continue|rewrite|update|change|make|add|ending|hook|cta)\b/i.test(lower)
+      ) {
+        return { kind: 'explain', confidence: 0.8 };
+      }
+    }
+
+    /* Script AI — must mutate editor state via update_script, never advice-only "Done" */
+    if (
+      /\b(finish|continue|complete)\b.+\b(script|this|it|what i)\b/i.test(lower) ||
+      /\b(finish|continue|complete)\s+this\b/i.test(lower) ||
+      /\byo\b.+\b(finish|continue)\b/i.test(lower) ||
+      /\b(better|stronger)\s+ending\b|\badd (a )?(stronger )?ending\b|\bneeds? a better ending\b/i.test(
+        lower
+      ) ||
+      /\brewrite (the )?(entire |whole |full )?script\b|\breplace (the )?script\b/i.test(lower) ||
+      /\bmake (the )?hook stronger\b|\bstronger hook\b|\bless (scripted|robotic)\b|\bmore natural\b/i.test(
+        lower
+      ) ||
+      /\bmake this\s+\d+\s*(sec|second|seconds)\b|\b30 seconds\b|\bstronger cta\b|\bgive me a (stronger )?cta\b/i.test(
+        lower
+      ) ||
+      /\bcontinue from where\b|\bbased on what i('?ve| have) (already )?written\b/i.test(lower)
+    ) {
+      var scriptMode = 'append';
+      if (/\brewrite (the )?(entire |whole |full )?script\b|\breplace (the )?script\b/i.test(lower)) {
+        scriptMode = 'replace';
+      } else if (/\bhook\b/i.test(lower) && !/\bending\b|\bfinish\b|\bcontinue\b/i.test(lower)) {
+        scriptMode = 'patch_hook';
+      } else if (/\bending\b|\bcta\b|\bend\b/i.test(lower) && !/\bfinish\b|\bcontinue\b/i.test(lower)) {
+        scriptMode = 'patch_ending';
+      } else if (/\bless (scripted|robotic)\b|\bmore natural\b|\b\d+\s*sec/i.test(lower)) {
+        scriptMode = 'replace_soft'; /* confirm-gated rewrite preserving intent */
+      }
+      return { kind: 'script_ai', mode: scriptMode, confidence: 0.92 };
+    }
+
+    if (
+      (ctx && ctx.section === 'script') &&
+      /\b(finish|continue|complete|ending|rewrite|stronger|natural|robotic|seconds|cta|hook|script)\b/i.test(
+        lower
+      )
+    ) {
+      var sm = 'append';
+      if (/\brewrite|replace|entire|whole\b/i.test(lower)) sm = 'replace';
+      else if (/\bhook\b/i.test(lower)) sm = 'patch_hook';
+      else if (/\bending\b|\bcta\b/i.test(lower)) sm = 'patch_ending';
+      return { kind: 'script_ai', mode: sm, confidence: 0.88 };
     }
 
     if (
@@ -880,12 +940,43 @@
         else if (ctx.section === 'script') target = 'script';
         else target = 'sections';
       }
+      /* Script generate/finish must go through AI → update_script verify path */
+      if (target === 'script' || target === 'hook') {
+        return {
+          kind: 'script_ai',
+          mode: target === 'hook' ? 'patch_hook' : classified.mode === 'shorter' ? 'replace_soft' : 'append',
+          productionId: ctx.productionId,
+          message: text,
+          confidence: classified.confidence
+        };
+      }
       return {
         kind: 'generate',
         target: target,
         productionId: ctx.productionId,
         message: text,
         confidence: classified.confidence
+      };
+    }
+
+    if (classified.kind === 'script_ai') {
+      if (!ctx.productionId) {
+        return {
+          kind: 'reply',
+          text: 'Open a production script first, then I can finish or rewrite it.',
+          confidence: 1
+        };
+      }
+      var scriptWs = { script: ctx.script || { body: '', lines: [] } };
+      return {
+        kind: 'script_ai',
+        mode: classified.mode || 'append',
+        productionId: ctx.productionId,
+        message: text,
+        confidence: classified.confidence,
+        scriptPreview: global.PreShootStudio
+          ? global.PreShootStudio.getScriptPlainText(scriptWs)
+          : ''
       };
     }
 
@@ -931,6 +1022,15 @@
       }
       if (!ctx.productionId) {
         return { kind: 'reply', text: 'Open a production to improve that section.', confidence: 1 };
+      }
+      if (itarget === 'script' || itarget === 'hook') {
+        return {
+          kind: 'script_ai',
+          mode: itarget === 'hook' ? 'patch_hook' : classified.mode === 'shorter' ? 'replace_soft' : 'append',
+          productionId: ctx.productionId,
+          message: text,
+          confidence: classified.confidence
+        };
       }
       return {
         kind: 'generate',
@@ -1200,10 +1300,7 @@
           object: resolved.object || null
         };
       }
-      if (preview && preview.ok) {
-        return { kind: 'done', message: 'Done.', refresh: true, result: preview };
-      }
-      /* non-mutating immediate */
+      /* Never claim Done from an unconfirmed preview — mutations must stage for GO */
       if (resolved.proposal.mutates === false || resolved.proposal.action === 'open_production') {
         var done = executeProposed(resolved.proposal, { confirmed: true });
         return {
@@ -1211,7 +1308,8 @@
           message: done && done.ok ? 'Opened.' : (done && done.error) || 'Couldn’t complete that.',
           refresh: true,
           open: done && done.open,
-          result: done
+          result: done,
+          verified: !!(done && done.ok)
         };
       }
       if (resolved.proposal.action === 'organize_projects' || resolved.proposal.action === 'find_projects') {
@@ -1233,7 +1331,27 @@
       return { kind: 'navigate', target: resolved.target, message: 'Opening…' };
     }
 
+    if (resolved.kind === 'script_ai') {
+      return {
+        kind: 'script_ai',
+        mode: resolved.mode || 'append',
+        productionId: resolved.productionId,
+        message: resolved.message || text,
+        confidence: resolved.confidence || 0.9
+      };
+    }
+
     if (resolved.kind === 'generate') {
+      /* Block silent script heuristics — script must use script_ai */
+      if (resolved.target === 'script' || resolved.target === 'hook') {
+        return {
+          kind: 'script_ai',
+          mode: resolved.target === 'hook' ? 'patch_hook' : 'append',
+          productionId: resolved.productionId,
+          message: resolved.message || text,
+          confidence: resolved.confidence || 0.85
+        };
+      }
       var gen = applyGeneration(
         resolved.target,
         resolved.mode || 'better',
@@ -1245,7 +1363,8 @@
           kind: 'done',
           message: gen.message || 'Updated.',
           refresh: true,
-          section: gen.section || null
+          section: gen.section || null,
+          verified: true
         };
       }
       return { kind: 'reply', text: 'I couldn’t update that section yet. Try opening the section and asking again.' };
@@ -1365,9 +1484,54 @@
     }
   }
 
+  /**
+   * Parse [[SCRIPT:{"mode":"append","body":"..."}]] from model reply.
+   * body may also be delivered as lines: ["…","…"]
+   */
+  function parseScriptPatch(reply) {
+    var text = String(reply || '');
+    var m = text.match(/\[\[SCRIPT:(\{[\s\S]*?\})\]\]/);
+    if (!m) {
+      /* Also accept ACTION update_script */
+      var act = parseActionFromReply(text);
+      if (act && act.action === 'update_script') {
+        return {
+          mode: (act.payload && act.payload.mode) || 'append',
+          body: (act.payload && act.payload.body) || '',
+          lines: (act.payload && act.payload.lines) || null,
+          productionId: act.payload && act.payload.productionId
+        };
+      }
+      return null;
+    }
+    try {
+      var obj = JSON.parse(m[1]);
+      if (!obj) return null;
+      var body = obj.body != null ? String(obj.body) : '';
+      if (!body && obj.lines && obj.lines.length) {
+        body = obj.lines
+          .map(function (l) {
+            return typeof l === 'string' ? l : (l && l.text) || '';
+          })
+          .filter(Boolean)
+          .join('\n\n');
+      }
+      if (!body.trim()) return null;
+      return {
+        mode: obj.mode || 'append',
+        body: body.trim(),
+        lines: obj.lines || null,
+        productionId: obj.productionId || null
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
   function stripActionMarker(reply) {
     return String(reply || '')
       .replace(/\[\[ACTION:\{[\s\S]*?\}\]\]/g, '')
+      .replace(/\[\[SCRIPT:\{[\s\S]*?\}\]\]/g, '')
       .trim();
   }
 
@@ -1426,9 +1590,10 @@
     id: 'script',
     name: 'Script Tool',
     description: 'Improve and generate script lines.',
-    surfaces: ['*', 'production'],
+    surfaces: ['*', 'production', 'studio'],
     actions: {
-      improve_script: { label: 'Improve script', mutates: true }
+      improve_script: { label: 'Improve script', mutates: true },
+      update_script: { label: 'Update script', mutates: true }
     }
   });
 
@@ -1542,6 +1707,7 @@
     applyGeneration: applyGeneration,
     matchIntent: matchIntent,
     parseActionFromReply: parseActionFromReply,
+    parseScriptPatch: parseScriptPatch,
     stripActionMarker: stripActionMarker,
     executeProposed: executeProposed,
     proposeToUI: proposeToUI,

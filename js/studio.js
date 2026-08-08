@@ -1454,6 +1454,7 @@
     create_production: { ready: true, phase: 5, mutates: true },
     update_status: { ready: true, phase: 5, mutates: true },
     generate_sections: { ready: true, phase: 5, mutates: true },
+    update_script: { ready: true, phase: 5, mutates: true },
     open_production: { ready: true, phase: 5, mutates: false },
     find_projects: { ready: true, phase: 5, mutates: false },
     search_assets: { ready: true, phase: 5, mutates: false },
@@ -1462,6 +1463,67 @@
     unlink_scan: { ready: true, phase: 5, mutates: true },
     delete_production: { ready: true, phase: 5, mutates: true }
   };
+
+  function getScriptPlainText(ws) {
+    ws = ws || {};
+    var script = ws.script || {};
+    if (script.lines && script.lines.length) {
+      return script.lines
+        .map(function (l) {
+          return String(l.text || '').trim();
+        })
+        .filter(Boolean)
+        .join('\n\n');
+    }
+    return String(script.body || '').trim();
+  }
+
+  function applyScriptPlainText(ws, text, mode) {
+    ws = ws || defaultWorkspace();
+    ws.script = ws.script || { body: '', lines: [] };
+    var prev = getScriptPlainText(ws);
+    var next = String(text || '').trim();
+    mode = mode || 'replace';
+    if (mode === 'append') {
+      if (prev && next) {
+        /* Avoid duplicating if model returned full script */
+        if (next.indexOf(prev) === 0) next = next;
+        else next = prev + (prev.slice(-1) === '\n' ? '\n' : '\n\n') + next;
+      } else {
+        next = prev || next;
+      }
+    } else if (mode === 'patch_ending') {
+      if (prev && next && next.indexOf(prev) !== 0) {
+        next = prev + (prev.slice(-1) === '\n' ? '\n' : '\n\n') + next;
+      }
+    } else if (mode === 'patch_hook') {
+      var parts = prev ? prev.split(/\n\n+/) : [];
+      var hookBlock = next;
+      if (parts.length) {
+        parts[0] = hookBlock;
+        next = parts.join('\n\n');
+      }
+    }
+    ws.script.body = next;
+    var chunks = next
+      ? next.split(/\n\n+/).map(function (t) {
+          return t.trim();
+        }).filter(Boolean)
+      : [];
+    if (!chunks.length && next) chunks = [next];
+    var oldLines = Array.isArray(ws.script.lines) ? ws.script.lines : [];
+    ws.script.lines = chunks.map(function (chunk, i) {
+      var prevLine = oldLines[i];
+      return createScriptLine({
+        id: prevLine && prevLine.id ? prevLine.id : undefined,
+        order: i + 1,
+        text: chunk,
+        shotId: prevLine && prevLine.shotId ? prevLine.shotId : null,
+        shotOrder: prevLine && prevLine.shotOrder ? prevLine.shotOrder : i + 1
+      });
+    });
+    return { previous: prev, next: next, workspace: ws };
+  }
 
   function confirmMessage(action, payload) {
     payload = payload || {};
@@ -1482,6 +1544,13 @@
     if (action === 'generate_sections') return 'Generate missing production sections from the linked idea?';
     if (action === 'link_scan') return 'Link the current scan to this production?';
     if (action === 'unlink_scan') return 'Unlink the scan from this production?';
+    if (action === 'update_script') {
+      var m = payload.mode || 'replace';
+      if (m === 'replace') return 'Replace the entire script with Director’s draft?';
+      if (m === 'append' || m === 'patch_ending') return 'Update current script (keep existing lines, add continuation)?';
+      if (m === 'patch_hook') return 'Update the hook / opening of the current script?';
+      return 'Update current script?';
+    }
     return 'Confirm this Director action?';
   }
 
@@ -1569,6 +1638,37 @@
       if (action === 'generate_sections') {
         if (!payload.productionId) return { ok: false, error: 'missing_fields' };
         return { ok: !!buildWorkspaceFromIdea(payload.productionId) };
+      }
+      if (action === 'update_script') {
+        if (!payload.productionId) return { ok: false, error: 'missing_fields' };
+        if (!payload.body && !(payload.lines && payload.lines.length)) {
+          return { ok: false, error: 'missing_fields', message: 'No script content to apply' };
+        }
+        var foundScript = findProduction(getStore(), payload.productionId);
+        if (!foundScript) return { ok: false, error: 'not_found' };
+        var prodScript = ensureWorkspace(foundScript.production);
+        var modeScript = payload.mode || 'replace';
+        var textIn =
+          payload.body != null
+            ? String(payload.body)
+            : (payload.lines || [])
+                .map(function (l) {
+                  return typeof l === 'string' ? l : l && l.text;
+                })
+                .filter(Boolean)
+                .join('\n\n');
+        var applied = applyScriptPlainText(prodScript.workspace, textIn, modeScript);
+        var saved = updateProduction(payload.productionId, { workspace: applied.workspace });
+        return {
+          ok: !!saved,
+          result: {
+            productionId: payload.productionId,
+            mode: modeScript,
+            previous: applied.previous,
+            next: applied.next
+          },
+          message: modeScript === 'replace' ? 'Script replaced' : 'Script updated'
+        };
       }
       if (action === 'open_production') {
         return { ok: true, result: { productionId: payload.productionId }, open: true };
@@ -1677,6 +1777,8 @@
     createRefItem: createRefItem,
     createAsset: createAsset,
     getSkillLevel: getSkillLevel,
+    getScriptPlainText: getScriptPlainText,
+    applyScriptPlainText: applyScriptPlainText,
     getDirectorCapabilityManifest: getDirectorCapabilityManifest,
     handleDirectorAction: handleDirectorAction,
     confirmMessage: confirmMessage,

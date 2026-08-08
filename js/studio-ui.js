@@ -724,10 +724,15 @@
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Script</div>';
     h += '<div class="pw-section-sub">Each line maps to a shot</div></div>';
+    h += '<div class="pw-section-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
+    h +=
+      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openScriptFullscreen(\'' +
+      esc(productionId) +
+      '\')" title="Expand script editor" aria-label="Expand script editor">⛶ Expand</button>';
     h +=
       '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addScriptLine(\'' +
       esc(productionId) +
-      '\')">Add line</button></div>';
+      '\')">Add line</button></div></div>';
 
     if (!lines.length) {
       var body = (ws.script && ws.script.body) || '';
@@ -747,7 +752,7 @@
       } else {
         h += '<div class="pw-card pw-empty-card">';
         h += '<div class="studio-empty-t">No script lines</div>';
-        h += '<div class="studio-empty-s">Add dialogue or VO lines and link each to a shot.</div>';
+        h += '<div class="studio-empty-s">Add dialogue or VO lines and link each to a shot — or expand for full-screen writing.</div>';
         if (prod.ideaSnapshot && prod.ideaSnapshot.hook) {
           h +=
             '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.seedFromIdea(\'' +
@@ -973,17 +978,26 @@
 
   function setDirectorPanel(html, opts) {
     opts = opts || {};
-    var panel = document.getElementById('dir-cmd-panel');
-    if (!panel) return;
-    if (!html) {
-      panel.hidden = true;
-      panel.innerHTML = '';
-      return;
+    function apply(panel) {
+      if (!panel) return;
+      if (!html) {
+        panel.hidden = true;
+        panel.innerHTML = '';
+        return;
+      }
+      panel.hidden = false;
+      panel.innerHTML = html;
     }
-    panel.hidden = false;
-    panel.innerHTML = html;
+    apply(document.getElementById('dir-cmd-panel'));
+    apply(document.getElementById('script-fs-dir-panel'));
+    if (html && document.getElementById('script-fs-dir')) {
+      document.getElementById('script-fs-dir').classList.add('open');
+    }
     if (opts.scroll !== false) {
-      var inp = document.getElementById('dir-cmd-input');
+      var inp =
+        document.documentElement.classList.contains('script-fs-active')
+          ? document.getElementById('script-fs-dir-input')
+          : document.getElementById('dir-cmd-input');
       if (
         inp &&
         global.PreShootStudioKeyboard &&
@@ -999,28 +1013,31 @@
   var _dirGoState = 'idle';
   function setDirectorGoState(state) {
     _dirGoState = state || 'idle';
-    var btn = document.getElementById('dir-cmd-go');
-    if (!btn) return;
-    btn.classList.remove('ready', 'executing', 'done');
-    btn.disabled = false;
-    if (_dirGoState === 'ready') {
-      btn.classList.add('ready');
-      btn.textContent = 'Go';
+    function paint(btn, inputId) {
+      if (!btn) return;
+      btn.classList.remove('ready', 'executing', 'done');
       btn.disabled = false;
-    } else if (_dirGoState === 'executing') {
-      btn.classList.add('executing');
-      btn.textContent = '…';
-      btn.disabled = true;
-    } else if (_dirGoState === 'done') {
-      btn.classList.add('done');
-      btn.textContent = 'Done';
-      btn.disabled = true;
-    } else {
-      var inp = document.getElementById('dir-cmd-input');
-      var hasText = !!(inp && String(inp.value || '').trim());
-      btn.textContent = 'Go';
-      btn.disabled = !hasText;
+      if (_dirGoState === 'ready') {
+        btn.classList.add('ready');
+        btn.textContent = 'Go';
+        btn.disabled = false;
+      } else if (_dirGoState === 'executing') {
+        btn.classList.add('executing');
+        btn.textContent = '…';
+        btn.disabled = true;
+      } else if (_dirGoState === 'done') {
+        btn.classList.add('done');
+        btn.textContent = 'Done';
+        btn.disabled = true;
+      } else {
+        var inp = document.getElementById(inputId);
+        var hasText = !!(inp && String(inp.value || '').trim());
+        btn.textContent = 'Go';
+        btn.disabled = !hasText;
+      }
     }
+    paint(document.getElementById('dir-cmd-go'), 'dir-cmd-input');
+    paint(document.getElementById('script-fs-dir-go'), 'script-fs-dir-input');
   }
 
   function onDirectorInputChange() {
@@ -1076,6 +1093,23 @@
         '<div class="dir-action-row"><span>Move to</span><strong>' +
         esc(dest ? dest.name : 'Selected project') +
         '</strong></div>';
+    } else if (action === 'update_script') {
+      rows +=
+        '<div class="dir-action-meta">Action: <strong>Update current script</strong></div>';
+      rows +=
+        '<div class="dir-action-row"><span>Mode</span><strong>' +
+        esc(payload.mode || 'append') +
+        '</strong></div>';
+      var previewBody = String(payload.body || '').trim();
+      if (previewBody) {
+        rows +=
+          '<div class="dir-action-msg" style="max-height:120px;overflow:auto;white-space:pre-wrap">' +
+          esc(previewBody.slice(0, 500)) +
+          (previewBody.length > 500 ? '…' : '') +
+          '</div>';
+      } else if (message) {
+        rows += '<div class="dir-action-msg">' + esc(message) + '</div>';
+      }
     } else if (message) {
       rows += '<div class="dir-action-msg">' + esc(message) + '</div>';
     }
@@ -1151,6 +1185,7 @@
       create_production: 'Create Production',
       update_status: 'Update Status',
       generate_sections: 'Generate Sections',
+      update_script: 'Update Script',
       open_production: 'Open Production',
       set_primary_platform: 'Set Platform'
     };
@@ -1278,6 +1313,43 @@
         if (!inDest) return { ok: false, message: 'Move did not apply' };
         return { ok: true };
       }
+      if (action === 'update_script' && payload.productionId) {
+        var foundScr = Studio().findProduction && Studio().findProduction(payload.productionId);
+        var prodScr = foundScr && (foundScr.production || foundScr);
+        if (!prodScr) return { ok: false, message: 'Production not found after script update' };
+        var wsScr = prodScr.workspace || {};
+        var plain =
+          Studio().getScriptPlainText
+            ? Studio().getScriptPlainText(wsScr)
+            : (wsScr.script && wsScr.script.body) || '';
+        var want = String(payload.body || '').trim();
+        var modeV = payload.mode || 'replace';
+        if (!plain) return { ok: false, message: 'Script is empty after update' };
+        if (modeV === 'append' || modeV === 'patch_ending') {
+          if (payload.verifySnippet && plain.indexOf(String(payload.verifySnippet).trim()) < 0) {
+            return { ok: false, message: 'New script content was not saved' };
+          }
+          if (want && plain.indexOf(want.slice(0, Math.min(40, want.length))) < 0) {
+            /* Continuation may be merged — require growth or snippet */
+            if (payload.previousLength != null && plain.length <= payload.previousLength) {
+              return { ok: false, message: 'Script did not grow after append' };
+            }
+          }
+        } else if (modeV === 'patch_hook') {
+          if (want && plain.indexOf(want.slice(0, Math.min(24, want.length))) < 0) {
+            return { ok: false, message: 'Hook update was not saved' };
+          }
+        } else {
+          /* replace / replace_soft */
+          if (want && plain.replace(/\s+/g, ' ').trim() !== want.replace(/\s+/g, ' ').trim()) {
+            /* Allow whitespace normalization differences */
+            if (plain.indexOf(want.slice(0, Math.min(48, want.length))) < 0) {
+              return { ok: false, message: 'Script replace was not saved' };
+            }
+          }
+        }
+        return { ok: true, label: 'script' };
+      }
       if (
         action === 'generate_sections' ||
         action === 'open_production' ||
@@ -1340,9 +1412,23 @@
       global.PreShootStudioSync.pushNow().catch(function () {});
     }
     setDirectorGoState('done');
-    setDirectorPanel(actionCardHtml(action, payload, verified.label ? ('Updated to “' + verified.label + '”') : 'Completed', 'done'));
-    setDirectorStatus('done', 'Completed');
-    toast('Done');
+    setDirectorPanel(
+      actionCardHtml(
+        action,
+        payload,
+        action === 'update_script'
+          ? 'Done — script updated.'
+          : verified.label
+            ? 'Updated to “' + verified.label + '”'
+            : 'Completed',
+        'done'
+      )
+    );
+    setDirectorStatus('done', action === 'update_script' ? 'Done — script updated.' : 'Completed');
+    toast(action === 'update_script' ? 'Script updated' : 'Done');
+    if (action === 'update_script') {
+      refreshScriptFullscreenIfOpen(payload.productionId);
+    }
     var openId =
       (result.open &&
         ((result.result && result.result.productionId) || payload.productionId)) ||
@@ -1540,6 +1626,10 @@
       requestDirectorExplain(result);
       return;
     }
+    if (result.kind === 'script_ai') {
+      requestScriptAiEdit(result);
+      return;
+    }
     if (result.kind === 'reply') {
       setDirectorPanel(
         '<div class="dir-cmd-status-card kind-clarify">' +
@@ -1627,17 +1717,166 @@
           proposeDirectorAction(act.action, act.payload || {});
           return;
         }
-        /* Advice only — never claim mutation success */
-        setDirectorStatus('done', shortActionMessage(text, fallback));
-        setDirectorGoState('done');
-        setTimeout(function () {
-          setDirectorGoState('idle');
-        }, 1600);
+        /* Advice only — never claim mutation success / Done */
+        setDirectorPanel(
+          '<div class="dir-cmd-status-card kind-clarify">' +
+            '<div class="dir-cmd-status-text">' +
+            esc(shortActionMessage(text, fallback)) +
+            '</div></div>'
+        );
+        setDirectorGoState('idle');
       })
       .catch(function () {
         setDirectorStatus('error', 'Couldn’t reach Director. Try again.');
         setDirectorGoState('idle');
       });
+  }
+
+  function requestScriptAiEdit(result) {
+    var productionId =
+      (result && result.productionId) ||
+      (global.S && global.S.studioView && global.S.studioView.productionId) ||
+      (global.S && global.S.activeProductionId) ||
+      null;
+    if (!productionId || !Studio()) {
+      setDirectorStatus('error', 'Open a production script first.');
+      setDirectorGoState('idle');
+      return;
+    }
+    var found = Studio().findProduction(productionId);
+    if (!found || !found.production) {
+      setDirectorStatus('error', 'Production not found.');
+      setDirectorGoState('idle');
+      return;
+    }
+    var prod = Studio().ensureWorkspace
+      ? Studio().ensureWorkspace(found.production)
+      : found.production;
+    var existing = Studio().getScriptPlainText
+      ? Studio().getScriptPlainText(prod.workspace || {})
+      : '';
+    var mode = (result && result.mode) || 'append';
+    if (mode === 'replace_soft') mode = 'replace';
+    var userMsg = String((result && result.message) || '').trim();
+    setDirectorGoState('executing');
+    setDirectorStatus('thinking', 'Thinking…');
+    if (typeof global.apiFetch !== 'function') {
+      setDirectorStatus('error', 'Director needs a connection to edit the script.');
+      setDirectorGoState('idle');
+      return;
+    }
+    var ctxLines = '';
+    try {
+      if (global.PreShootDirectorOS && global.PreShootDirectorOS.buildOSContext) {
+        ctxLines = global.PreShootDirectorOS.buildOSContext();
+      }
+    } catch (e) {}
+    setDirectorStatus('thinking', 'Preparing changes…');
+    var modeHint =
+      mode === 'replace'
+        ? 'MODE=replace — return the FULL rewritten script. Destructive.'
+        : mode === 'patch_hook'
+          ? 'MODE=patch_hook — return ONLY the new opening/hook paragraph (not the whole script).'
+          : mode === 'patch_ending'
+            ? 'MODE=patch_ending — return ONLY the new ending/CTA lines to append (not the whole script).'
+            : 'MODE=append — return ONLY the continuation to add after the existing script. Do NOT repeat or delete existing lines.';
+    global
+      .apiFetch('/api/director', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stream: false,
+          context:
+            ctxLines +
+            '\n\nMODE: Script mutation. You MUST emit exactly one block:\n' +
+            '[[SCRIPT:{"mode":"' +
+            mode +
+            '","body":"..."}]]\n' +
+            modeHint +
+            '\nDo NOT say Done/Updated/Finished in plain text. Do NOT claim success. The app executes the mutation.',
+          messages: [
+            {
+              role: 'user',
+              content:
+                'ProductionId: ' +
+                productionId +
+                '\nUser request: ' +
+                userMsg +
+                '\n\nEXISTING SCRIPT (preserve unless replace):\n"""\n' +
+                (existing || '(empty)') +
+                '\n"""\n\nEmit [[SCRIPT:{...}]] only. Body must be the script text for the chosen mode.'
+            }
+          ]
+        })
+      })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (data) {
+        var block = (data.content || []).find(function (b) {
+          return b.type === 'text';
+        });
+        var raw = (block && block.text) || '';
+        var patch =
+          global.PreShootDirectorOS && global.PreShootDirectorOS.parseScriptPatch
+            ? global.PreShootDirectorOS.parseScriptPatch(raw)
+            : null;
+        if (!patch || !String(patch.body || '').trim()) {
+          setDirectorStatus(
+            'error',
+            'Director couldn’t prepare a script change. Try again.'
+          );
+          setDirectorPanel(
+            '<div class="dir-cmd-status-card kind-error">' +
+              '<div class="dir-cmd-status-text">Action failed</div></div>' +
+              '<button type="button" class="studio-btn ghost sm" style="margin-top:8px" onclick="PreShootStudioUI.retryLastScriptAi()">Retry</button>'
+          );
+          setDirectorGoState('idle');
+          return;
+        }
+        var applyMode = patch.mode || mode;
+        if (applyMode === 'replace_soft') applyMode = 'replace';
+        /* Safety: force append unless user asked for full rewrite */
+        if (mode !== 'replace' && applyMode === 'replace') {
+          applyMode = mode === 'patch_hook' || mode === 'patch_ending' ? mode : 'append';
+        }
+        if (mode === 'replace') applyMode = 'replace';
+        setDirectorStatus('thinking', 'Ready to execute');
+        _lastScriptAi = {
+          productionId: productionId,
+          mode: applyMode,
+          message: userMsg
+        };
+        stageDirectorAction(
+          'update_script',
+          {
+            productionId: productionId,
+            mode: applyMode,
+            body: String(patch.body).trim(),
+            verifySnippet: String(patch.body).trim().slice(0, 80),
+            previousLength: existing.length
+          },
+          { tool: 'script', mutates: true, object: { type: 'script', id: productionId } }
+        );
+      })
+      .catch(function () {
+        setDirectorStatus('error', 'Couldn’t reach Director. Try again.');
+        setDirectorGoState('idle');
+      });
+  }
+
+  var _lastScriptAi = null;
+  function retryLastScriptAi() {
+    if (!_lastScriptAi) {
+      setDirectorStatus('error', 'Nothing to retry.');
+      return;
+    }
+    requestScriptAiEdit({
+      kind: 'script_ai',
+      productionId: _lastScriptAi.productionId,
+      mode: _lastScriptAi.mode,
+      message: _lastScriptAi.message
+    });
   }
 
   function toggleDirectorVoice() {
@@ -1870,9 +2109,214 @@
     var found = Studio().findProduction(productionId);
     if (!found) return;
     var prod = Studio().ensureWorkspace(found.production);
-    prod.workspace.script = prod.workspace.script || { body: '' };
-    prod.workspace.script.body = value;
-    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    if (Studio().applyScriptPlainText) {
+      var applied = Studio().applyScriptPlainText(prod.workspace, value, 'replace');
+      Studio().updateProduction(productionId, { workspace: applied.workspace });
+    } else {
+      prod.workspace.script = prod.workspace.script || { body: '' };
+      prod.workspace.script.body = value;
+      Studio().updateProduction(productionId, { workspace: prod.workspace });
+    }
+    refreshScriptFullscreenIfOpen(productionId);
+  }
+
+  var _scriptFsProductionId = null;
+
+  function ensureScriptFullscreen() {
+    var ov = document.getElementById('script-fs-ov');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'script-fs-ov';
+    ov.className = 'script-fs-ov';
+    ov.setAttribute('hidden', '');
+    ov.innerHTML =
+      '<div class="script-fs-shell">' +
+      '<header class="script-fs-hd">' +
+      '<button type="button" class="studio-btn ghost sm" id="script-fs-back" aria-label="Exit full screen">← Studio</button>' +
+      '<div class="script-fs-title">Script</div>' +
+      '<button type="button" class="studio-btn ghost sm" id="script-fs-dir-toggle" aria-label="Director">Director</button>' +
+      '</header>' +
+      '<textarea id="script-fs-input" class="script-fs-input" placeholder="Write your script…" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>' +
+      '<div class="script-fs-dir" id="script-fs-dir">' +
+      '<div class="dir-cmd" data-dir-scope="script-fs">' +
+      '<div class="dir-cmd-bar">' +
+      '<span class="dir-cmd-mark" aria-hidden="true">D</span>' +
+      '<input type="text" class="dir-cmd-input" id="script-fs-dir-input" placeholder="Finish this script…" autocomplete="off" />' +
+      '<button type="button" class="dir-cmd-mic" id="script-fs-dir-mic" aria-label="Voice input">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>' +
+      '</button>' +
+      '<button type="button" class="dir-cmd-go" id="script-fs-dir-go" disabled>Go</button>' +
+      '</div>' +
+      '<div class="dir-cmd-panel" id="script-fs-dir-panel" hidden></div>' +
+      '</div></div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('script-fs-back').addEventListener('click', function () {
+      closeScriptFullscreen();
+    });
+    document.getElementById('script-fs-dir-toggle').addEventListener('click', function () {
+      var bar = document.getElementById('script-fs-dir');
+      if (!bar) return;
+      bar.classList.toggle('open');
+      if (bar.classList.contains('open')) {
+        var inp = document.getElementById('script-fs-dir-input');
+        if (inp) inp.focus();
+      }
+    });
+    var ta = document.getElementById('script-fs-input');
+    if (ta) {
+      ta.addEventListener('change', function () {
+        if (_scriptFsProductionId) saveScript(_scriptFsProductionId, ta.value);
+      });
+      ta.addEventListener('blur', function () {
+        if (_scriptFsProductionId) saveScript(_scriptFsProductionId, ta.value);
+      });
+    }
+    var fsInp = document.getElementById('script-fs-dir-input');
+    if (fsInp) {
+      fsInp.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          submitScriptFullscreenDirector();
+        }
+      });
+      fsInp.addEventListener('input', function () {
+        var go = document.getElementById('script-fs-dir-go');
+        if (go && _dirGoState !== 'ready' && _dirGoState !== 'executing') {
+          var has = !!String(fsInp.value || '').trim();
+          go.disabled = !has;
+          go.classList.toggle('ready', has);
+        }
+      });
+    }
+    var fsGo = document.getElementById('script-fs-dir-go');
+    if (fsGo) {
+      fsGo.addEventListener('click', function () {
+        submitScriptFullscreenDirector();
+      });
+    }
+    var fsMic = document.getElementById('script-fs-dir-mic');
+    if (fsMic) {
+      fsMic.addEventListener('click', function () {
+        toggleDirectorVoiceFromScriptFs();
+      });
+    }
+    return ov;
+  }
+
+  function openScriptFullscreen(productionId) {
+    if (!productionId || !Studio()) return;
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var text = Studio().getScriptPlainText
+      ? Studio().getScriptPlainText(prod.workspace || {})
+      : '';
+    _scriptFsProductionId = productionId;
+    if (global.S) {
+      global.S.activeProductionId = productionId;
+      global.S.studioView = global.S.studioView || {};
+      global.S.studioView.mode = 'production';
+      global.S.studioView.productionId = productionId;
+      global.S.studioView.section = 'script';
+    }
+    var ov = ensureScriptFullscreen();
+    var ta = document.getElementById('script-fs-input');
+    if (ta) ta.value = text;
+    ov.removeAttribute('hidden');
+    ov.classList.add('open');
+    document.documentElement.classList.add('script-fs-active');
+    var bnav = document.querySelector('.bnav');
+    if (bnav) bnav.classList.add('hidden');
+    setTimeout(function () {
+      if (ta) ta.focus();
+    }, 40);
+  }
+
+  function closeScriptFullscreen() {
+    var ov = document.getElementById('script-fs-ov');
+    var ta = document.getElementById('script-fs-input');
+    if (_scriptFsProductionId && ta) {
+      saveScript(_scriptFsProductionId, ta.value);
+    }
+    if (ov) {
+      ov.classList.remove('open');
+      ov.setAttribute('hidden', '');
+    }
+    document.documentElement.classList.remove('script-fs-active');
+    var bnav = document.querySelector('.bnav');
+    if (bnav) bnav.classList.remove('hidden');
+    var pid = _scriptFsProductionId;
+    _scriptFsProductionId = null;
+    if (pid) {
+      if (global.S && global.S.studioView) global.S.studioView.section = 'script';
+      renderStudio();
+    }
+  }
+
+  function refreshScriptFullscreenIfOpen(productionId) {
+    if (!_scriptFsProductionId || _scriptFsProductionId !== productionId) return;
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var text = Studio().getScriptPlainText
+      ? Studio().getScriptPlainText(prod.workspace || {})
+      : '';
+    var ta = document.getElementById('script-fs-input');
+    if (ta && document.activeElement !== ta) ta.value = text;
+    else if (ta && !String(ta.value || '').trim()) ta.value = text;
+  }
+
+  function submitScriptFullscreenDirector() {
+    var inp = document.getElementById('script-fs-dir-input');
+    var text = inp ? String(inp.value || '').trim() : '';
+    if (_dirGoState === 'ready' && pendingDirectorAction) {
+      executeStagedDirectorAction();
+      return;
+    }
+    if (!text) {
+      setDirectorStatus('error', 'Tell Director what to change in the script.');
+      return;
+    }
+    if (inp) inp.value = '';
+    var mainInp = document.getElementById('dir-cmd-input');
+    if (mainInp) mainInp.value = text;
+    submitDirectorCommand(text);
+    var bar = document.getElementById('script-fs-dir');
+    if (bar) bar.classList.add('open');
+  }
+
+  function toggleDirectorVoiceFromScriptFs() {
+    var Voice = global.PreShootDirectorVoice;
+    var btn = document.getElementById('script-fs-dir-mic');
+    if (Voice && Voice.isOpen && Voice.isOpen()) {
+      Voice.close({ cancel: true });
+      if (btn) btn.classList.remove('listening');
+      return;
+    }
+    if (!Voice || !Voice.isSupported || !Voice.isSupported()) {
+      toast('Voice mode isn’t available in this browser. Type your request instead.');
+      return;
+    }
+    if (btn) btn.classList.add('listening');
+    setDirectorStatus('thinking', 'Starting microphone…');
+    Voice.open({
+      onFinal: function (said) {
+        if (btn) btn.classList.remove('listening');
+        var text = String(said || '').trim();
+        if (!text) {
+          setDirectorStatus('error', 'I didn’t catch that. Try again.');
+          return;
+        }
+        var fsInp = document.getElementById('script-fs-dir-input');
+        if (fsInp) fsInp.value = text;
+        submitDirectorCommand(text);
+      },
+      onError: function (errMsg) {
+        if (btn) btn.classList.remove('listening');
+        setDirectorStatus('error', errMsg || 'Microphone access failed.');
+        toast(errMsg || 'Microphone access failed.');
+      }
+    });
   }
 
   function toggleProjectMenu(projectId) {
@@ -3078,6 +3522,9 @@
     setProdSection: setProdSection,
     saveWorkspaceField: saveWorkspaceField,
     saveScript: saveScript,
+    openScriptFullscreen: openScriptFullscreen,
+    closeScriptFullscreen: closeScriptFullscreen,
+    retryLastScriptAi: retryLastScriptAi,
     toggleShot: toggleShot,
     updateShotField: updateShotField,
     addShot: addShot,

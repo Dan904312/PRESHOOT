@@ -14,7 +14,10 @@
   }
 
   function isStudioActive() {
-    return global.S && global.S.tab === 'studio';
+    return (
+      (global.S && global.S.tab === 'studio') ||
+      (global.document && global.document.documentElement.classList.contains('script-fs-active'))
+    );
   }
 
   function isFocusableField(el) {
@@ -29,6 +32,7 @@
 
   function scrollContainerFor(el) {
     if (!el) return null;
+    if (el.closest && el.closest('#script-fs-ov')) return el.closest('.script-fs-shell') || el.closest('#script-fs-ov');
     return el.closest('#studio-root') || el.closest('.sb');
   }
 
