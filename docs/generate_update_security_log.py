@@ -30,8 +30,8 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.6"
-LAST_UPDATED = "2026-08-07"
+CURRENT_VERSION = "v2.7.7"
+LAST_UPDATED = "2026-08-08"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
 
@@ -40,6 +40,53 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0017",
+        "version": "v2.7.7",
+        "date": "2026-08-08",
+        "categories": ["Bug Fix", "Backend", "AI System", "UI/UX", "Performance", "Database"],
+        "title": "Studio reliability — sync authority, Director execute/verify, mobile voice/layout",
+        "what_changed": (
+            "Stabilized Studio without a redesign: sync is pull-merge-first with alwaysPush for "
+            "profile/library saves; logout clears user local caches; Director mutations require "
+            "confirm → execute → verify before Completed; mobile voice hard-fails on mic denial "
+            "and avoids iOS dual-mic conflicts; Studio mobile padding/keyboard scroll fixed "
+            "without moving the bottom nav; Natural-language rename patterns expanded; "
+            "supabase_setup documents enabling Realtime on user_data."
+        ),
+        "files": [
+            "js/studio-sync.js",
+            "js/studio-ui.js",
+            "js/director-voice.js",
+            "js/director-os.js",
+            "js/studio-keyboard.js",
+            "api/sync.js",
+            "app.html",
+            "supabase_setup.sql",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Cross-device stale overwrites (push-first dirty), Director claiming Done without "
+            "mutating, mobile voice soft-fail Listening, and Studio double bottom padding / "
+            "keyboard scroll issues."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Users lose work across devices; Director appears broken; voice fails silently on "
+            "mobile; Studio UI is clunky on phones."
+        ),
+        "fix_applied": (
+            "Server-authoritative flush/reconcile, mutation verification, mobile mic/layout "
+            "hardening, and safer logout cache clearing."
+        ),
+        "testing": (
+            "node --check on modified JS; static review of rename/verify paths and flush "
+            "alwaysPush; Realtime requires one-time SQL ALTER PUBLICATION on user_data."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0016",
         "version": "v2.7.6",
@@ -880,6 +927,15 @@ SECURITY_HISTORY = [
 
 UI_DESIGN_HISTORY = [
     {
+        "date": "2026-08-08",
+        "title": "Studio mobile layout stability (UPDATE-0017)",
+        "detail": (
+            "Removed double bottom padding in Studio shell; kept Director command bar in-flow "
+            "(no keyboard-driven chrome moves); 16px inputs to prevent iOS zoom; keyboard scroll "
+            "accounts for bottom nav while preserving frozen --app-height overlay model."
+        ),
+    },
+    {
         "date": "2026-07-30",
         "title": "Production Workspace shell (UPDATE-0010)",
         "detail": (
@@ -943,6 +999,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.7.7",
+        "date": "2026-08-08",
+        "label": "Studio reliability & Director AI stabilization",
+        "changes": [
+            "Pull-merge-first sync + logout cache clear; Director execute/verify (UPDATE-0017)",
+            "Mobile voice hard-fail + Studio keyboard/padding stability",
+        ],
+    },
     {
         "version": "v2.7.6",
         "date": "2026-08-07",
