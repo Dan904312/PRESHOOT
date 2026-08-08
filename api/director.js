@@ -236,14 +236,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, context, stream, image } = req.body || {};
+    const { messages, context, stream, image, max_tokens: clientMaxTokens } = req.body || {};
 
     if (!messages || !Array.isArray(messages) || !messages.length) {
       return res.status(400).json({ error: 'messages array required' });
     }
 
     let systemPrompt = DIRECTOR_SYSTEM;
-    const safeCtx = sanitizeContext(context);
+    const rawCtx = typeof context === 'string' ? context : '';
+    /* Keep mutation directives even when creator context is long */
+    const modeMatch = rawCtx.match(/\n\nMODE:[\s\S]*$/);
+    const modeTail = modeMatch ? modeMatch[0] : '';
+    const headCtx = modeTail ? rawCtx.slice(0, rawCtx.length - modeTail.length) : rawCtx;
+    const safeHead = sanitizeContext(headCtx);
+    const safeTail = modeTail
+      ? modeTail.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 2500)
+      : '';
+    const safeCtx = (safeHead + safeTail).slice(0, 14000);
     if (safeCtx) {
       systemPrompt += '\n\n---\nCREATOR CONTEXT\n' + safeCtx;
     }
@@ -260,11 +269,11 @@ export default async function handler(req, res) {
       .slice(-30)
       .map((m) => {
         let content = m.content;
-        if (typeof content === 'string') content = content.slice(0, 8000);
+        if (typeof content === 'string') content = content.slice(0, 12000);
         else if (Array.isArray(content)) {
           content = content.slice(0, 8).map((p) => {
             if (!p || typeof p !== 'object') return null;
-            if (p.type === 'text') return { type: 'text', text: String(p.text || '').slice(0, 8000) };
+            if (p.type === 'text') return { type: 'text', text: String(p.text || '').slice(0, 12000) };
             return null;
           }).filter(Boolean);
         }
@@ -295,9 +304,27 @@ export default async function handler(req, res) {
       }
     }
 
+    const joinedUser = safeMessages
+      .filter((m) => m.role === 'user')
+      .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
+      .join('\n')
+      .toLowerCase();
+    const needsLongOutput =
+      /\[\[script:|script mutation|emit \[\[script|rewrite|finish this script|shot list|update_script/i.test(
+        joinedUser + '\n' + safeCtx
+      );
+    const tokenCap = Math.min(
+      4000,
+      Math.max(
+        safeImage ? 1600 : 1000,
+        typeof clientMaxTokens === 'number' ? clientMaxTokens : 0,
+        needsLongOutput ? 2800 : 1200
+      )
+    );
+
     const anthropicBody = {
       model: 'claude-sonnet-4-6',
-      max_tokens: safeImage ? 1600 : 1000,
+      max_tokens: tokenCap,
       system: systemPrompt,
       messages: safeMessages,
       stream: !!stream
@@ -321,18 +348,33 @@ export default async function handler(req, res) {
       const reader = response.body.getReader();
       while (true) {
         const { done, value } = await reader.read();
-        if (done) { res.end(); break; }
+        if (done) {
+          res.end();
+          break;
+        }
         res.write(value);
       }
       return;
     }
 
     const data = await response.json();
-    return res.status(response.status).json(data);
-
+    if (!response.ok) {
+      const msg =
+        (data && data.error && (data.error.message || data.error.type)) ||
+        'Director upstream error ' + response.status;
+      return res.status(response.status).json({
+        error: { message: String(msg).slice(0, 240) },
+        content: data && data.content
+      });
+    }
+    return res.status(200).json(data);
   } catch (error) {
     console.error('Director API error:', error);
-    return res.status(500).json({ error: { message: 'Upstream error' } });
+    const detail =
+      process.env.NODE_ENV !== 'production' && error && error.message
+        ? String(error.message).slice(0, 180)
+        : 'Upstream error';
+    return res.status(500).json({ error: { message: detail } });
   }
 }
 
