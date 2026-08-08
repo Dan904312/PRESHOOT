@@ -319,10 +319,18 @@
     var raw = String(text || '').trim();
     var q = raw.match(/[“"]([^”"]+)[”"]/);
     if (q) return q[1].trim();
+    var makeCalled = raw.match(
+      /\bmake\s+(?:this|the|it)(?:\s+(?:project|production|video|reel|thing))?\s+(?:called|named)\s+(.+?)\s*$/i
+    );
+    if (makeCalled) return makeCalled[1].replace(/[?.!]+$/, '').trim();
     var call = raw.match(
       /\b(?:can we call|call(?:ed)?|rename|name)\s+(?:this|it|the\s+(?:project|production|campaign|title|video)?)\s+(?:to\s+|as\s+)?(.+?)\s*$/i
     );
     if (call) return call[1].replace(/[?.!]+$/, '').trim();
+    var changeThis = raw.match(
+      /\b(?:yo\s+)?(?:can you\s+)?(?:please\s+)?(?:change|set|update)\s+this(?:\s+thing)?(?:'?s?\s+name)?\s+(?:to|as)\s+(.+?)\s*$/i
+    );
+    if (changeThis) return changeThis[1].replace(/[?.!]+$/, '').trim();
     var changeTo = raw.match(
       /\b(?:change|set|update)\s+(?:the\s+)?(?:name|title|campaign(?:\s+name)?)\s+(?:to|as)\s+(.+?)\s*$/i
     );
@@ -523,7 +531,10 @@
       /\b(rename|call (this|it)|change (the )?(name|title)|campaign name|project name|production name|name sucks|yo change|can we call|let'?s rename|call this something|something better|title cleaner|cleaner title)\b/i.test(
         lower
       ) ||
-      /\b(this name sucks|make this sound better|make the title cleaner|change this campaign name)\b/i.test(lower)
+      /\b(this name sucks|make this sound better|make the title cleaner|change this campaign name)\b/i.test(lower) ||
+      /\bmake (this|the) (project|production|video|reel|thing)?\s*(called|named)\b/i.test(lower) ||
+      /\bchange this( thing)?('?s name)? to\b/i.test(lower) ||
+      /\b(bro|yo|actually).{0,24}\b(change|rename|call)\b/i.test(lower)
     ) {
       return { kind: 'rename', confidence: 0.9 };
     }

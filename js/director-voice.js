@@ -341,11 +341,33 @@
     if (btn) btn.classList.remove('listening');
   }
 
+  function isTouchMobile() {
+    try {
+      return (
+        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+        (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer:coarse)').matches) ||
+        /iPhone|iPad|iPod|Android/i.test((navigator && navigator.userAgent) || '')
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isIOSLike() {
+    try {
+      return /iPhone|iPad|iPod/i.test((navigator && navigator.userAgent) || '') ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    } catch (e) {
+      return false;
+    }
+  }
+
   function startRecognition(SR, lang) {
     var rec = new SR();
     state.rec = rec;
     rec.lang = lang || 'en-US';
-    rec.continuous = true;
+    /* Safari/iOS: continuous sessions often die after one utterance — use one-shot */
+    rec.continuous = !isIOSLike();
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
@@ -353,6 +375,8 @@
       if (!state.open || state.stopping) return;
       setStatus('Listening…', 'listening');
       setHint('Speak naturally. Director is listening');
+      var micBtn = $('dir-cmd-mic');
+      if (micBtn) micBtn.classList.add('listening');
     };
 
     rec.onresult = function (ev) {
@@ -389,13 +413,16 @@
         failAndClose(errorMessage({ error: code }));
         return;
       }
+      if (code === 'network' && !(state.finalText || state.interimText)) {
+        failAndClose('Speech recognition needs a network connection. Check Wi‑Fi and try again, or type your request.');
+        return;
+      }
       var msg = errorMessage({ error: code });
       setStatus('Can’t hear', 'error');
       setHint(msg);
       var ov = $('dir-voice-ov');
       if (ov) ov.classList.add('error');
       emitError(msg);
-      /* Keep overlay open for soft network blips so user can tap Done if they already spoke */
       if (code !== 'network' || !(state.finalText || state.interimText)) {
         stopAudio();
       }
@@ -403,7 +430,18 @@
 
     rec.onend = function () {
       if (state.stopping || !state.open) return;
-      /* Chrome ends continuous sessions — restart while overlay open */
+      if (isIOSLike()) {
+        if (state.finalText || state.interimText) {
+          finishWithText(state.finalText || state.interimText);
+        } else {
+          setStatus('Ready', 'ok');
+          setHint('Tap Done if you finished, or speak again');
+          try {
+            rec.start();
+          } catch (e2) {}
+        }
+        return;
+      }
       try {
         state.rec = rec;
         rec.start();
@@ -420,7 +458,7 @@
     try {
       rec.start();
     } catch (e) {
-      failAndClose(errorMessage(e));
+      failAndClose('Couldn’t start voice recognition. Type your request instead.');
     }
   }
 
@@ -464,8 +502,7 @@
     setStatus('Starting…', 'listening');
     setCaptions('', '');
     setHint('Allow microphone access if prompted');
-    var micBtn = $('dir-cmd-mic');
-    if (micBtn) micBtn.classList.add('listening');
+    /* Don't mark mic listening until recognition actually starts */
 
     /* Mic first (volume + permission), then recognition — avoids mobile dual-start races */
     requestMic()
@@ -478,28 +515,44 @@
           } catch (e) {}
           return;
         }
+        if (isIOSLike()) {
+          /* iOS: avoid holding GUM while SpeechRecognition runs — release tracks, keep UI rings idle */
+          try {
+            stream.getTracks().forEach(function (t) {
+              t.stop();
+            });
+          } catch (e) {}
+          state.starting = false;
+          setStatus('Starting…', 'listening');
+          setHint('Speak naturally. Director is listening');
+          startRecognition(SR, opts.lang || 'en-US');
+          return;
+        }
         attachStream(stream);
         state.starting = false;
-        setStatus('Listening…', 'listening');
+        setStatus('Starting…', 'listening');
         setHint('Speak naturally. Director is listening');
         startRecognition(SR, opts.lang || 'en-US');
       })
       .catch(function (err) {
         if (!state.open || state.stopping) return;
-        /* Some desktop browsers allow SpeechRecognition without getUserMedia —
-           still try recognition, but show a clear permission error if hard-denied. */
         var hardDeny =
           err &&
           (err.name === 'NotAllowedError' ||
             err.name === 'PermissionDeniedError' ||
             err.name === 'SecurityError');
-        if (hardDeny) {
+        /* Mobile: never soft-fail into a fake Listening state */
+        if (hardDeny || isTouchMobile()) {
           state.starting = false;
-          failAndClose(errorMessage(err));
+          failAndClose(
+            hardDeny
+              ? errorMessage(err)
+              : 'Microphone unavailable. Check Settings → PreShoot / Safari → Microphone, then try again — or type your request.'
+          );
           return;
         }
         state.starting = false;
-        setStatus('Listening…', 'listening');
+        setStatus('Starting…', 'listening');
         setHint('Speak naturally. Director is listening');
         startRecognition(SR, opts.lang || 'en-US');
       });

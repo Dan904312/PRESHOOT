@@ -105,6 +105,8 @@
         saving = false;
         if (res && res.ok) {
           if (Studio()) Studio().clearDirty();
+          if (res.updated_at) lastRemoteUpdatedAt = res.updated_at;
+          else lastRemoteUpdatedAt = new Date().toISOString();
           return { ok: true };
         }
         if (Studio()) Studio().markDirty();
@@ -115,6 +117,44 @@
         if (Studio()) Studio().markDirty();
         return { ok: false, error: 'network' };
       });
+  }
+
+  function applyPulledRow(d) {
+    if (!d) return;
+    lastRemoteUpdatedAt = d.updated_at || lastRemoteUpdatedAt;
+    var cloudStudio = (d.prefs && d.prefs.studio) || d.studio || null;
+    if (cloudStudio && Studio()) {
+      Studio().applyCloudStudio(cloudStudio);
+    }
+    /* Keep non-Studio fields in sync on pull (login already merges; realtime needs this) */
+    try {
+      var S = global.S;
+      if (!S) return;
+      if (d.history && d.history.length && typeof global.getHistory === 'function' && typeof global.ss === 'function') {
+        /* Soft merge: prefer longer/newer cloud history when local idle */
+        if (!Studio() || !Studio().isDirty()) {
+          var MH = typeof global.MH === 'number' ? global.MH : 40;
+          var localH = global.getHistory();
+          if (!localH.length || d.history.length >= localH.length) {
+            global.ss('history', d.history.slice(0, MH));
+          }
+        }
+      }
+      if (d.library && Array.isArray(d.library) && typeof global.ss === 'function') {
+        if (!Studio() || !Studio().isDirty()) global.ss('library', d.library);
+      }
+      if (d.director_convs && Array.isArray(d.director_convs)) {
+        S.directorConvs = d.director_convs;
+        if (typeof global.ss === 'function') global.ss('director_convs', S.directorConvs);
+      }
+      if (d.connected_accounts) {
+        S.connectedAccounts = d.connected_accounts;
+        if (typeof global.ss === 'function') global.ss('connected_accounts', d.connected_accounts);
+        if (global.PreShootResearch && PreShootResearch.setConnectedAccounts) {
+          PreShootResearch.setConnectedAccounts(d.connected_accounts);
+        }
+      }
+    } catch (e) {}
   }
 
   function pullNow(opts) {
@@ -137,17 +177,9 @@
       .then(function (res) {
         pulling = false;
         if (!res || !res.ok || !res.data) return { ok: true, empty: true };
-        var d = res.data;
-        lastRemoteUpdatedAt = d.updated_at || null;
-
-        if (d.prefs && d.prefs.studio && Studio()) {
-          Studio().applyCloudStudio(d.prefs.studio);
-        } else if (d.studio && Studio()) {
-          Studio().applyCloudStudio(d.studio);
-        }
-
+        applyPulledRow(res.data);
         refreshStudioUI();
-        return { ok: true, data: d };
+        return { ok: true, data: res.data };
       })
       .catch(function () {
         pulling = false;
@@ -155,16 +187,25 @@
       });
   }
 
-  function flush() {
+  /**
+   * Authoritative reconcile: pull+merge first, then push when needed.
+   * - Default / realtime: push only if Studio dirty (avoids sync loops).
+   * - opts.alwaysPush: after pull, always push (profile/library/settings saves).
+   * - opts.pushFirst: push local tombstones/mutations first, then pull.
+   */
+  function flush(opts) {
+    opts = opts || {};
     if (!authUser()) return Promise.resolve();
     var dirty = Studio() ? Studio().isDirty() : false;
-    /* Push first when dirty so deletions / renames win before cloud merge */
-    if (dirty) {
+    if (opts.pushFirst && dirty) {
       return pushNow().then(function () {
         return pullNow({ force: true });
       });
     }
-    return pullNow({ force: true });
+    return pullNow({ force: true }).then(function () {
+      if (opts.alwaysPush || (Studio() && Studio().isDirty())) return pushNow();
+      return { ok: true };
+    });
   }
 
   function startRealtime() {
@@ -185,12 +226,8 @@
           function (payload) {
             var row = payload.new || payload.old || {};
             if (row.updated_at && row.updated_at === lastRemoteUpdatedAt) return;
-            if (Studio() && Studio().isDirty()) {
-              /* Local edits pending — merge then push */
-              flush();
-            } else {
-              pullNow({ force: true });
-            }
+            /* Always pull-merge first so remote wins over stale local; then push if still dirty */
+            flush();
           }
         )
         .subscribe();
@@ -213,10 +250,52 @@
       stopRealtime();
       return;
     }
+    /* After login merge, pull again then push only if Studio still dirty */
     flush().then(function () {
       startRealtime();
       refreshStudioUI();
     });
+  }
+
+  function clearLocalUserCache() {
+    stopRealtime();
+    lastRemoteUpdatedAt = null;
+    lastPullAt = 0;
+    try {
+      if (Studio() && Studio().clearDirty) Studio().clearDirty();
+      if (typeof global.ss === 'function') {
+        global.ss('studio_dirty', false);
+        /* Drop cached user workspace so next login cannot restore stale Studio over server */
+        global.ss('studio', {
+          version: 3,
+          projects: [],
+          continueProductionId: null,
+          deletedProjects: [],
+          deletedProductions: [],
+          updatedAt: 0
+        });
+        global.ss('history', []);
+        global.ss('library', []);
+        global.ss('director_convs', []);
+        global.ss('director_history', []);
+        global.ss('active_dir_conv', null);
+        global.ss('connected_accounts', {});
+      }
+      if (global.S) {
+        global.S.studio = null;
+        global.S.directorConvs = [];
+        global.S.directorHistory = [];
+        global.S.activeDirConvId = null;
+        global.S.connectedAccounts = {};
+        if (global.S.prefs && typeof global.S.prefs === 'object') {
+          global.S.prefs.studio = null;
+          if (typeof global.ss === 'function') global.ss('prefs', global.S.prefs);
+        }
+      }
+      if (global.PreShootResearch && PreShootResearch.setConnectedAccounts) {
+        PreShootResearch.setConnectedAccounts({});
+      }
+    } catch (e) {}
   }
 
   function bindLifecycle() {
@@ -237,7 +316,6 @@
 
     window.addEventListener('pagehide', function () {
       if (Studio() && Studio().isDirty()) {
-        /* Best-effort sync; keepalive via fetch if available */
         try {
           pushNow();
         } catch (e) {}
@@ -246,8 +324,7 @@
 
     window.addEventListener('focus', function () {
       if (!authUser()) return;
-      if (Studio() && Studio().isDirty()) flush();
-      else pullNow({ force: false });
+      flush();
     });
   }
 
@@ -259,7 +336,8 @@
     stopRealtime: stopRealtime,
     onAuthReady: onAuthReady,
     bindLifecycle: bindLifecycle,
-    refreshStudioUI: refreshStudioUI
+    refreshStudioUI: refreshStudioUI,
+    clearLocalUserCache: clearLocalUserCache
   };
 
   if (typeof document !== 'undefined') {

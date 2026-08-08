@@ -51,7 +51,18 @@
       if (!rect.height) return;
       var pad = opts.padding != null ? opts.padding : 14;
       var kbTop = keyboardTopPx();
-      var overlap = rect.bottom - kbTop + pad;
+      /* Keep field above keyboard; also leave room for fixed bottom nav when keyboard is closed/partial */
+      var bnavSpace = 0;
+      try {
+        var cs = global.getComputedStyle(global.document.documentElement);
+        var raw = cs.getPropertyValue('--bnav-space');
+        bnavSpace = parseFloat(raw) || 0;
+      } catch (e) {
+        bnavSpace = 80;
+      }
+      var layoutBottom = global.innerHeight - bnavSpace;
+      var visibleBottom = Math.min(kbTop, layoutBottom);
+      var overlap = rect.bottom - visibleBottom + pad;
       if (overlap > 0) {
         sc.scrollTop += overlap;
         return;

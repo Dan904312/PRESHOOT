@@ -1200,6 +1200,99 @@
     return true;
   }
 
+  function verifyDirectorMutation(action, payload) {
+    payload = payload || {};
+    try {
+      function unwrapProduction(found) {
+        if (!found) return null;
+        return found.production || found;
+      }
+      if (action === 'rename_project' && payload.projectId) {
+        var p = Studio().findProject && Studio().findProject(payload.projectId);
+        if (!p) return { ok: false, message: 'Project not found after rename' };
+        var want = String(payload.name || '').trim().toLowerCase();
+        var got = String(p.name || '').trim().toLowerCase();
+        if (want && got !== want) return { ok: false, message: 'Rename did not apply' };
+        return { ok: true, label: p.name };
+      }
+      if (action === 'rename_production' && payload.productionId) {
+        var pr = unwrapProduction(Studio().findProduction && Studio().findProduction(payload.productionId));
+        if (!pr) return { ok: false, message: 'Production not found after rename' };
+        var wantP = String(payload.name || '').trim().toLowerCase();
+        var gotP = String(pr.name || '').trim().toLowerCase();
+        if (wantP && gotP !== wantP) {
+          if (gotP.replace(/\s+/g, ' ') !== wantP.replace(/\s+/g, ' ')) {
+            return { ok: false, message: 'Rename did not apply' };
+          }
+        }
+        return { ok: true, label: pr.name };
+      }
+      if (action === 'delete_production' && payload.productionId) {
+        var gone = unwrapProduction(Studio().findProduction && Studio().findProduction(payload.productionId));
+        if (gone) return { ok: false, message: 'Production still exists' };
+        return { ok: true };
+      }
+      if (action === 'archive_project' && payload.projectId) {
+        var ap = Studio().findProject && Studio().findProject(payload.projectId);
+        if (ap && !ap.archived) return { ok: false, message: 'Archive did not apply' };
+        return { ok: true };
+      }
+      if (action === 'update_status' && payload.productionId) {
+        var us = unwrapProduction(Studio().findProduction && Studio().findProduction(payload.productionId));
+        if (!us || (payload.status && us.status !== payload.status)) {
+          return { ok: false, message: 'Status did not update' };
+        }
+        return { ok: true };
+      }
+      if (action === 'create_project') {
+        if (!payload.name) return { ok: true };
+        var created = (Studio().listProjects && Studio().listProjects()) || [];
+        var wantC = String(payload.name || '').trim().toLowerCase();
+        var foundC = created.some(function (x) {
+          return String(x.name || '').trim().toLowerCase() === wantC;
+        });
+        if (!foundC) return { ok: false, message: 'Project was not created' };
+        return { ok: true };
+      }
+      if (action === 'create_production') {
+        if (!payload.projectId) return { ok: false, message: 'Missing project' };
+        var projs = Studio().findProject && Studio().findProject(payload.projectId);
+        if (!projs) return { ok: false, message: 'Project not found' };
+        var wantProd = String(payload.name || 'Untitled Production').trim().toLowerCase();
+        var okProd = (projs.productions || []).some(function (x) {
+          return String(x.name || '').trim().toLowerCase() === wantProd;
+        });
+        if (!okProd && payload.name) return { ok: false, message: 'Production was not created' };
+        return { ok: true };
+      }
+      if (action === 'move_production' && payload.productionId && payload.toProjectId) {
+        var movedFound = Studio().findProduction && Studio().findProduction(payload.productionId);
+        var moved = unwrapProduction(movedFound);
+        if (!moved) return { ok: false, message: 'Production not found after move' };
+        var dest = Studio().findProject && Studio().findProject(payload.toProjectId);
+        var inDest =
+          dest &&
+          (dest.productions || []).some(function (x) {
+            return x.id === payload.productionId;
+          });
+        if (!inDest) return { ok: false, message: 'Move did not apply' };
+        return { ok: true };
+      }
+      if (
+        action === 'generate_sections' ||
+        action === 'open_production' ||
+        action === 'archive_production' ||
+        action === 'link_scan' ||
+        action === 'unlink_scan'
+      ) {
+        return { ok: true };
+      }
+    } catch (e) {
+      return { ok: false, message: 'Could not verify change' };
+    }
+    return { ok: true };
+  }
+
   function executeStagedDirectorAction() {
     if (!pendingDirectorAction) return;
     if (_dirGoState === 'executing') return;
@@ -1208,7 +1301,8 @@
     var payload = pendingDirectorAction.payload || {};
     var object = pendingDirectorAction.object || null;
     var mutates = pendingDirectorAction.mutates;
-    setDirectorPanel(actionCardHtml(action, payload, '', 'executing'));
+    setDirectorPanel(actionCardHtml(action, payload, 'Executing…', 'executing'));
+    setDirectorStatus('executing', 'Executing…');
     pendingDirectorAction = null;
     var result = null;
     try {
@@ -1226,11 +1320,28 @@
     if (!result || !result.ok) {
       setDirectorGoState('idle');
       setDirectorPanel(actionCardHtml(action, payload, (result && (result.message || result.error)) || 'Action failed', 'error'));
+      setDirectorStatus('error', (result && (result.message || result.error)) || 'Action failed');
       toast((result && (result.message || result.error)) || 'Action failed');
       return;
     }
+    setDirectorStatus('executing', 'Verifying…');
+    var verified = verifyDirectorMutation(action, payload);
+    if (!verified.ok) {
+      setDirectorGoState('idle');
+      setDirectorPanel(actionCardHtml(action, payload, verified.message || 'Verification failed', 'error'));
+      setDirectorStatus('error', verified.message || 'Action failed');
+      toast(verified.message || 'Action failed');
+      return;
+    }
+    /* Ensure other devices see the mutation — local is authoritative after confirmed execute */
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.flush === 'function') {
+      global.PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
+    } else if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
+      global.PreShootStudioSync.pushNow().catch(function () {});
+    }
     setDirectorGoState('done');
-    setDirectorPanel(actionCardHtml(action, payload, '', 'done'));
+    setDirectorPanel(actionCardHtml(action, payload, verified.label ? ('Updated to “' + verified.label + '”') : 'Completed', 'done'));
+    setDirectorStatus('done', 'Completed');
     toast('Done');
     var openId =
       (result.open &&
@@ -1245,7 +1356,7 @@
       renderStudio();
       setTimeout(function () {
         setDirectorPanel(
-          '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Done ✓</div></div>'
+          '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Completed ✓</div></div>'
         );
         setDirectorGoState('done');
         setTimeout(function () {
@@ -1431,15 +1542,12 @@
     }
     if (result.kind === 'reply') {
       setDirectorPanel(
-        '<div class="dir-cmd-status-card kind-done">' +
+        '<div class="dir-cmd-status-card kind-clarify">' +
           '<div class="dir-cmd-status-text">' +
-          esc(shortActionMessage(result.text, 'Done')) +
+          esc(shortActionMessage(result.text, 'OK')) +
           '</div></div>'
       );
-      setDirectorGoState('done');
-      setTimeout(function () {
-        setDirectorGoState('idle');
-      }, 1400);
+      setDirectorGoState('idle');
       return;
     }
     if (result.kind === 'error') {
@@ -1474,11 +1582,8 @@
     } catch (e) {}
     var msg = String((result && result.message) || '').slice(0, 500);
     if (typeof global.apiFetch !== 'function') {
-      setDirectorStatus('done', shortActionMessage(fallback, 'Updated'));
-      setDirectorGoState('done');
-      setTimeout(function () {
-        setDirectorGoState('idle');
-      }, 1400);
+      setDirectorStatus('error', 'Director needs a connection for advice. Try again.');
+      setDirectorGoState('idle');
       return;
     }
     global
@@ -1489,14 +1594,14 @@
           stream: false,
           context:
             ctxLines +
-            '\n\nMODE: Studio action assistant. Reply in 1 short sentence max. Prefer status like "Updated hook generated" over essays. No markdown. No ACTION block unless essential.',
+            '\n\nMODE: Studio advice only. Reply in 1 short sentence. Do NOT claim you renamed, deleted, moved, archived, or updated anything. Do NOT say Updated/Done/Completed unless you emit an ACTION block. Mutations require [[ACTION:{...}]]. No markdown.',
           messages: [
             {
               role: 'user',
               content:
-                'Respond as an action assistant inside Studio. Keep it tiny. Question: ' +
+                'Advice-only Studio assistant. Never pretend a mutation happened. Question: ' +
                 msg +
-                '\nIf you changed or proposed something, say what finished (e.g. "Updated hook generated"). Optional: one next command they can type.'
+                '\nIf a rename/move/delete/create is needed, emit [[ACTION:{...}]] with ids from context. Otherwise give brief advice only.'
             }
           ]
         })
@@ -1508,32 +1613,30 @@
         var block = (data.content || []).find(function (b) {
           return b.type === 'text';
         });
-        var text = (block && block.text) || fallback;
+        var raw = (block && block.text) || fallback;
+        var text = raw;
         if (global.PreShootDirectorOS && global.PreShootDirectorOS.stripActionMarker) {
           text = global.PreShootDirectorOS.stripActionMarker(text);
         }
         var act =
           global.PreShootDirectorOS && global.PreShootDirectorOS.parseActionFromReply
-            ? global.PreShootDirectorOS.parseActionFromReply((block && block.text) || '')
+            ? global.PreShootDirectorOS.parseActionFromReply(raw)
             : null;
-        setDirectorStatus('done', shortActionMessage(text, 'Done'));
-        setDirectorGoState('done');
-        if (act) {
-          setTimeout(function () {
-            proposeDirectorAction(act.action, act.payload || {});
-          }, 200);
-        } else {
-          setTimeout(function () {
-            setDirectorGoState('idle');
-          }, 1600);
+        if (act && act.action) {
+          setDirectorStatus('thinking', 'Preparing action…');
+          proposeDirectorAction(act.action, act.payload || {});
+          return;
         }
-      })
-      .catch(function () {
-        setDirectorStatus('done', shortActionMessage(fallback, 'Done'));
+        /* Advice only — never claim mutation success */
+        setDirectorStatus('done', shortActionMessage(text, fallback));
         setDirectorGoState('done');
         setTimeout(function () {
           setDirectorGoState('idle');
-        }, 1400);
+        }, 1600);
+      })
+      .catch(function () {
+        setDirectorStatus('error', 'Couldn’t reach Director. Try again.');
+        setDirectorGoState('idle');
       });
   }
 
@@ -1556,8 +1659,9 @@
       toast(msg);
       return;
     }
+    /* Don't claim Listening until Voice overlay recognition starts */
     if (btn) btn.classList.add('listening');
-    setDirectorStatus('listening', 'Listening…');
+    setDirectorStatus('thinking', 'Starting microphone…');
     Voice.open({
       onFinal: function (said) {
         if (btn) btn.classList.remove('listening');
@@ -2280,10 +2384,23 @@
       result = Studio().handleDirectorAction(action, payload, { confirmed: true });
     }
     if (!result || !result.ok) {
+      if (goBtn) {
+        goBtn.classList.remove('executing');
+        goBtn.disabled = false;
+        goBtn.textContent = 'Go';
+      }
       toast((result && (result.message || result.error)) || 'Action failed');
       return;
     }
-    toast('Done');
+    var verified = verifyDirectorMutation(action, payload);
+    if (!verified.ok) {
+      toast(verified.message || 'Action failed');
+      return;
+    }
+    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.flush === 'function') {
+      global.PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
+    }
+    toast(verified.label ? 'Updated to “' + verified.label + '”' : 'Done');
     var openId =
       (result.open &&
         ((result.result && result.result.productionId) || payload.productionId)) ||
