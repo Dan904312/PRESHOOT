@@ -1680,6 +1680,7 @@
     create_production: { ready: true, phase: 5, mutates: true },
     update_status: { ready: true, phase: 5, mutates: true },
     generate_sections: { ready: true, phase: 5, mutates: true },
+    rebuild_shot_list: { ready: true, phase: 5, mutates: true },
     update_script: { ready: true, phase: 5, mutates: true },
     add_reference: { ready: true, phase: 5, mutates: true },
     remove_reference: { ready: true, phase: 5, mutates: true },
@@ -1774,6 +1775,8 @@
     if (action === 'update_status')
       return 'Update status to “' + ((STATUS_MAP[payload.status] || {}).label || payload.status || '') + '”?';
     if (action === 'generate_sections') return 'Generate missing production sections from the linked idea?';
+    if (action === 'rebuild_shot_list')
+      return 'Rebuild the shot list from the production idea? Existing shots will be replaced (script & refs stay).';
     if (action === 'link_scan') return 'Link the current scan to this production?';
     if (action === 'unlink_scan') return 'Unlink the scan from this production?';
     if (action === 'update_script') {
@@ -1874,6 +1877,25 @@
       if (action === 'generate_sections') {
         if (!payload.productionId) return { ok: false, error: 'missing_fields' };
         return { ok: !!buildWorkspaceFromIdea(payload.productionId) };
+      }
+      if (action === 'rebuild_shot_list') {
+        if (!payload.productionId) return { ok: false, error: 'missing_fields' };
+        var foundShots = findProduction(getStore(), payload.productionId);
+        if (!foundShots) return { ok: false, error: 'not_found' };
+        var prodShots = ensureWorkspace(foundShots.production);
+        var seededOnly = seedWorkspaceFromIdea(
+          prodShots.ideaSnapshot || {},
+          prodShots.scanRef || {},
+          { coverImage: prodShots.coverImage }
+        );
+        prodShots.workspace.shotList = (seededOnly && seededOnly.shotList) || [];
+        var savedShots = updateProduction(payload.productionId, { workspace: prodShots.workspace });
+        return {
+          ok: !!savedShots,
+          result: { shotCount: (prodShots.workspace.shotList || []).length },
+          message: 'Shot list rebuilt',
+          openSection: 'shots'
+        };
       }
       if (action === 'update_script') {
         if (!payload.productionId) return { ok: false, error: 'missing_fields' };

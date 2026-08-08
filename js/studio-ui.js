@@ -1831,6 +1831,7 @@
       create_production: 'Create Production',
       update_status: 'Update Status',
       generate_sections: 'Generate Sections',
+      rebuild_shot_list: 'Rebuild Shot List',
       update_script: 'Update Script',
       open_production: 'Open Production',
       set_primary_platform: 'Set Platform'
@@ -2013,6 +2014,14 @@
         if (still) return { ok: false, message: 'Reference still present' };
         return { ok: true };
       }
+      if (action === 'rebuild_shot_list' && payload.productionId) {
+        var foundSl = Studio().findProduction && Studio().findProduction(payload.productionId);
+        var prodSl = foundSl && (foundSl.production || foundSl);
+        if (!prodSl) return { ok: false, message: 'Production not found after shot list rebuild' };
+        var shotsAfter = (prodSl.workspace && prodSl.workspace.shotList) || [];
+        if (!shotsAfter.length) return { ok: false, message: 'Shot list is empty after rebuild' };
+        return { ok: true, label: shotsAfter.length + ' shots' };
+      }
       if (
         action === 'generate_sections' ||
         action === 'open_production' ||
@@ -2085,16 +2094,37 @@
         payload,
         action === 'update_script'
           ? 'Done — script updated.'
-          : verified.label
-            ? 'Updated to “' + verified.label + '”'
-            : 'Completed',
+          : action === 'rebuild_shot_list'
+            ? 'Done — shot list rebuilt.'
+            : verified.label
+              ? 'Updated to “' + verified.label + '”'
+              : 'Completed',
         'done'
       )
     );
-    setDirectorStatus('done', action === 'update_script' ? 'Done — script updated.' : 'Completed');
-    toast(action === 'update_script' ? 'Script updated' : 'Done');
+    setDirectorStatus(
+      'done',
+      action === 'update_script'
+        ? 'Done — script updated.'
+        : action === 'rebuild_shot_list'
+          ? 'Done — shot list rebuilt.'
+          : 'Completed'
+    );
+    toast(
+      action === 'update_script'
+        ? 'Script updated'
+        : action === 'rebuild_shot_list'
+          ? 'Shot list rebuilt'
+          : 'Done'
+    );
     if (action === 'update_script') {
       refreshScriptFullscreenIfOpen(payload.productionId);
+    }
+    if (action === 'rebuild_shot_list' && payload.productionId && global.S) {
+      global.S.studioView = global.S.studioView || {};
+      global.S.studioView.mode = 'production';
+      global.S.studioView.productionId = payload.productionId;
+      global.S.studioView.section = 'shots';
     }
     var openId =
       (result.open &&
@@ -2391,9 +2421,26 @@
         })
       })
       .then(function (res) {
-        return res.json();
+        return res.json().then(function (data) {
+          return { ok: res.ok, status: res.status, data: data };
+        });
       })
-      .then(function (data) {
+      .then(function (pack) {
+        var data = pack.data || {};
+        var apiErr = directorApiErrorMessage(data, pack.status);
+        if (!pack.ok) {
+          var errShow = apiErr || 'Director advice failed. Try again.';
+          if (isDevHost()) console.warn('[Director explain]', pack.status, data);
+          setDirectorStatus('error', errShow);
+          setDirectorPanel(
+            '<div class="dir-cmd-status-card kind-error">' +
+              '<div class="dir-cmd-status-text">' +
+              esc(errShow) +
+              '</div></div>'
+          );
+          setDirectorGoState('idle');
+          return;
+        }
         var block = (data.content || []).find(function (b) {
           return b.type === 'text';
         });
@@ -2420,10 +2467,33 @@
         );
         setDirectorGoState('idle');
       })
-      .catch(function () {
-        setDirectorStatus('error', 'Couldn’t reach Director. Try again.');
+      .catch(function (err) {
+        var net =
+          isDevHost() && err && err.message
+            ? 'Couldn’t reach Director: ' + String(err.message).slice(0, 120)
+            : 'Couldn’t reach Director. Try again.';
+        setDirectorStatus('error', net);
         setDirectorGoState('idle');
       });
+  }
+
+  function directorApiErrorMessage(data, status) {
+    var msg =
+      (data && data.error && (data.error.message || data.error)) ||
+      (data && typeof data.error === 'string' ? data.error : '') ||
+      '';
+    msg = String(msg || '').trim();
+    if (!msg && status && status >= 400) msg = 'Director request failed (' + status + ')';
+    return msg.slice(0, 200);
+  }
+
+  function isDevHost() {
+    try {
+      var h = (global.location && global.location.hostname) || '';
+      return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || /\.local$/i.test(h);
+    } catch (e) {
+      return false;
+    }
   }
 
   function requestScriptAiEdit(result) {
@@ -2474,12 +2544,18 @@
           : mode === 'patch_ending'
             ? 'MODE=patch_ending — return ONLY the new ending/CTA lines to append (not the whole script).'
             : 'MODE=append — return ONLY the continuation to add after the existing script. Do NOT repeat or delete existing lines.';
+    _lastScriptAi = {
+      productionId: productionId,
+      mode: mode,
+      message: userMsg
+    };
     global
       .apiFetch('/api/director', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           stream: false,
+          max_tokens: 2800,
           context:
             ctxLines +
             '\n\nMODE: Script mutation. You MUST emit exactly one block:\n' +
@@ -2504,25 +2580,64 @@
         })
       })
       .then(function (res) {
-        return res.json();
+        return res.json().then(function (data) {
+          return { ok: res.ok, status: res.status, data: data };
+        });
       })
-      .then(function (data) {
+      .then(function (pack) {
+        var data = pack.data || {};
+        var apiErr = directorApiErrorMessage(data, pack.status);
+        if (!pack.ok) {
+          var show =
+            apiErr ||
+            'Director couldn’t prepare a script change. Try again.';
+          if (isDevHost() && apiErr) {
+            console.warn('[Director script_ai]', pack.status, data);
+          }
+          setDirectorStatus('error', show);
+          setDirectorPanel(
+            '<div class="dir-cmd-status-card kind-error">' +
+              '<div class="dir-cmd-status-text">' +
+              esc(show) +
+              '</div></div>' +
+              '<button type="button" class="studio-btn ghost sm" style="margin-top:8px" onclick="PreShootStudioUI.retryLastScriptAi()">Retry</button>'
+          );
+          setDirectorGoState('idle');
+          return;
+        }
         var block = (data.content || []).find(function (b) {
           return b.type === 'text';
         });
         var raw = (block && block.text) || '';
-        var patch =
-          global.PreShootDirectorOS && global.PreShootDirectorOS.parseScriptPatch
-            ? global.PreShootDirectorOS.parseScriptPatch(raw)
-            : null;
-        if (!patch || !String(patch.body || '').trim()) {
-          setDirectorStatus(
-            'error',
-            'Director couldn’t prepare a script change. Try again.'
-          );
+        if (!raw.trim()) {
+          var emptyMsg = 'Director returned an empty script draft. Try again.';
+          setDirectorStatus('error', emptyMsg);
           setDirectorPanel(
             '<div class="dir-cmd-status-card kind-error">' +
-              '<div class="dir-cmd-status-text">Action failed</div></div>' +
+              '<div class="dir-cmd-status-text">' +
+              esc(emptyMsg) +
+              '</div></div>' +
+              '<button type="button" class="studio-btn ghost sm" style="margin-top:8px" onclick="PreShootStudioUI.retryLastScriptAi()">Retry</button>'
+          );
+          setDirectorGoState('idle');
+          return;
+        }
+        var patch =
+          global.PreShootDirectorOS && global.PreShootDirectorOS.parseScriptPatch
+            ? global.PreShootDirectorOS.parseScriptPatch(raw, mode)
+            : null;
+        if (!patch || !String(patch.body || '').trim()) {
+          var failMsg =
+            isDevHost()
+              ? 'Could not parse script patch from Director reply. Check console.'
+              : 'Director couldn’t prepare a script change. Try again.';
+          if (isDevHost()) console.warn('[Director script_ai parse fail]', raw.slice(0, 500));
+          setDirectorStatus('error', failMsg);
+          setDirectorPanel(
+            '<div class="dir-cmd-status-card kind-error">' +
+              '<div class="dir-cmd-status-text">' +
+              esc(failMsg) +
+              '</div></div>' +
               '<button type="button" class="studio-btn ghost sm" style="margin-top:8px" onclick="PreShootStudioUI.retryLastScriptAi()">Retry</button>'
           );
           setDirectorGoState('idle');
@@ -2553,8 +2668,12 @@
           { tool: 'script', mutates: true, object: { type: 'script', id: productionId } }
         );
       })
-      .catch(function () {
-        setDirectorStatus('error', 'Couldn’t reach Director. Try again.');
+      .catch(function (err) {
+        var net =
+          isDevHost() && err && err.message
+            ? 'Couldn’t reach Director: ' + String(err.message).slice(0, 120)
+            : 'Couldn’t reach Director. Try again.';
+        setDirectorStatus('error', net);
         setDirectorGoState('idle');
       });
   }

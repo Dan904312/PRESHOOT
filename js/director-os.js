@@ -577,7 +577,9 @@
       /\b(better|stronger)\s+ending\b|\badd (a )?(stronger )?ending\b|\bneeds? a better ending\b/i.test(
         lower
       ) ||
-      /\brewrite (the )?(entire |whole |full )?script\b|\breplace (the )?script\b/i.test(lower) ||
+      /\brewrite\b.+\bscript\b|\breplace (the |this |our )?script\b|\b(modify|change|update|edit)\b.+\bscript\b/i.test(
+        lower
+      ) ||
       /\bmake (the )?hook stronger\b|\bstronger hook\b|\bless (scripted|robotic)\b|\bmore natural\b/i.test(
         lower
       ) ||
@@ -587,13 +589,20 @@
       /\bcontinue from where\b|\bbased on what i('?ve| have) (already )?written\b/i.test(lower)
     ) {
       var scriptMode = 'append';
-      if (/\brewrite (the )?(entire |whole |full )?script\b|\breplace (the )?script\b/i.test(lower)) {
+      if (
+        /\brewrite\b.+\bscript\b|\breplace (the |this |our )?script\b|\bentire script\b|\bwhole script\b|\bfull script\b/i.test(
+          lower
+        )
+      ) {
         scriptMode = 'replace';
       } else if (/\bhook\b/i.test(lower) && !/\bending\b|\bfinish\b|\bcontinue\b/i.test(lower)) {
         scriptMode = 'patch_hook';
       } else if (/\bending\b|\bcta\b|\bend\b/i.test(lower) && !/\bfinish\b|\bcontinue\b/i.test(lower)) {
         scriptMode = 'patch_ending';
-      } else if (/\bless (scripted|robotic)\b|\bmore natural\b|\b\d+\s*sec/i.test(lower)) {
+      } else if (
+        /\bless (scripted|robotic)\b|\bmore natural\b|\b\d+\s*sec/i.test(lower) ||
+        /\b(modify|change|update|edit)\b.+\bscript\b/i.test(lower)
+      ) {
         scriptMode = 'replace_soft'; /* confirm-gated rewrite preserving intent */
       }
       return { kind: 'script_ai', mode: scriptMode, confidence: 0.92 };
@@ -637,6 +646,14 @@
     if (/\b(delete|remove this production)\b/i.test(lower)) return { kind: 'delete', confidence: 0.85 };
     if (/\b(create|new)\b.+\bproject\b/i.test(lower)) return { kind: 'create_project', confidence: 0.84 };
     if (/\b(create|new)\b.+\bproduction\b/i.test(lower)) return { kind: 'create_production', confidence: 0.84 };
+
+    if (
+      /\b(redo|rebuild|regenerate|remake|refresh)\b.+\b(shot\s*list|shots|shotlist)\b/i.test(lower) ||
+      /\b(shot\s*list|shots)\b.+\b(redo|rebuild|regenerate|remake|again)\b/i.test(lower) ||
+      /\bnew shot list\b|\brebuild (the )?shots\b/i.test(lower)
+    ) {
+      return { kind: 'generate', target: 'shotlist', confidence: 0.92 };
+    }
 
     if (
       /\b(generate|build|make|give me)\b.+\b(script|shot|hook|section|workspace)\b/i.test(lower) ||
@@ -1053,7 +1070,9 @@
     if (classified.kind === 'generate' && ctx.productionId) {
       var target = classified.target || null;
       if (!target) {
-        if (/\bshot\b|close-?up/i.test(lower)) target = 'shot';
+        if (/\b(shot\s*list|shotlist)\b/i.test(lower) || /\b(redo|rebuild|regenerate)\b.+\bshots?\b/i.test(lower))
+          target = 'shotlist';
+        else if (/\bshot\b|close-?up/i.test(lower)) target = 'shot';
         else if (/\bhook\b/i.test(lower)) target = 'hook';
         else if (/\bscript\b|line\b/i.test(lower)) target = 'script';
         else if (ctx.section === 'shots') target = 'shot';
@@ -1067,6 +1086,20 @@
           mode: target === 'hook' ? 'patch_hook' : classified.mode === 'shorter' ? 'replace_soft' : 'append',
           productionId: ctx.productionId,
           message: text,
+          confidence: classified.confidence
+        };
+      }
+      /* Destructive shot-list rebuild — confirm via Studio action */
+      if (target === 'shotlist') {
+        return {
+          kind: 'action',
+          proposal: {
+            tool: 'shotlist',
+            action: 'rebuild_shot_list',
+            payload: { productionId: ctx.productionId },
+            mutates: true
+          },
+          object: { type: 'shotlist', id: ctx.productionId, name: 'Shot list' },
           confidence: classified.confidence
         };
       }
@@ -1192,6 +1225,26 @@
     if (target === 'sections') {
       var built = Studio.buildWorkspaceFromIdea(productionId);
       return { ok: !!built, message: 'Production sections generated', refresh: true };
+    }
+
+    if (target === 'shotlist' || target === 'shotlist_rebuild') {
+      if (!Studio.seedWorkspaceFromIdea) return { ok: false, error: 'seed_unavailable' };
+      var seededShots = Studio.seedWorkspaceFromIdea(idea, prod.scanRef || {}, {
+        coverImage: prod.coverImage
+      });
+      ws.shotList = (seededShots && seededShots.shotList) || [];
+      Studio.updateProduction(productionId, { workspace: ws });
+      rememberTurn({
+        intent: 'generate',
+        action: 'rebuild_shot_list',
+        object: { type: 'shotlist', id: productionId, name: 'Shot list' }
+      });
+      return {
+        ok: true,
+        message: 'Shot list rebuilt from the production idea',
+        refresh: true,
+        section: 'shots'
+      };
     }
 
     if (target === 'shot') {
@@ -1648,47 +1701,124 @@
   }
 
   /**
+   * Extract a JSON object starting at idx using brace depth (handles nested strings).
+   */
+  function extractBalancedJsonObject(text, idx) {
+    if (!text || text.charAt(idx) !== '{') return null;
+    var depth = 0;
+    var inStr = false;
+    var esc = false;
+    for (var i = idx; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (inStr) {
+        if (esc) {
+          esc = false;
+          continue;
+        }
+        if (ch === '\\') {
+          esc = true;
+          continue;
+        }
+        if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') {
+        inStr = true;
+        continue;
+      }
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) return text.slice(idx, i + 1);
+      }
+    }
+    return null;
+  }
+
+  function scriptPatchFromObject(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    var body = obj.body != null ? String(obj.body) : '';
+    if (!body && obj.lines && obj.lines.length) {
+      body = obj.lines
+        .map(function (l) {
+          return typeof l === 'string' ? l : (l && l.text) || '';
+        })
+        .filter(Boolean)
+        .join('\n\n');
+    }
+    if (!body.trim()) return null;
+    return {
+      mode: obj.mode || 'append',
+      body: body.trim(),
+      lines: obj.lines || null,
+      productionId: obj.productionId || null
+    };
+  }
+
+  /**
    * Parse [[SCRIPT:{"mode":"append","body":"..."}]] from model reply.
    * body may also be delivered as lines: ["…","…"]
    */
-  function parseScriptPatch(reply) {
+  function parseScriptPatch(reply, preferredMode) {
     var text = String(reply || '');
-    var m = text.match(/\[\[SCRIPT:(\{[\s\S]*?\})\]\]/);
-    if (!m) {
-      /* Also accept ACTION update_script */
-      var act = parseActionFromReply(text);
-      if (act && act.action === 'update_script') {
-        return {
-          mode: (act.payload && act.payload.mode) || 'append',
-          body: (act.payload && act.payload.body) || '',
-          lines: (act.payload && act.payload.lines) || null,
-          productionId: act.payload && act.payload.productionId
-        };
+    var marker = text.indexOf('[[SCRIPT:');
+    if (marker >= 0) {
+      var braceAt = text.indexOf('{', marker);
+      if (braceAt >= 0) {
+        var jsonStr = extractBalancedJsonObject(text, braceAt);
+        if (jsonStr) {
+          try {
+            var parsed = scriptPatchFromObject(JSON.parse(jsonStr));
+            if (parsed) return parsed;
+          } catch (e1) {
+            /* fall through */
+          }
+        }
       }
-      return null;
     }
-    try {
-      var obj = JSON.parse(m[1]);
-      if (!obj) return null;
-      var body = obj.body != null ? String(obj.body) : '';
-      if (!body && obj.lines && obj.lines.length) {
-        body = obj.lines
-          .map(function (l) {
-            return typeof l === 'string' ? l : (l && l.text) || '';
-          })
-          .filter(Boolean)
-          .join('\n\n');
+    /* Also accept ACTION update_script */
+    var act = parseActionFromReply(text);
+    if (act && act.action === 'update_script') {
+      return scriptPatchFromObject({
+        mode: (act.payload && act.payload.mode) || preferredMode || 'append',
+        body: (act.payload && act.payload.body) || '',
+        lines: (act.payload && act.payload.lines) || null,
+        productionId: act.payload && act.payload.productionId
+      });
+    }
+    /* Fenced JSON fallback */
+    var fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+    if (fence) {
+      try {
+        var fromFence = scriptPatchFromObject(JSON.parse(fence[1]));
+        if (fromFence) return fromFence;
+      } catch (e2) {
+        /* fall through */
       }
-      if (!body.trim()) return null;
+    }
+    /*
+     * Last resort: model returned plain script text without markers.
+     * Reject short refusals / advice so we don't overwrite the editor with chat.
+     */
+    var plain = text
+      .replace(/\[\[(?:SCRIPT|ACTION):[\s\S]*$/, '')
+      .replace(/^[\s\S]*?(?:here(?:'| i)?s (?:the |your )?(?:updated |rewritten )?script[:\s]*)/i, '')
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .trim();
+    if (
+      plain.length >= 40 &&
+      !/^(i (can'?t|cannot|unable)|sorry|unable|as an ai|i need more)/i.test(plain) &&
+      !/\b(confirm|would you like|let me know)\b/i.test(plain.slice(0, 120)) &&
+      (plain.indexOf('\n') >= 0 || plain.length >= 80)
+    ) {
       return {
-        mode: obj.mode || 'append',
-        body: body.trim(),
-        lines: obj.lines || null,
-        productionId: obj.productionId || null
+        mode: preferredMode || 'append',
+        body: plain,
+        lines: null,
+        productionId: null
       };
-    } catch (e) {
-      return null;
     }
+    return null;
   }
 
   function stripActionMarker(reply) {
@@ -1745,7 +1875,8 @@
     description: 'Add and improve shots.',
     surfaces: ['*', 'production'],
     actions: {
-      add_shot: { label: 'Add shot', mutates: true }
+      add_shot: { label: 'Add shot', mutates: true },
+      rebuild_shot_list: { label: 'Rebuild shot list', mutates: true }
     }
   });
 
