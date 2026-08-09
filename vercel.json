@@ -81,6 +81,22 @@
   ],
   "routes": [
     {
+      "src": "/api/workspaces",
+      "dest": "/api/workspaces"
+    },
+    {
+      "src": "/api/workspaces/(.*)",
+      "dest": "/api/workspaces?__path=$1"
+    },
+    {
+      "src": "/api/workspace-invites/accept",
+      "dest": "/api/workspace-invites/accept"
+    },
+    {
+      "src": "/api/workspace-sync",
+      "dest": "/api/workspace-sync"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     },
