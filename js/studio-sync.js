@@ -35,13 +35,17 @@
   function buildPayload() {
     var S = global.S;
     if (!S) return null;
+    var personalStudio = null;
     if (Studio()) {
       try {
-        var st = Studio().exportForSync();
-        S.studio = st;
+        personalStudio = Studio().exportForSync();
+        /* Never put shared workspace document into personal prefs /api/sync */
         if (!S.prefs) S.prefs = {};
-        S.prefs.studio = st;
+        S.prefs.studio = personalStudio;
         if (typeof global.ss === 'function') global.ss('prefs', S.prefs);
+        if (!(global.PreShootWorkspace && PreShootWorkspace.isShared && PreShootWorkspace.isShared())) {
+          S.studio = personalStudio;
+        }
       } catch (e) {}
     }
     return {
@@ -81,7 +85,7 @@
         global.PreShootResearch && PreShootResearch.getConnectedAccounts
           ? PreShootResearch.getConnectedAccounts()
           : S.connectedAccounts || {},
-      studio: Studio() ? Studio().exportForSync() : null
+      studio: personalStudio
     };
   }
 
@@ -132,7 +136,7 @@
       if (!S) return;
       if (d.history && d.history.length && typeof global.getHistory === 'function' && typeof global.ss === 'function') {
         /* Soft merge: prefer longer/newer cloud history when local idle */
-        if (!Studio() || !Studio().isDirty()) {
+        if (!Studio() || !(Studio().isPersonalDirty ? Studio().isPersonalDirty() : Studio().isDirty())) {
           var MH = typeof global.MH === 'number' ? global.MH : 40;
           var localH = global.getHistory();
           if (!localH.length || d.history.length >= localH.length) {
@@ -141,7 +145,9 @@
         }
       }
       if (d.library && Array.isArray(d.library) && typeof global.ss === 'function') {
-        if (!Studio() || !Studio().isDirty()) global.ss('library', d.library);
+        if (!Studio() || !(Studio().isPersonalDirty ? Studio().isPersonalDirty() : Studio().isDirty())) {
+          global.ss('library', d.library);
+        }
       }
       if (d.director_convs && Array.isArray(d.director_convs)) {
         S.directorConvs = d.director_convs;
@@ -196,14 +202,23 @@
   function flush(opts) {
     opts = opts || {};
     if (!authUser()) return Promise.resolve();
-    var dirty = Studio() ? Studio().isDirty() : false;
+    var dirty = Studio()
+      ? Studio().isPersonalDirty
+        ? Studio().isPersonalDirty()
+        : Studio().isDirty()
+      : false;
     if (opts.pushFirst && dirty) {
       return pushNow().then(function () {
         return pullNow({ force: true });
       });
     }
     return pullNow({ force: true }).then(function () {
-      if (opts.alwaysPush || (Studio() && Studio().isDirty())) return pushNow();
+      var stillDirty = Studio()
+        ? Studio().isPersonalDirty
+          ? Studio().isPersonalDirty()
+          : Studio().isDirty()
+        : false;
+      if (opts.alwaysPush || stillDirty) return pushNow();
       return { ok: true };
     });
   }

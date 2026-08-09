@@ -205,8 +205,116 @@
       });
   }
 
+  function listMembers(workspaceId) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/members', {
+      method: 'GET'
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            members: (data && data.members) || [],
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function updateMemberRole(workspaceId, userId, role) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/members/' +
+        encodeURIComponent(userId),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: role })
+      }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            member: data && data.member,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function removeMember(workspaceId, userId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/members/' +
+        encodeURIComponent(userId),
+      { method: 'DELETE' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function listInvites(workspaceId) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/invites', {
+      method: 'GET'
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            invites: (data && data.invites) || [],
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function patchWorkspace(workspaceId, patch) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch || {})
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            workspace: data && data.workspace,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
   /**
-   * Role helpers for future UI — backend remains authoritative.
+   * Role helpers for UI — backend remains authoritative.
    */
   function canEditRole(role) {
     return role === 'owner' || role === 'editor';
@@ -223,6 +331,11 @@
     inviteMember: inviteMember,
     acceptInvite: acceptInvite,
     revokeInvite: revokeInvite,
+    listMembers: listMembers,
+    listInvites: listInvites,
+    updateMemberRole: updateMemberRole,
+    removeMember: removeMember,
+    patchWorkspace: patchWorkspace,
     canEditRole: canEditRole,
     canManageMembersRole: canManageMembersRole
   };

@@ -595,7 +595,7 @@
     return prod;
   }
 
-  function getStore() {
+  function getPersonalStore() {
     var raw = gs(STORAGE_KEY, null);
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.projects)) {
       return emptyStore();
@@ -609,21 +609,67 @@
     return raw;
   }
 
+  function workspaceCtx() {
+    return global.PreShootWorkspace || null;
+  }
+
+  function isSharedActive() {
+    var ctx = workspaceCtx();
+    return !!(ctx && ctx.isShared && ctx.isShared());
+  }
+
+  function getStore() {
+    if (isSharedActive()) {
+      var ctx = workspaceCtx();
+      var doc = ctx.getSharedDocument && ctx.getSharedDocument();
+      if (doc && typeof doc === 'object' && Array.isArray(doc.projects)) {
+        doc.version = VERSION;
+        doc.deletedProjects = normalizeTombstones(doc.deletedProjects);
+        doc.deletedProductions = normalizeTombstones(doc.deletedProductions);
+        (doc.projects || []).forEach(function (p) {
+          (p.productions || []).forEach(ensureWorkspace);
+        });
+        return doc;
+      }
+      return emptyStore();
+    }
+    return getPersonalStore();
+  }
+
   function markDirty() {
+    if (isSharedActive()) {
+      var ctx = workspaceCtx();
+      if (ctx && ctx.markSharedDirty) ctx.markSharedDirty();
+      return;
+    }
     ss(DIRTY_KEY, true);
   }
 
   function clearDirty() {
+    /* Personal sync success always clears personal dirty only */
     ss(DIRTY_KEY, false);
   }
 
-  function isDirty() {
+  function clearSharedDirtyFlag() {
+    var ctx = workspaceCtx();
+    if (ctx && ctx.clearSharedDirty) ctx.clearSharedDirty();
+  }
+
+  function isPersonalDirty() {
     return gs(DIRTY_KEY, false) === true;
   }
 
-  function saveStore(store, opts) {
+  function isDirty() {
+    if (isSharedActive()) {
+      var ctx = workspaceCtx();
+      return !!(ctx && ctx.isSharedDirty && ctx.isSharedDirty());
+    }
+    return isPersonalDirty();
+  }
+
+  function savePersonalStore(store, opts) {
     opts = opts || {};
-    store = store || getStore();
+    store = store || getPersonalStore();
     if (!opts.keepUpdatedAt) store.updatedAt = now();
     store.version = VERSION;
     store.deletedProjects = normalizeTombstones(store.deletedProjects);
@@ -632,18 +678,52 @@
       (p.productions || []).forEach(ensureWorkspace);
     });
     ss(STORAGE_KEY, store);
-    if (global.S) {
+    if (global.S && !isSharedActive()) {
       global.S.studio = store;
       if (global.S.prefs && typeof global.S.prefs === 'object') {
         global.S.prefs.studio = store;
         ss('prefs', global.S.prefs);
       }
+    } else if (global.S && global.S.prefs && typeof global.S.prefs === 'object') {
+      /* Keep prefs.studio as personal snapshot even while viewing shared */
+      global.S.prefs.studio = store;
+      ss('prefs', global.S.prefs);
     }
     if (!opts.silent) {
-      markDirty();
+      ss(DIRTY_KEY, true);
       if (typeof global.scheduleCloudSync === 'function') global.scheduleCloudSync();
     }
     return store;
+  }
+
+  function saveStore(store, opts) {
+    opts = opts || {};
+    if (isSharedActive()) {
+      var ctx = workspaceCtx();
+      if (ctx && ctx.canEdit && !ctx.canEdit()) {
+        if (!opts.silent && typeof global.showToast === 'function') {
+          global.showToast('This workspace is read-only');
+        }
+        return (ctx.getSharedDocument && ctx.getSharedDocument()) || getStore();
+      }
+      store = store || getStore();
+      if (!opts.keepUpdatedAt) store.updatedAt = now();
+      store.version = VERSION;
+      store.deletedProjects = normalizeTombstones(store.deletedProjects);
+      store.deletedProductions = normalizeTombstones(store.deletedProductions);
+      (store.projects || []).forEach(function (p) {
+        (p.productions || []).forEach(ensureWorkspace);
+      });
+      if (ctx && ctx.setSharedDocument) ctx.setSharedDocument(store);
+      if (global.S) global.S.studio = store;
+      /* Never write shared docs into scout_studio / personal prefs */
+      if (!opts.silent) {
+        if (ctx && ctx.markSharedDirty) ctx.markSharedDirty();
+        if (ctx && ctx.scheduleSave) ctx.scheduleSave();
+      }
+      return store;
+    }
+    return savePersonalStore(store, opts);
   }
 
   function pickNewer(a, b) {
@@ -826,23 +906,30 @@
   }
 
   function hydrateFromPrefs(prefs) {
-    if (!prefs || !prefs.studio || !Array.isArray(prefs.studio.projects)) return getStore();
-    var local = hasPersistedStore() ? getStore() : emptyStore();
+    if (!prefs || !prefs.studio || !Array.isArray(prefs.studio.projects)) {
+      return isSharedActive() ? getStore() : getPersonalStore();
+    }
+    var local = hasPersistedStore() ? getPersonalStore() : emptyStore();
     var merged = mergeStudioStores(local, prefs.studio);
-    saveStore(merged, { silent: true, keepUpdatedAt: true });
-    return merged;
+    savePersonalStore(merged, { silent: true, keepUpdatedAt: true });
+    if (!isSharedActive() && global.S) global.S.studio = merged;
+    return isSharedActive() ? getStore() : merged;
   }
 
   function applyCloudStudio(cloudStudio) {
-    if (!cloudStudio || typeof cloudStudio !== 'object') return getStore();
-    var local = hasPersistedStore() ? getStore() : emptyStore();
+    if (!cloudStudio || typeof cloudStudio !== 'object') {
+      return isSharedActive() ? getStore() : getPersonalStore();
+    }
+    var local = hasPersistedStore() ? getPersonalStore() : emptyStore();
     var merged = mergeStudioStores(local, cloudStudio);
-    saveStore(merged, { silent: true, keepUpdatedAt: true });
-    return merged;
+    savePersonalStore(merged, { silent: true, keepUpdatedAt: true });
+    if (!isSharedActive() && global.S) global.S.studio = merged;
+    return isSharedActive() ? getStore() : merged;
   }
 
   function exportForSync() {
-    var store = getStore();
+    /* Always personal Studio for /api/sync — never shared workspace document */
+    var store = getPersonalStore();
     /* Slim cover images / inline asset blobs for sync payload size */
     try {
       var slim = JSON.parse(JSON.stringify(store));
@@ -874,6 +961,38 @@
           });
           /* Drop research cache from sync payload (re-fetchable) */
           if (refs._cache) delete refs._cache;
+        });
+      });
+      return slim;
+    } catch (e) {
+      return store;
+    }
+  }
+
+  function exportForWorkspaceSync() {
+    /* Active shared (or personal) document for workspace-sync — same slim rules */
+    var store = getStore();
+    try {
+      var slim = JSON.parse(JSON.stringify(store));
+      (slim.projects || []).forEach(function (p) {
+        if (typeof p.coverImage === 'string' && p.coverImage.length > 180000) p.coverImage = null;
+        (p.productions || []).forEach(function (prod) {
+          if (typeof prod.coverImage === 'string' && prod.coverImage.length > 180000) {
+            prod.coverImage = null;
+          }
+          var ws = prod.workspace;
+          if (!ws) return;
+          (ws.assets || []).forEach(function (a) {
+            if (typeof a.src === 'string' && a.src.length > 120000) {
+              if (a.storagePath) a.src = null;
+              else a.src = null;
+            }
+            if (typeof a.url === 'string' && a.url.indexOf('data:') === 0 && a.url.length > 120000) {
+              if (a.storagePath) a.url = null;
+            }
+            if (typeof a.thumbnail === 'string' && a.thumbnail.length > 80000) a.thumbnail = null;
+          });
+          if (ws.references && ws.references._cache) ws.references._cache = {};
         });
       });
       return slim;
@@ -2035,15 +2154,19 @@
     STATUSES: STATUSES,
     STATUS_MAP: STATUS_MAP,
     getStore: getStore,
+    getPersonalStore: getPersonalStore,
     saveStore: saveStore,
     hydrateFromPrefs: hydrateFromPrefs,
     applyCloudStudio: applyCloudStudio,
     mergeStudioStores: mergeStudioStores,
     exportForSync: exportForSync,
+    exportForWorkspaceSync: exportForWorkspaceSync,
     hasPersistedStore: hasPersistedStore,
     isDirty: isDirty,
+    isPersonalDirty: isPersonalDirty,
     markDirty: markDirty,
     clearDirty: clearDirty,
+    clearSharedDirtyFlag: clearSharedDirtyFlag,
     defaultWorkspace: defaultWorkspace,
     ensureWorkspace: ensureWorkspace,
     listProjects: listProjects,

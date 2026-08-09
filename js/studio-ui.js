@@ -14,6 +14,18 @@
       .replace(/"/g, '&quot;');
   }
 
+  function directorRequestBody(extra) {
+    var body = Object.assign({}, extra || {});
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.workspaceIdForDirector
+    ) {
+      var wid = PreShootWorkspace.workspaceIdForDirector();
+      if (wid) body.workspace_id = wid;
+    }
+    return body;
+  }
+
   function Studio() {
     return global.PreShootStudio;
   }
@@ -108,13 +120,28 @@
     h += '<div class="studio-hd">';
     h += '<div class="studio-hd-text">';
     h += '<div class="studio-title">Studio</div>';
-    h += '<div class="studio-sub">Your creative workspace</div>';
+    var ctx = global.PreShootWorkspace && PreShootWorkspace.getContext ? PreShootWorkspace.getContext() : null;
+    if (ctx && ctx.isShared) {
+      h +=
+        '<div class="studio-sub">' +
+        esc(ctx.activeWorkspaceName || 'Shared workspace') +
+        ' · ' +
+        esc(ctx.activeWorkspaceRole || '') +
+        (ctx.canEdit ? '' : ' · Read-only') +
+        '</div>';
+    } else {
+      h += '<div class="studio-sub">Your creative workspace</div>';
+    }
     h += '</div>';
     h += '<div class="studio-hd-actions">';
-    h +=
-      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
-    h +=
-      '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.studioHeaderActionsHtml) {
+      h += PreShootWorkspaceUI.studioHeaderActionsHtml();
+    } else {
+      h +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
+      h +=
+        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
+    }
     h += '</div></div>';
 
     h += renderStudioRecents();
@@ -131,7 +158,13 @@
         '</div>' +
         '<div class="studio-empty-t">No Projects Yet</div>' +
         '<div class="studio-empty-s">Start organizing your content ideas into creative projects.</div>' +
-        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">Create Project</button>' +
+        (global.PreShootWorkspace &&
+        PreShootWorkspace.isShared &&
+        PreShootWorkspace.isShared() &&
+        PreShootWorkspace.canEdit &&
+        !PreShootWorkspace.canEdit()
+          ? '<div class="ws-readonly-pill">Read-only workspace</div>'
+          : '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">Create Project</button>') +
         '</div>';
       h += '</div>';
       root.innerHTML = h;
@@ -259,6 +292,9 @@
       ' production' +
       (prods.length === 1 ? '' : 's') +
       '</div></div>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.workspaceSwitcherButtonHtml) {
+      h += PreShootWorkspaceUI.workspaceSwitcherButtonHtml();
+    }
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProjectMenu(\'' +
       esc(projectId) +
@@ -887,10 +923,20 @@
     /* ── Uploaded assets ── */
     h += '<div class="pw-card ar-card" id="ar-uploads-' + esc(productionId) + '">';
     h += '<div class="ar-cat-hd"><div class="pw-card-kicker">Uploaded Assets</div>';
-    h +=
-      '<label class="studio-btn ghost sm ar-upload-btn">Upload<input type="file" accept="image/*,video/mp4,video/quicktime,audio/*,.pdf,.doc,.docx,.txt" hidden onchange="PreShootStudioUI.uploadProductionAsset(\'' +
-      esc(productionId) +
-      "',this)\"></label></div>";
+    var canUpload =
+      !global.PreShootWorkspace ||
+      !PreShootWorkspace.isShared ||
+      !PreShootWorkspace.isShared() ||
+      (PreShootWorkspace.canEdit && PreShootWorkspace.canEdit());
+    if (canUpload) {
+      h +=
+        '<label class="studio-btn ghost sm ar-upload-btn">Upload<input type="file" accept="image/*,video/mp4,video/quicktime,audio/*,.pdf,.doc,.docx,.txt" hidden onchange="PreShootStudioUI.uploadProductionAsset(\'' +
+        esc(productionId) +
+        "',this)\"></label>";
+    } else {
+      h += '<span class="ws-readonly-pill">Read-only</span>';
+    }
+    h += '</div>';
     h += '<div class="ar-folders">';
     (Studio().ASSET_FOLDERS || ['Assets', 'Footage', 'Photos', 'Audio', 'References', 'Brand']).forEach(
       function (f) {
@@ -1387,7 +1433,13 @@
         setStatus('Could not save asset.', 'error');
         return;
       }
-      if (global.PreShootStudioSync && PreShootStudioSync.flush) {
+      if (
+        global.PreShootWorkspace &&
+        PreShootWorkspace.isShared &&
+        PreShootWorkspace.isShared()
+      ) {
+        if (PreShootWorkspace.saveNow) PreShootWorkspace.saveNow().catch(function () {});
+      } else if (global.PreShootStudioSync && PreShootStudioSync.flush) {
         PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
       }
       setStatus('Uploaded.', 'ok');
@@ -1401,17 +1453,38 @@
       return;
     }
 
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared() &&
+      PreShootWorkspace.canEdit &&
+      !PreShootWorkspace.canEdit()
+    ) {
+      setStatus('Read-only workspace — uploads require editor access.', 'error');
+      input.value = '';
+      return;
+    }
+
+    var uploadBody = {
+      action: 'create',
+      production_id: productionId,
+      mime: mime,
+      name: file.name,
+      size: file.size
+    };
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.workspaceIdForUpload
+    ) {
+      var wid = PreShootWorkspace.workspaceIdForUpload();
+      if (wid) uploadBody.workspace_id = wid;
+    }
+
     global
       .apiFetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create',
-          production_id: productionId,
-          mime: mime,
-          name: file.name,
-          size: file.size
-        })
+        body: JSON.stringify(uploadBody)
       })
       .then(function (r) {
         return r.json();
@@ -2404,21 +2477,23 @@
       .apiFetch('/api/director', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stream: false,
-          context:
-            ctxLines +
-            '\n\nMODE: Studio advice only. Reply in 1 short sentence. Do NOT claim you renamed, deleted, moved, archived, or updated anything. Do NOT say Updated/Done/Completed unless you emit an ACTION block. Mutations require [[ACTION:{...}]]. No markdown.',
-          messages: [
-            {
-              role: 'user',
-              content:
-                'Advice-only Studio assistant. Never pretend a mutation happened. Question: ' +
-                msg +
-                '\nIf a rename/move/delete/create is needed, emit [[ACTION:{...}]] with ids from context. Otherwise give brief advice only.'
-            }
-          ]
-        })
+        body: JSON.stringify(
+          directorRequestBody({
+            stream: false,
+            context:
+              ctxLines +
+              '\n\nMODE: Studio advice only. Reply in 1 short sentence. Do NOT claim you renamed, deleted, moved, archived, or updated anything. Do NOT say Updated/Done/Completed unless you emit an ACTION block. Mutations require [[ACTION:{...}]]. No markdown.',
+            messages: [
+              {
+                role: 'user',
+                content:
+                  'Advice-only Studio assistant. Never pretend a mutation happened. Question: ' +
+                  msg +
+                  '\nIf a rename/move/delete/create is needed, emit [[ACTION:{...}]] with ids from context. Otherwise give brief advice only.'
+              }
+            ]
+          })
+        )
       })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -2553,31 +2628,33 @@
       .apiFetch('/api/director', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stream: false,
-          max_tokens: 2800,
-          context:
-            ctxLines +
-            '\n\nMODE: Script mutation. You MUST emit exactly one block:\n' +
-            '[[SCRIPT:{"mode":"' +
-            mode +
-            '","body":"..."}]]\n' +
-            modeHint +
-            '\nDo NOT say Done/Updated/Finished in plain text. Do NOT claim success. The app executes the mutation.',
-          messages: [
-            {
-              role: 'user',
-              content:
-                'ProductionId: ' +
-                productionId +
-                '\nUser request: ' +
-                userMsg +
-                '\n\nEXISTING SCRIPT (preserve unless replace):\n"""\n' +
-                (existing || '(empty)') +
-                '\n"""\n\nEmit [[SCRIPT:{...}]] only. Body must be the script text for the chosen mode.'
-            }
-          ]
-        })
+        body: JSON.stringify(
+          directorRequestBody({
+            stream: false,
+            max_tokens: 2800,
+            context:
+              ctxLines +
+              '\n\nMODE: Script mutation. You MUST emit exactly one block:\n' +
+              '[[SCRIPT:{"mode":"' +
+              mode +
+              '","body":"..."}]]\n' +
+              modeHint +
+              '\nDo NOT say Done/Updated/Finished in plain text. Do NOT claim success. The app executes the mutation.',
+            messages: [
+              {
+                role: 'user',
+                content:
+                  'ProductionId: ' +
+                  productionId +
+                  '\nUser request: ' +
+                  userMsg +
+                  '\n\nEXISTING SCRIPT (preserve unless replace):\n"""\n' +
+                  (existing || '(empty)') +
+                  '\n"""\n\nEmit [[SCRIPT:{...}]] only. Body must be the script text for the chosen mode.'
+              }
+            ]
+          })
+        )
       })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -2801,6 +2878,9 @@
       '% · Health ' +
       healthScore +
       '%</div></div>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.workspaceSwitcherButtonHtml) {
+      h += PreShootWorkspaceUI.workspaceSwitcherButtonHtml();
+    }
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProductionMenu(\'' +
       esc(productionId) +
@@ -3797,6 +3877,16 @@
   var pendingDirectorAction = null;
 
   function openCreateProject() {
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared() &&
+      PreShootWorkspace.canEdit &&
+      !PreShootWorkspace.canEdit()
+    ) {
+      toast('This workspace is read-only');
+      return;
+    }
     projectDraft = { step: 1, name: '', notes: '', coverImage: null };
     renderProjectWizard();
     openM('studio-project-modal');
