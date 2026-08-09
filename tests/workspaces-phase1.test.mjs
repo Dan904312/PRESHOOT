@@ -715,10 +715,10 @@ await test('personal sync rejects shared workspace payloads', () => {
   assert.ok(syncSrc.includes('invalid_payload'));
 });
 
-await test('no PreShootWorkspaces UI wiring in studio-ui (Phase 2 not started)', () => {
+await test('studio-ui uses PreShootWorkspace UI (Phase 2) without realtime', () => {
   const ui = fs.readFileSync(path.join(root, 'js/studio-ui.js'), 'utf8');
-  assert.ok(!ui.includes('PreShootWorkspaces'));
-  assert.ok(!ui.includes('loadSharedWorkspace'));
+  assert.ok(ui.includes('PreShootWorkspaceUI') || ui.includes('studioHeaderActionsHtml'));
+  assert.ok(!/presence|CRDT|live.?cursor/i.test(ui));
 });
 
 console.log('\n== Storage path ACL ==');
