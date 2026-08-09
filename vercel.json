@@ -81,6 +81,14 @@
   ],
   "routes": [
     {
+      "src": "/api/workspace-sync",
+      "dest": "/api/workspaces?__resource=sync"
+    },
+    {
+      "src": "/api/workspace-invites/accept",
+      "dest": "/api/workspaces?__resource=invite-accept"
+    },
+    {
       "src": "/api/workspaces",
       "dest": "/api/workspaces"
     },
@@ -89,12 +97,8 @@
       "dest": "/api/workspaces?__path=$1"
     },
     {
-      "src": "/api/workspace-invites/accept",
-      "dest": "/api/workspace-invites/accept"
-    },
-    {
-      "src": "/api/workspace-sync",
-      "dest": "/api/workspace-sync"
+      "src": "/api/track-user",
+      "dest": "/api/check-plan?__resource=track"
     },
     {
       "src": "/api/(.*)",
