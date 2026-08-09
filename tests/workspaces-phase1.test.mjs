@@ -4,6 +4,11 @@
  */
 import assert from 'assert';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const WS_A = '11111111-1111-4111-8111-111111111111';
 const WS_B = '22222222-2222-4222-8222-222222222222';
@@ -241,7 +246,12 @@ function fakeFetch(url, opts = {}) {
   if (table.startsWith('workspace_invites')) {
     if (method === 'GET') {
       const hash = parseEq(qs, 'token_hash');
-      const rows = Object.values(db.invites).filter((i) => !hash || i.token_hash === hash);
+      const id = parseEq(qs, 'id');
+      const wid = parseEq(qs, 'workspace_id');
+      let rows = Object.values(db.invites);
+      if (hash) rows = rows.filter((i) => i.token_hash === hash);
+      if (id) rows = rows.filter((i) => i.id === id);
+      if (wid) rows = rows.filter((i) => i.workspace_id === wid);
       return ok(rows);
     }
     if (method === 'POST') {
@@ -258,9 +268,12 @@ function fakeFetch(url, opts = {}) {
     }
     if (method === 'PATCH') {
       const id = parseEq(qs, 'id');
-      if (!db.invites[id]) return ok([], 404);
-      Object.assign(db.invites[id], body);
-      return ok([db.invites[id]]);
+      const wid = parseEq(qs, 'workspace_id');
+      let row = id ? db.invites[id] : null;
+      if (row && wid && row.workspace_id !== wid) row = null;
+      if (!row) return ok([], 404);
+      Object.assign(row, body);
+      return ok([row]);
     }
   }
 
@@ -488,6 +501,226 @@ await test('editor cannot invite', async () => {
   assert.strictEqual(inv.status, 403);
 });
 
+await test('revoked invitation rejected', async () => {
+  const { token, tokenHash } = createInviteToken();
+  const id = crypto.randomUUID();
+  db.invites[id] = {
+    id,
+    workspace_id: WS_A,
+    email: 'revoked@example.com',
+    role: 'editor',
+    token_hash: tokenHash,
+    invited_by: USER_OWNER,
+    expires_at: new Date(Date.now() + 86400000).toISOString(),
+    accepted_at: null,
+    revoked_at: new Date().toISOString()
+  };
+  const acc = await ws.acceptInvite({ id: 'user-r', email: 'revoked@example.com' }, token);
+  assert.strictEqual(acc.ok, false);
+  assert.strictEqual(acc.error, 'invite_revoked');
+});
+
+await test('already-accepted invitation rejected', async () => {
+  const { token, tokenHash } = createInviteToken();
+  const id = crypto.randomUUID();
+  db.invites[id] = {
+    id,
+    workspace_id: WS_A,
+    email: 'done@example.com',
+    role: 'editor',
+    token_hash: tokenHash,
+    invited_by: USER_OWNER,
+    expires_at: new Date(Date.now() + 86400000).toISOString(),
+    accepted_at: new Date().toISOString(),
+    revoked_at: null
+  };
+  const acc = await ws.acceptInvite({ id: 'user-d', email: 'done@example.com' }, token);
+  assert.strictEqual(acc.ok, false);
+  assert.strictEqual(acc.error, 'invite_already_accepted');
+});
+
+await test('invalid token rejected', async () => {
+  const acc = await ws.acceptInvite({ id: 'u', email: 'a@b.com' }, 'short');
+  assert.strictEqual(acc.ok, false);
+  assert.strictEqual(acc.error, 'invalid_token');
+});
+
+await test('accept without auth email rejected when invite is email-bound', async () => {
+  const { token, tokenHash } = createInviteToken();
+  const id = crypto.randomUUID();
+  db.invites[id] = {
+    id,
+    workspace_id: WS_A,
+    email: 'needmail@example.com',
+    role: 'viewer',
+    token_hash: tokenHash,
+    invited_by: USER_OWNER,
+    expires_at: new Date(Date.now() + 86400000).toISOString(),
+    accepted_at: null,
+    revoked_at: null
+  };
+  const acc = await ws.acceptInvite({ id: 'user-nomail', email: null }, token);
+  assert.strictEqual(acc.ok, false);
+  assert.strictEqual(acc.error, 'email_required');
+});
+
+await test('already-member accept is safe no-op (no role escalation)', async () => {
+  const { token, tokenHash } = createInviteToken();
+  const id = crypto.randomUUID();
+  db.invites[id] = {
+    id,
+    workspace_id: WS_A,
+    email: 'editor@example.com',
+    role: 'viewer', /* attempt escalate editor→viewer invite should not demote either */
+    token_hash: tokenHash,
+    invited_by: USER_OWNER,
+    expires_at: new Date(Date.now() + 86400000).toISOString(),
+    accepted_at: null,
+    revoked_at: null
+  };
+  const acc = await ws.acceptInvite({ id: USER_EDITOR, email: 'editor@example.com' }, token);
+  assert.strictEqual(acc.ok, true);
+  assert.strictEqual(acc.already_member, true);
+  assert.strictEqual(acc.role, 'editor');
+  assert.strictEqual(db.members[`${WS_A}:${USER_EDITOR}`].role, 'editor');
+});
+
+await test('owner can revoke invite; token_hash never returned', async () => {
+  const created = await ws.createInvite(USER_OWNER, WS_A, {
+    email: 'temp@example.com',
+    role: 'commenter'
+  });
+  assert.strictEqual(created.ok, true);
+  assert.ok(created.token);
+  assert.ok(!('token_hash' in created.invite));
+  const revoked = await ws.revokeInvite(USER_OWNER, WS_A, created.invite.id);
+  assert.strictEqual(revoked.ok, true);
+  const stored = db.invites[created.invite.id];
+  assert.ok(stored.revoked_at);
+});
+
+await test('cannot assign owner via addMember', async () => {
+  const add = await ws.addMember(USER_OWNER, WS_A, {
+    targetUserId: 'user-new',
+    role: 'owner'
+  });
+  assert.strictEqual(add.ok, false);
+  assert.strictEqual(add.error, 'invalid_role');
+});
+
+await test('editor cannot change roles', async () => {
+  const upd = await ws.updateMemberRole(USER_EDITOR, WS_A, USER_VIEWER, 'editor');
+  assert.strictEqual(upd.ok, false);
+  assert.strictEqual(upd.status, 403);
+});
+
+await test('editor cannot remove members', async () => {
+  const rem = await ws.removeMember(USER_EDITOR, WS_A, USER_VIEWER);
+  assert.strictEqual(rem.ok, false);
+  assert.strictEqual(rem.status, 403);
+});
+
+console.log('\n== Workspace sync load/save matrix ==');
+await test('member can load shared document', async () => {
+  const loaded = await ws.loadWorkspaceDocument(USER_EDITOR, WS_A);
+  assert.strictEqual(loaded.ok, true);
+  assert.ok(loaded.document);
+  assert.ok(loaded.revision >= 1);
+});
+
+await test('non-member cannot load shared document', async () => {
+  const loaded = await ws.loadWorkspaceDocument(USER_STRANGER, WS_A);
+  assert.strictEqual(loaded.ok, false);
+  assert.strictEqual(loaded.status, 403);
+});
+
+await test('commenter cannot save shared document', async () => {
+  const denied = await ws.saveWorkspaceDocument(
+    USER_COMMENTER,
+    WS_A,
+    EMPTY_WORKSPACE_DOCUMENT,
+    db.data[WS_A].revision
+  );
+  assert.strictEqual(denied.ok, false);
+  assert.strictEqual(denied.status, 403);
+});
+
+await test('archived workspace rejects saves', async () => {
+  db.workspaces[WS_A].archived_at = new Date().toISOString();
+  const denied = await ws.saveWorkspaceDocument(
+    USER_OWNER,
+    WS_A,
+    EMPTY_WORKSPACE_DOCUMENT,
+    db.data[WS_A].revision
+  );
+  assert.strictEqual(denied.ok, false);
+  assert.strictEqual(denied.error, 'workspace_archived');
+  db.workspaces[WS_A].archived_at = null;
+});
+
+await test('save updates revision, updated_by', async () => {
+  const rev = db.data[WS_A].revision;
+  const saved = await ws.saveWorkspaceDocument(
+    USER_OWNER,
+    WS_A,
+    {
+      version: 3,
+      projects: [{ id: 'p1', name: 'Verify Persist' }],
+      continueProductionId: null
+    },
+    rev
+  );
+  assert.strictEqual(saved.ok, true);
+  assert.strictEqual(saved.revision, rev + 1);
+  assert.strictEqual(saved.updated_by, USER_OWNER);
+  assert.strictEqual(db.data[WS_A].document.projects[0].name, 'Verify Persist');
+});
+
+await test('create shared workspace seeds workspace_data only', async () => {
+  const created = await ws.createSharedWorkspace(USER_OWNER, { name: 'Verify Create' });
+  assert.strictEqual(created.ok, true);
+  assert.strictEqual(created.workspace.kind, 'shared');
+  assert.strictEqual(created.workspace.role, 'owner');
+  assert.ok(db.data[created.workspace.id]);
+  assert.strictEqual(db.data[created.workspace.id].revision, 1);
+  assert.ok(!db.data[WS_PERSONAL]);
+});
+
+console.log('\n== Director authorization helpers ==');
+await test('Director mutate intent blocked for viewer/commenter roles', () => {
+  const mutate = detectDirectorMutationIntent(
+    {},
+    'MODE: Script mutation',
+    [{ role: 'user', content: 'Emit [[SCRIPT:{"mode":"replace","body":"x"}]]' }]
+  );
+  assert.strictEqual(mutate, true);
+  assert.strictEqual(roleCanEdit('viewer'), false);
+  assert.strictEqual(roleCanEdit('commenter'), false);
+  assert.strictEqual(roleCanEdit('editor'), true);
+  assert.strictEqual(roleCanEdit('owner'), true);
+});
+
+await test('Director advice intent is not treated as mutation', () => {
+  const advice = detectDirectorMutationIntent({}, 'MODE: Studio advice only.', [
+    { role: 'user', content: 'What shot should I film first?' }
+  ]);
+  assert.strictEqual(advice, false);
+});
+
+console.log('\n== Personal sync isolation (source + architecture) ==');
+await test('personal sync rejects shared workspace payloads', () => {
+  const syncSrc = fs.readFileSync(path.join(root, 'api/sync.js'), 'utf8');
+  assert.ok(syncSrc.includes('workspace_id') || syncSrc.includes('workspaceId'));
+  assert.ok(syncSrc.includes('workspace-sync'));
+  assert.ok(syncSrc.includes('invalid_payload'));
+});
+
+await test('no PreShootWorkspaces UI wiring in studio-ui (Phase 2 not started)', () => {
+  const ui = fs.readFileSync(path.join(root, 'js/studio-ui.js'), 'utf8');
+  assert.ok(!ui.includes('PreShootWorkspaces'));
+  assert.ok(!ui.includes('loadSharedWorkspace'));
+});
+
 console.log('\n== Storage path ACL ==');
 await test('personal path allowed for matching user id', async () => {
   const a = await ws.assertStoragePathAccess(USER_OWNER, `${USER_OWNER}/prod1/a1.jpg`, {
@@ -534,6 +767,17 @@ await test('cross-user personal path forbidden', async () => {
     false
   );
 });
+await test('path traversal rejected', async () => {
+  assert.strictEqual(ws.isSafeStorageObjectPath(`${USER_OWNER}/../${USER_EDITOR}/x.jpg`), false);
+  assert.strictEqual(
+    (
+      await ws.assertStoragePathAccess(USER_OWNER, `workspaces/${WS_A}/../${WS_B}/x.jpg`, {
+        needEdit: true
+      })
+    ).ok,
+    false
+  );
+});
 
 console.log('\n== Migration invariants ==');
 await test('personal workspaces must not require workspace_data', () => {
@@ -542,6 +786,13 @@ await test('personal workspaces must not require workspace_data', () => {
 });
 await test('INVITE_ROLES never includes owner', () => {
   assert.ok(!INVITE_ROLES.includes('owner'));
+});
+await test('SQL: no authenticated workspace_data UPDATE; invites not SELECT-granted', () => {
+  const sql = fs.readFileSync(path.join(root, 'supabase_workspaces_phase1.sql'), 'utf8');
+  assert.ok(sql.includes('DROP POLICY IF EXISTS workspace_data_update_editor'));
+  assert.ok(!/CREATE POLICY workspace_data_update_editor/i.test(sql));
+  assert.ok(!/GRANT SELECT ON TABLE workspace_invites TO authenticated/i.test(sql));
+  assert.ok(sql.includes('token_hash must not leak'));
 });
 
 console.log('\n────────────────────────────');
