@@ -22,6 +22,7 @@ import {
   assertWorkspaceMember,
   patchWorkspace,
   listMembers,
+  listInvites,
   addMember,
   updateMemberRole,
   removeMember,
@@ -248,6 +249,13 @@ async function handleCrud(req, res, auth) {
       if (!removed.ok) return sendError(res, removed);
       return res.status(200).json({ ok: true });
     }
+  }
+
+  /* GET /api/workspaces/:id/invites — pending/history (no token_hash) */
+  if (parts[1] === 'invites' && parts.length === 2 && req.method === 'GET') {
+    const listed = await listInvites(userId, workspaceId);
+    if (!listed.ok) return sendError(res, listed);
+    return res.status(200).json({ ok: true, invites: listed.invites });
   }
 
   if (parts[1] === 'invites' && parts.length === 2 && req.method === 'POST') {
