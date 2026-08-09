@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.7.10"
+CURRENT_VERSION = "v2.8.1"
 LAST_UPDATED = "2026-08-09"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,101 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0022",
+        "version": "v2.8.1",
+        "date": "2026-08-09",
+        "categories": ["Infrastructure", "Deployment", "API", "Bug Fix"],
+        "title": "Stay under Vercel Hobby 12 Serverless Function limit",
+        "what_changed": (
+            "Collapsed workspace-sync + invite-accept into api/workspaces.js and "
+            "track-user into api/check-plan.js. Preserved public URLs via vercel.json "
+            "rewrites. Deleted the extra function entry files. Hobby deployable count "
+            "is exactly 12."
+        ),
+        "files": [
+            "api/workspaces.js",
+            "api/check-plan.js",
+            "vercel.json",
+            "api/workspace-sync.js (deleted)",
+            "api/workspace-invites/accept.js (deleted)",
+            "api/track-user.js (deleted)",
+            "tests/vercel-function-budget.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Collaborative Workspaces Phase 1 added 3 API entry files (workspaces, "
+            "workspace-sync, workspace-invites/accept) bringing the total to 15, over "
+            "Hobby’s 12-function limit."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Rewrites must keep auth/role checks and response shapes identical; "
+            "mis-routing could skip membership verification."
+        ),
+        "fix_applied": (
+            "Single workspaces router with __resource=sync|invite-accept; check-plan "
+            "router with __resource=track; no auth/ACL removal."
+        ),
+        "testing": (
+            "node tests/vercel-function-budget.test.mjs (count=12 + rewrite contracts); "
+            "node tests/workspaces-phase1.test.mjs (31 passed)."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0021",
+        "version": "v2.8.0",
+        "date": "2026-08-09",
+        "categories": ["Feature", "Backend", "Database", "Security", "API", "Infrastructure"],
+        "title": "Collaborative Workspaces Phase 1 — schema, APIs, ACL (no UI)",
+        "what_changed": (
+            "Added workspaces / workspace_members / workspace_data / workspace_invites with RLS "
+            "and personal metadata backfill (no copy of prefs.studio). Server helpers enforce "
+            "membership/roles. New APIs: workspaces CRUD, members, invites, workspace-sync with "
+            "revision 409 conflicts. Upload + Director accept optional workspace_id. Client "
+            "data-layer PreShootWorkspaces only — no Workspace UI, no realtime collab."
+        ),
+        "files": [
+            "supabase_workspaces_phase1.sql",
+            "supabase_setup.sql",
+            "lib/workspaces.js",
+            "lib/security.js",
+            "api/workspaces.js",
+            "api/workspace-sync.js",
+            "api/workspace-invites/accept.js",
+            "api/upload.js",
+            "api/director.js",
+            "js/workspace-sync.js",
+            "app.html",
+            "vercel.json",
+            "tests/workspaces-phase1.test.mjs",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Studio lived only in per-user user_data blobs; no multi-user tenancy or server ACL "
+            "for shared projects."
+        ),
+        "risk_level": "High",
+        "risk_description": (
+            "Misconfigured membership checks or putting shared docs in user_data would leak or "
+            "clobber personal Studio. Mitigated by isolated workspace_data + API-side role checks."
+        ),
+        "fix_applied": (
+            "Phase 1 architecture: personal alias + shared documents; optimistic concurrency; "
+            "invite token hashing; personal invite/member blocks."
+        ),
+        "testing": (
+            "node tests/workspaces-phase1.test.mjs (31 cases: IDOR, roles, personal privacy, "
+            "409 concurrency, invites, storage ACL); syntax-check on new API/lib files."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0020",
         "version": "v2.7.10",
@@ -1148,6 +1243,24 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.8.1",
+        "date": "2026-08-09",
+        "label": "Vercel Hobby 12-function budget",
+        "changes": [
+            "Consolidate workspace + track-user API entries via rewrites (UPDATE-0022)",
+            "Exactly 12 Serverless Functions — under Hobby limit",
+        ],
+    },
+    {
+        "version": "v2.8.0",
+        "date": "2026-08-09",
+        "label": "Collaborative Workspaces Phase 1 (backend)",
+        "changes": [
+            "workspaces/members/data/invites SQL + RLS; personal metadata backfill (UPDATE-0021)",
+            "workspace APIs + workspace-sync 409 concurrency; upload/Director workspace ACL",
+        ],
+    },
     {
         "version": "v2.7.10",
         "date": "2026-08-09",
