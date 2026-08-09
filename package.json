@@ -5,6 +5,11 @@
   "engines": {
     "node": ">=18"
   },
+  "scripts": {
+    "test:workspaces": "node tests/workspaces-phase1.test.mjs",
+    "test:vercel-budget": "node tests/vercel-function-budget.test.mjs",
+    "test": "node tests/workspaces-phase1.test.mjs && node tests/vercel-function-budget.test.mjs"
+  },
   "dependencies": {
     "stripe": "17.7.0"
   }
