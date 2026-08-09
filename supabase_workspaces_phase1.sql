@@ -210,16 +210,12 @@ CREATE POLICY workspace_data_select_member ON workspace_data
   FOR SELECT TO authenticated
   USING (is_workspace_member(workspace_id, auth.uid()::text));
 
+-- Mutations (including optimistic revision saves) are service-role API only.
+-- Do not grant authenticated UPDATE — that would bypass /api/workspace-sync 409 checks.
 DROP POLICY IF EXISTS workspace_data_update_editor ON workspace_data;
-CREATE POLICY workspace_data_update_editor ON workspace_data
-  FOR UPDATE TO authenticated
-  USING (can_edit_workspace(workspace_id, auth.uid()::text))
-  WITH CHECK (can_edit_workspace(workspace_id, auth.uid()::text));
 
+-- Invites (incl. token_hash) are never readable via PostgREST client JWT.
 DROP POLICY IF EXISTS workspace_invites_select_owner ON workspace_invites;
-CREATE POLICY workspace_invites_select_owner ON workspace_invites
-  FOR SELECT TO authenticated
-  USING (workspace_role(workspace_id, auth.uid()::text) = 'owner');
 
 -- No client INSERT/UPDATE/DELETE on workspaces/members/invites —
 -- all mutations go through service-role APIs with membership checks.
@@ -231,7 +227,7 @@ REVOKE ALL ON TABLE workspace_invites FROM anon, authenticated;
 GRANT SELECT ON TABLE workspaces TO authenticated;
 GRANT SELECT ON TABLE workspace_members TO authenticated;
 GRANT SELECT ON TABLE workspace_data TO authenticated;
-GRANT SELECT ON TABLE workspace_invites TO authenticated;
+-- workspace_invites: no authenticated SELECT (token_hash must not leak via RLS).
 
 -- Storage note (shared Phase 1):
 -- Shared uploads use path prefix workspaces/{workspace_id}/ via /api/upload (service role).
