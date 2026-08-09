@@ -27,6 +27,7 @@ import {
   removeMember,
   createInvite,
   acceptInvite,
+  revokeInvite,
   loadWorkspaceDocument,
   saveWorkspaceDocument
 } from '../lib/workspaces.js';
@@ -260,6 +261,17 @@ async function handleCrud(req, res, auth) {
       ok: true,
       invite: invited.invite,
       token: invited.token
+    });
+  }
+
+  /* DELETE /api/workspaces/:id/invites/:inviteId — revoke */
+  if (parts[1] === 'invites' && parts.length === 3 && req.method === 'DELETE') {
+    const revoked = await revokeInvite(userId, workspaceId, parts[2]);
+    if (!revoked.ok) return sendError(res, revoked);
+    return res.status(200).json({
+      ok: true,
+      invite: revoked.invite || null,
+      already_revoked: !!revoked.already_revoked
     });
   }
 

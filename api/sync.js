@@ -74,6 +74,14 @@ export default async function handler(req, res) {
     if (action === 'save') {
       if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data required' });
 
+      /* Hard isolation: personal sync never writes shared workspace_data */
+      if (data.workspace_id || data.workspaceId || data.shared_workspace) {
+        return res.status(400).json({
+          error: 'invalid_payload',
+          message: 'Shared workspace documents must use /api/workspace-sync, not /api/sync.'
+        });
+      }
+
       const incomingSize = jsonSize(data);
       if (incomingSize > MAX_REQUEST_JSON) {
         return res.status(413).json({
