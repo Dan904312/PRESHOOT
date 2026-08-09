@@ -10,6 +10,12 @@ import {
   sanitizeContext,
   sanitizeImage
 } from '../lib/security.js';
+import {
+  isUuid,
+  assertWorkspaceMember,
+  detectDirectorMutationIntent,
+  roleCanEdit
+} from '../lib/workspaces.js';
 
 const DIRECTOR_SYSTEM = `DIRECTOR™ — PRESHOOT CORE SYSTEM
 
@@ -233,6 +239,37 @@ export default async function handler(req, res) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: { message: 'AI not configured' } });
+  }
+
+  /* Optional shared-workspace authorization (Phase 1) */
+  const workspaceId =
+    (req.body && (req.body.workspace_id || req.body.workspaceId)) || null;
+  let workspaceRole = null;
+  if (workspaceId) {
+    if (!isUuid(workspaceId)) {
+      return res.status(400).json({ error: { message: 'Invalid workspace_id' } });
+    }
+    const membership = await assertWorkspaceMember(auth.user.id, workspaceId);
+    if (!membership.ok) {
+      return res.status(membership.status || 403).json({
+        error: { message: membership.error || 'Workspace access denied' }
+      });
+    }
+    workspaceRole = membership.role;
+    const wantsMutate = detectDirectorMutationIntent(
+      req.body,
+      req.body && req.body.context,
+      req.body && req.body.messages
+    );
+    if (wantsMutate && !roleCanEdit(workspaceRole)) {
+      return res.status(403).json({
+        error: {
+          message:
+            'Commenter and viewer roles cannot mutate shared workspace content via Director.'
+        },
+        role: workspaceRole
+      });
+    }
   }
 
   try {

@@ -1,6 +1,7 @@
 /**
  * Production asset uploads via Supabase Storage (server-side only).
  * Flow: create signed upload → client PUT → complete → signed download URL.
+ * Optional workspace_id: shared path workspaces/{workspace_id}/... (editor+).
  */
 import {
   setCors,
@@ -10,6 +11,12 @@ import {
   sendRateLimitResponse,
   serviceHeaders
 } from '../lib/security.js';
+import {
+  isUuid,
+  assertWorkspaceRole,
+  assertStoragePathAccess,
+  EDIT_ROLES
+} from '../lib/workspaces.js';
 
 const BUCKET = 'production-assets';
 const MAX_BYTES = 12 * 1024 * 1024; // 12MB
@@ -77,6 +84,7 @@ export default async function handler(req, res) {
       const mime = String(body.mime || body.contentType || '').toLowerCase();
       const name = clampStr(body.name || body.filename || 'asset', 120);
       const size = Number(body.size) || 0;
+      const workspaceId = body.workspace_id || body.workspaceId || null;
       if (!productionId) return res.status(400).json({ error: 'production_id required' });
       if (!ALLOWED[mime]) {
         return res.status(400).json({
@@ -90,11 +98,30 @@ export default async function handler(req, res) {
           message: 'Files must be under 12MB.'
         });
       }
+
+      let pathPrefix = userId;
+      if (workspaceId) {
+        if (!isUuid(workspaceId)) {
+          return res.status(400).json({ error: 'invalid_workspace_id' });
+        }
+        const access = await assertWorkspaceRole(userId, workspaceId, EDIT_ROLES);
+        if (!access.ok) {
+          return res.status(access.status || 403).json({
+            error: access.error || 'forbidden',
+            message: 'Shared uploads require owner or editor role.'
+          });
+        }
+        if (access.workspace && access.workspace.kind === 'personal') {
+          pathPrefix = userId;
+        } else {
+          pathPrefix = `workspaces/${workspaceId}`;
+        }
+      }
+
       const ext = ALLOWED[mime];
       const assetId = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const path = `${userId}/${productionId}/${assetId}.${ext}`;
+      const path = `${pathPrefix}/${productionId}/${assetId}.${ext}`;
 
-      /* Ensure bucket exists (idempotent) */
       await fetch(`${SUPA_URL}/storage/v1/bucket`, {
         method: 'POST',
         headers: h,
@@ -117,13 +144,13 @@ export default async function handler(req, res) {
       );
       const signed = await sign.json().catch(() => ({}));
       if (!sign.ok) {
-        /* Fallback: return path for direct service upload via complete-with-data (small only) */
         return res.status(200).json({
           ok: true,
           mode: 'direct',
           path,
           assetId,
           maxBytes: Math.min(MAX_BYTES, 900000),
+          workspace_id: workspaceId || null,
           message: 'Use action=put for files under 900KB when signed upload is unavailable.'
         });
       }
@@ -139,22 +166,26 @@ export default async function handler(req, res) {
         uploadUrl,
         token: token || null,
         mime,
-        name
+        name,
+        workspace_id: workspaceId || null
       });
     }
 
     if (action === 'put') {
-      /* Small-file direct upload through API (avoids CORS issues) */
       const path = clampStr(body.path, 240);
       const mime = String(body.mime || '').toLowerCase();
       const b64 = String(body.data || '');
-      if (!path || path.indexOf(userId + '/') !== 0) {
-        return res.status(403).json({ error: 'forbidden_path' });
+      const access = await assertStoragePathAccess(userId, path, { needEdit: true });
+      if (!access.ok) {
+        return res.status(access.status || 403).json({ error: access.error || 'forbidden_path' });
       }
       if (!ALLOWED[mime] || !b64) return res.status(400).json({ error: 'invalid_payload' });
       const buf = Buffer.from(b64.replace(/^data:[^;]+;base64,/, ''), 'base64');
       if (buf.length > 900000) {
-        return res.status(413).json({ error: 'file_too_large', message: 'Direct upload max is 900KB. Use signed upload for larger files.' });
+        return res.status(413).json({
+          error: 'file_too_large',
+          message: 'Direct upload max is 900KB. Use signed upload for larger files.'
+        });
       }
       const up = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
         method: 'POST',
@@ -169,14 +200,11 @@ export default async function handler(req, res) {
         const err = await up.text();
         return res.status(500).json({ error: 'upload_failed', detail: err.slice(0, 120) });
       }
-      const signedGet = await fetch(
-        `${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`,
-        {
-          method: 'POST',
-          headers: h,
-          body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 })
-        }
-      );
+      const signedGet = await fetch(`${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 })
+      });
       const sg = await signedGet.json().catch(() => ({}));
       const url = sg.signedURL
         ? `${SUPA_URL}/storage/v1${sg.signedURL}`
@@ -192,17 +220,15 @@ export default async function handler(req, res) {
 
     if (action === 'complete') {
       const path = clampStr(body.path, 240);
-      if (!path || path.indexOf(userId + '/') !== 0) {
-        return res.status(403).json({ error: 'forbidden_path' });
+      const access = await assertStoragePathAccess(userId, path, { needEdit: false });
+      if (!access.ok) {
+        return res.status(access.status || 403).json({ error: access.error || 'forbidden_path' });
       }
-      const signedGet = await fetch(
-        `${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`,
-        {
-          method: 'POST',
-          headers: h,
-          body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 })
-        }
-      );
+      const signedGet = await fetch(`${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 })
+      });
       const sg = await signedGet.json().catch(() => ({}));
       if (!signedGet.ok) {
         return res.status(404).json({ error: 'not_found' });
@@ -215,8 +241,9 @@ export default async function handler(req, res) {
 
     if (action === 'delete') {
       const path = clampStr(body.path, 240);
-      if (!path || path.indexOf(userId + '/') !== 0) {
-        return res.status(403).json({ error: 'forbidden_path' });
+      const access = await assertStoragePathAccess(userId, path, { needEdit: true });
+      if (!access.ok) {
+        return res.status(access.status || 403).json({ error: access.error || 'forbidden_path' });
       }
       await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}`, {
         method: 'DELETE',
@@ -228,17 +255,15 @@ export default async function handler(req, res) {
 
     if (action === 'sign_download') {
       const path = clampStr(body.path, 240);
-      if (!path || path.indexOf(userId + '/') !== 0) {
-        return res.status(403).json({ error: 'forbidden_path' });
+      const access = await assertStoragePathAccess(userId, path, { needEdit: false });
+      if (!access.ok) {
+        return res.status(access.status || 403).json({ error: access.error || 'forbidden_path' });
       }
-      const signedGet = await fetch(
-        `${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`,
-        {
-          method: 'POST',
-          headers: h,
-          body: JSON.stringify({ expiresIn: 60 * 60 * 24 })
-        }
-      );
+      const signedGet = await fetch(`${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({ expiresIn: 60 * 60 * 24 })
+      });
       const sg = await signedGet.json().catch(() => ({}));
       if (!signedGet.ok) return res.status(404).json({ error: 'not_found' });
       const url = sg.signedURL
