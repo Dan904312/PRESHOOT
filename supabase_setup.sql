@@ -554,5 +554,8 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- (tables, RLS, helpers, personal metadata backfill).
 -- Personal Studio remains in user_data.prefs.studio — do not copy.
 -- Shared Studio lives in workspace_data.document.
+--
+-- Phase 3A Realtime: also run supabase_workspaces_phase3a_realtime.sql
+-- (private Broadcast channel RLS on realtime.messages).
 -- ═══════════════════════════════════════════════════════════
 
