@@ -30,7 +30,11 @@ import {
   acceptInvite,
   revokeInvite,
   loadWorkspaceDocument,
-  saveWorkspaceDocument
+  saveWorkspaceDocument,
+  listWorkspaceVersions,
+  getWorkspaceVersion,
+  restoreWorkspaceVersion,
+  summarizeDocumentDiff
 } from '../lib/workspaces.js';
 
 function resourceOf(req) {
@@ -281,6 +285,79 @@ async function handleCrud(req, res, auth) {
       invite: revoked.invite || null,
       already_revoked: !!revoked.already_revoked
     });
+  }
+
+  /* GET /api/workspaces/:id/versions — metadata list (members) */
+  if (parts[1] === 'versions' && parts.length === 2 && req.method === 'GET') {
+    const listed = await listWorkspaceVersions(userId, workspaceId, {
+      limit: body.limit || req.query.limit
+    });
+    if (!listed.ok) return sendError(res, listed);
+    return res.status(200).json({
+      ok: true,
+      versions: listed.versions,
+      retention: listed.retention,
+      role: listed.role,
+      canRestore: listed.canRestore
+    });
+  }
+
+  /* GET /api/workspaces/:id/versions/:versionId — full snapshot view */
+  if (parts[1] === 'versions' && parts.length === 3 && req.method === 'GET') {
+    const got = await getWorkspaceVersion(userId, workspaceId, parts[2]);
+    if (!got.ok) return sendError(res, got);
+    return res.status(200).json({
+      ok: true,
+      version: got.version,
+      role: got.role,
+      canRestore: got.canRestore
+    });
+  }
+
+  /* POST /api/workspaces/:id/versions/:versionId/restore — new revision via concurrency */
+  if (
+    parts[1] === 'versions' &&
+    parts.length === 4 &&
+    parts[3] === 'restore' &&
+    req.method === 'POST'
+  ) {
+    const restored = await restoreWorkspaceVersion(
+      userId,
+      workspaceId,
+      parts[2],
+      body.revision != null ? body.revision : body.expectedCurrentRevision
+    );
+    if (!restored.ok) {
+      const payload = {
+        ok: false,
+        error: restored.error,
+        message: restored.message
+      };
+      if (restored.status === 409) {
+        payload.revision = restored.revision;
+        payload.document = restored.document;
+        payload.updated_at = restored.updated_at;
+        payload.updated_by = restored.updated_by;
+      }
+      return res.status(restored.status || 400).json(payload);
+    }
+    return res.status(200).json({
+      ok: true,
+      revision: restored.revision,
+      document: restored.document,
+      updated_at: restored.updated_at,
+      updated_by: restored.updated_by,
+      restored_from_revision: restored.restored_from_revision,
+      restored_from_version_id: restored.restored_from_version_id
+    });
+  }
+
+  /* POST /api/workspaces/:id/compare — structured conflict summary (optional helper) */
+  if (parts[1] === 'compare' && parts.length === 2 && req.method === 'POST') {
+    const m = await assertWorkspaceMember(userId, workspaceId);
+    if (!m.ok) return sendError(res, m);
+    const diff = summarizeDocumentDiff(body.local, body.server);
+    return res.status(200).json({ ok: true, diff });
   }
 
   return res.status(405).json({ ok: false, error: 'method_not_allowed' });
