@@ -30,8 +30,8 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.8.1"
-LAST_UPDATED = "2026-08-09"
+CURRENT_VERSION = "v2.12.0"
+LAST_UPDATED = "2026-08-10"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
 
@@ -40,6 +40,181 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0026",
+        "version": "v2.12.0",
+        "date": "2026-08-10",
+        "categories": ["Feature", "Reliability", "Frontend", "Backend", "Security"],
+        "title": "Collaborative Workspaces Phase 4 — version history & conflict recovery",
+        "what_changed": (
+            "Shared-save version snapshots (retain latest 12), history view/restore as new "
+            "revision with optimistic concurrency, authoritative saveStatus UX, user+workspace "
+            "local recovery drafts, improved 409 conflict UI with structured compare, Director "
+            "awaits workspace save before Done. No new Serverless Functions. No CRDT/OT/presence."
+        ),
+        "files": [
+            "supabase_workspaces_phase4_versions.sql",
+            "supabase_setup.sql",
+            "lib/workspaces.js",
+            "api/workspaces.js",
+            "js/workspace-sync.js",
+            "js/workspace-context.js",
+            "js/workspace-ui.js",
+            "js/studio-ui.js",
+            "app.html",
+            "tests/workspaces-phase4.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Shared Studio lacked recoverable history, truthful save-state UX, session recovery, "
+            "and Director could claim Done before shared persistence succeeded."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Version restore/concurrency bugs could overwrite collaborator work; recovery drafts "
+            "must stay user+workspace scoped."
+        ),
+        "fix_applied": (
+            "Service-role snapshots after successful save only; restore via saveWorkspaceDocument "
+            "concurrency; RLS SELECT for members; client recovery keys scoped by userId+workspaceId; "
+            "Director shared path awaits saveNow."
+        ),
+        "testing": "npm test (Phase 1–4 + Hobby budget=12).",
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0025",
+        "version": "v2.11.0",
+        "date": "2026-08-10",
+        "categories": ["Feature", "Realtime", "Frontend", "Bug Fix"],
+        "title": "Collaborative Workspaces Phase 3B — live Shared Studio updates",
+        "what_changed": (
+            "Hardened live shared Studio updates on the Phase 3A foundation: fetch race/"
+            "stale-revision guards, repairStudioView for deleted project/production, "
+            "Review latest + Keep my changes remote banner, clearer 409 conflict copy, "
+            "detail-header Review affordance. No CRDT/OT/presence/cursors."
+        ),
+        "files": [
+            "js/workspace-context.js",
+            "js/workspace-ui.js",
+            "js/studio-ui.js",
+            "app.html",
+            "tests/workspaces-phase3b.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Phase 3A notified clients but usable live Studio UX had gaps: no Keep for "
+            "remote updates, possible stale apply races, weak navigation repair."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Incorrect remote apply could overwrite dirty work or regress Studio navigation."
+        ),
+        "fix_applied": (
+            "Monotonic revision apply + fetch tokens; dirty-protected remoteUpdate; "
+            "explicit Keep/Review; repairStudioView after authoritative reload."
+        ),
+        "testing": "npm test (Phase 1–3B + Hobby budget=12).",
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0024",
+        "version": "v2.10.0",
+        "date": "2026-08-09",
+        "categories": ["Feature", "Realtime", "Security", "API"],
+        "title": "Collaborative Workspaces Phase 3A — realtime foundation",
+        "what_changed": (
+            "Private Supabase Broadcast channels for shared workspaces (membership RLS). "
+            "Authoritative saves still use /api/workspace-sync; server emits metadata-only "
+            "workspace.updated events. Clients subscribe/unsubscribe on switch; clean clients "
+            "reload; dirty clients get a remote-update indicator (never silent overwrite). "
+            "No CRDT/OT/cursors/presence UI. Personal /api/sync untouched. Still 12 functions."
+        ),
+        "files": [
+            "supabase_workspaces_phase3a_realtime.sql",
+            "supabase_setup.sql",
+            "lib/workspaces.js",
+            "js/workspace-realtime.js",
+            "js/workspace-context.js",
+            "js/workspace-ui.js",
+            "js/studio-sync.js",
+            "app.html",
+            "tests/workspaces-phase3a.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Phase 2 shared Studio required refresh to see teammates' saves; no authorized "
+            "realtime channel layer existed."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Private channel misconfiguration could leak events or allow unauthorized subscribe; "
+            "naive remote apply could overwrite dirty local work."
+        ),
+        "fix_applied": (
+            "realtime.messages SELECT via is_workspace_member; no client INSERT; dirty-protected "
+            "apply; lastLocalSave loop prevention; switch unsubscribes before load."
+        ),
+        "testing": (
+            "npm test (Phase 1/2/3A + Hobby budget=12)."
+        ),
+        "git": None,
+    },
+    {
+        "id": "UPDATE-0023",
+        "version": "v2.9.0",
+        "date": "2026-08-09",
+        "categories": ["Feature", "Frontend", "API", "Security"],
+        "title": "Collaborative Workspaces Phase 2 — usable shared Studio UI",
+        "what_changed": (
+            "Added workspace context + switcher, shared load/save via workspace-sync, "
+            "409 conflict UI, members/invite link flow, shared upload/Director workspace_id, "
+            "read-only for commenter/viewer. Personal Studio remains on /api/sync. "
+            "No new Serverless Functions; listInvites extended on api/workspaces.js. "
+            "No realtime/CRDT."
+        ),
+        "files": [
+            "js/workspace-context.js",
+            "js/workspace-ui.js",
+            "js/workspace-sync.js",
+            "js/studio.js",
+            "js/studio-sync.js",
+            "js/studio-ui.js",
+            "app.html",
+            "api/workspaces.js",
+            "lib/workspaces.js",
+            "tests/workspaces-phase2.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+        ],
+        "issue_found": (
+            "Phase 1 backend was production-ready but had no Studio UI to create/switch "
+            "workspaces, save shared docs, invite members, or handle 409 conflicts."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Shared and personal Studio must stay isolated; incorrect save routing could "
+            "write shared documents into user_data or lose unsaved conflict drafts."
+        ),
+        "fix_applied": (
+            "Authoritative PreShootWorkspace context; personal scout_studio untouched while "
+            "shared; exportForSync always personal; conflict modal preserves localDraft."
+        ),
+        "testing": (
+            "npm test (Phase 1 + Phase 2 + Hobby budget=12)."
+        ),
+        "git": None,
+    },
     {
         "id": "UPDATE-0022",
         "version": "v2.8.1",
@@ -1243,6 +1418,42 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.12.0",
+        "date": "2026-08-10",
+        "label": "Collaborative Workspaces Phase 4 (reliability & recovery)",
+        "changes": [
+            "Shared document version history + safe restore as new revision (UPDATE-0026)",
+            "Authoritative saveStatus, local recovery drafts, Director save confirmation",
+        ],
+    },
+    {
+        "version": "v2.11.0",
+        "date": "2026-08-10",
+        "label": "Collaborative Workspaces Phase 3B (live Shared Studio)",
+        "changes": [
+            "Live shared document updates with dirty protection + Keep/Review (UPDATE-0025)",
+            "Stale-fetch guards and Studio navigation repair after remote deletes",
+        ],
+    },
+    {
+        "version": "v2.10.0",
+        "date": "2026-08-09",
+        "label": "Collaborative Workspaces Phase 3A (realtime foundation)",
+        "changes": [
+            "Private Broadcast channels + metadata workspace.updated after save (UPDATE-0024)",
+            "Dirty-safe remote updates; personal Studio realtime remains separate",
+        ],
+    },
+    {
+        "version": "v2.9.0",
+        "date": "2026-08-09",
+        "label": "Collaborative Workspaces Phase 2 (UI)",
+        "changes": [
+            "Workspace switcher, shared Studio sync, members/invites, 409 conflict UI (UPDATE-0023)",
+            "Personal Studio isolation preserved; Hobby functions remain 12",
+        ],
+    },
     {
         "version": "v2.8.1",
         "date": "2026-08-09",
