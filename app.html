@@ -52,11 +52,11 @@
 <script src="/js/studio.js?v=310"></script>
 <script src="/js/studio-sync.js?v=320"></script>
 <script src="/js/workspace-sync.js?v=310"></script>
-<script src="/js/workspace-context.js?v=320"></script>
-<script src="/js/workspace-ui.js?v=320"></script>
-<script src="/js/workspace-realtime.js?v=320"></script>
+<script src="/js/workspace-context.js?v=330"></script>
+<script src="/js/workspace-ui.js?v=330"></script>
+<script src="/js/workspace-realtime.js?v=330"></script>
 <script src="/js/director-voice.js?v=302"></script>
-<script src="/js/studio-ui.js?v=310"></script>
+<script src="/js/studio-ui.js?v=330"></script>
 <script src="/js/studio-keyboard.js?v=302"></script>
 <script src="/js/director-os.js?v=302"></script>
 <script src="/js/onboard.js"></script>
@@ -1650,7 +1650,7 @@ html.dir-voice-active{overflow:hidden}
 </div> <!-- ═══ LIBRARY ═══ -->
 <div class="screen" id="screen-library"> <div class="lib-hd"><div class="lib-title">Library</div><div class="lib-count" id="lib-count">0</div></div> <div class="lib-tabs"><button class="lib-tab active" onclick="libTab('history',this)">History</button> <button class="lib-tab" onclick="libTab('saved',this)">Saved</button> <button class="lib-tab" onclick="libTab('trending',this)">Trending</button> </div> <div class="sb"><div class="lib-grid" id="lib-grid"></div></div>
 </div> <!-- ═══ STUDIO ═══ -->
-<div class="screen" id="screen-studio"><div id="ws-remote-banner" class="ws-remote-banner" hidden><div class="ws-remote-banner-text" id="ws-remote-banner-text">Someone updated this workspace.</div><button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button><button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.hideRemoteBanner()">Dismiss</button></div><div class="sb" id="studio-root">
+<div class="screen" id="screen-studio"><div id="ws-remote-banner" class="ws-remote-banner" hidden><div class="ws-remote-banner-text" id="ws-remote-banner-text">This workspace was updated by another collaborator.</div><button type="button" class="studio-btn primary sm" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review latest</button><button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.keepLocalChanges()">Keep my changes</button></div><div class="sb" id="studio-root">
 <div class="studio-hd"><div><div class="studio-title">Studio</div><div class="studio-sub">Your creative workspace</div></div>
 <button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProject()">New Project</button></div>
 <div class="studio-empty"><div class="studio-empty-t">Loading Studio…</div></div>
@@ -2477,8 +2477,8 @@ function initHomeKinetic() { var el = document.getElementById('home-kinetic'); i
     <div class="modal-handle"></div>
     <div class="modal-hd"><div class="modal-ttl">Workspace conflict</div><div class="modal-x" onclick="PreShootWorkspaceUI.closeConflict()" aria-label="Close">×</div></div>
     <div class="modal-body">
-      <p id="ws-conflict-msg" style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 16px">This workspace was updated by someone else.</p>
-      <button class="studio-btn primary" style="width:100%;margin-bottom:8px" onclick="PreShootWorkspaceUI.conflictReload()">Reload latest</button>
+      <p id="ws-conflict-msg" style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 16px">Someone else saved first. Your local edits are still intact — the server has a newer version.</p>
+      <button class="studio-btn primary" style="width:100%;margin-bottom:8px" onclick="PreShootWorkspaceUI.conflictReload()">Load latest (discard mine)</button>
       <button class="studio-btn ghost" style="width:100%" onclick="PreShootWorkspaceUI.conflictKeep()">Keep my changes &amp; overwrite</button>
     </div>
   </div>
