@@ -295,6 +295,14 @@
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.workspaceSwitcherButtonHtml) {
       h += PreShootWorkspaceUI.workspaceSwitcherButtonHtml();
     }
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.getContext &&
+      PreShootWorkspace.getContext().remoteUpdate
+    ) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm ws-remote-btn" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button>';
+    }
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProjectMenu(\'' +
       esc(projectId) +
@@ -2880,6 +2888,14 @@
       '%</div></div>';
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.workspaceSwitcherButtonHtml) {
       h += PreShootWorkspaceUI.workspaceSwitcherButtonHtml();
+    }
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.getContext &&
+      PreShootWorkspace.getContext().remoteUpdate
+    ) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm ws-remote-btn" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button>';
     }
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProductionMenu(\'' +

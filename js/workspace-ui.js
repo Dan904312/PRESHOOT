@@ -463,23 +463,47 @@
 
   function onRemoteUpdateAvailable(info) {
     refreshChrome();
-    toast('Someone updated this workspace.');
+    toast('This workspace was updated by another collaborator.');
+    syncRemoteBanner(info || (Ctx() && Ctx().getContext && Ctx().getContext().remoteUpdate));
+    /* Refresh Studio chrome so list/detail headers reflect Review update */
+    if (global.S && global.S.tab === 'studio' && global.PreShootStudioUI && PreShootStudioUI.renderStudio) {
+      PreShootStudioUI.renderStudio();
+    }
+  }
+
+  function syncRemoteBanner(info) {
     var banner = document.getElementById('ws-remote-banner');
-    if (banner) {
-      banner.hidden = false;
-      var t = document.getElementById('ws-remote-banner-text');
-      if (t) {
-        t.textContent =
-          'Someone updated this workspace' +
-          (info && info.revision ? ' (revision ' + info.revision + ')' : '') +
-          '. Your local edits were kept.';
-      }
+    if (!banner) return;
+    if (!info) {
+      banner.hidden = true;
+      return;
+    }
+    banner.hidden = false;
+    var t = document.getElementById('ws-remote-banner-text');
+    if (t) {
+      t.textContent =
+        'This workspace was updated by another collaborator' +
+        (info.revision ? ' (revision ' + info.revision + ')' : '') +
+        '. Your local edits were kept.';
     }
   }
 
   function hideRemoteBanner() {
     var banner = document.getElementById('ws-remote-banner');
     if (banner) banner.hidden = true;
+  }
+
+  function dismissRemoteUpdate() {
+    if (Ctx() && Ctx().keepLocalRemoteUpdate) {
+      Ctx().keepLocalRemoteUpdate();
+    } else {
+      hideRemoteBanner();
+    }
+  }
+
+  function keepLocalChanges() {
+    if (!Ctx() || !Ctx().keepLocalRemoteUpdate) return;
+    Ctx().keepLocalRemoteUpdate();
   }
 
   function reviewRemoteUpdate() {
@@ -547,7 +571,10 @@
     conflictKeep: conflictKeep,
     onSaveOk: onSaveOk,
     onRemoteUpdateAvailable: onRemoteUpdateAvailable,
+    syncRemoteBanner: syncRemoteBanner,
     reviewRemoteUpdate: reviewRemoteUpdate,
+    keepLocalChanges: keepLocalChanges,
+    dismissRemoteUpdate: dismissRemoteUpdate,
     hideRemoteBanner: hideRemoteBanner,
     consumeInviteFromUrl: consumeInviteFromUrl
   };

@@ -21,12 +21,16 @@
     saving: false,
     switching: false,
     conflict: null,
+    remoteUpdate: null /* { revision, updated_by, updated_at } when dirty */,
+    lastLocalSave: null /* { workspaceId, revision, at } for loop prevention */,
     list: [],
     listLoadedAt: 0
   };
 
   var _saveTimer = null;
   var _switchToken = 0;
+  var _fetchToken = 0;
+  var _fetching = false;
 
   function API() {
     return global.PreShootWorkspaces;
@@ -65,6 +69,33 @@
     global.S.activeWorkspaceName = state.activeWorkspaceName;
     global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
     global.S.studioReadOnly = isShared() && !canEdit();
+    global.S.workspaceRemoteUpdate = state.remoteUpdate;
+  }
+
+  function RT() {
+    return global.PreShootWorkspaceRealtime || null;
+  }
+
+  function stopRealtime() {
+    var rt = RT();
+    if (rt && rt.unsubscribe) return rt.unsubscribe();
+    return Promise.resolve();
+  }
+
+  function startRealtime(workspaceId, opts) {
+    opts = opts || {};
+    var rt = RT();
+    if (!rt || !rt.subscribe || !workspaceId) return Promise.resolve({ ok: false });
+    return rt.subscribe(workspaceId, opts).then(function (res) {
+      if (opts.reconcile && res && res.ok) onRealtimeReconnected(workspaceId);
+      return res;
+    });
+  }
+
+  function onRealtimeReconnected(workspaceId) {
+    if (!isShared() || state.activeWorkspaceId !== workspaceId) return;
+    if (state.sharedDirty || state.conflict) return;
+    fetchAndApplyRemote('reconnect');
   }
 
   function isShared() {
@@ -121,6 +152,7 @@
       sharedDirty: state.sharedDirty,
       switching: state.switching,
       conflict: state.conflict,
+      remoteUpdate: state.remoteUpdate,
       list: state.list.slice()
     };
   }
@@ -161,7 +193,83 @@
       if (global.PreShootWorkspaceUI && typeof global.PreShootWorkspaceUI.refreshChrome === 'function') {
         global.PreShootWorkspaceUI.refreshChrome();
       }
+      if (global.PreShootWorkspaceUI && typeof global.PreShootWorkspaceUI.syncRemoteBanner === 'function') {
+        global.PreShootWorkspaceUI.syncRemoteBanner(state.remoteUpdate);
+      }
     } catch (e) {}
+  }
+
+  function clearRemoteUpdateState() {
+    state.remoteUpdate = null;
+    if (global.S) global.S.workspaceRemoteUpdate = null;
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.hideRemoteBanner) {
+      global.PreShootWorkspaceUI.hideRemoteBanner();
+    }
+  }
+
+  /**
+   * After a remote document replace, keep the user on a valid project/production
+   * when possible; otherwise move to the nearest safe view.
+   */
+  function repairStudioView(prevView) {
+    if (!global.S) return { repaired: false };
+    var view = prevView || global.S.studioView || { mode: 'list' };
+    var doc = state.sharedDocument || global.S.studio;
+    var projects = (doc && doc.projects) || [];
+
+    function findProject(id) {
+      for (var i = 0; i < projects.length; i++) {
+        if (projects[i] && projects[i].id === id) return projects[i];
+      }
+      return null;
+    }
+
+    function findProduction(id) {
+      for (var i = 0; i < projects.length; i++) {
+        var prods = (projects[i] && projects[i].productions) || [];
+        for (var j = 0; j < prods.length; j++) {
+          if (prods[j] && prods[j].id === id) {
+            return { project: projects[i], production: prods[j] };
+          }
+        }
+      }
+      return null;
+    }
+
+    if (view.mode === 'production' && view.productionId) {
+      var hit = findProduction(view.productionId);
+      if (hit) {
+        global.S.studioView = {
+          mode: 'production',
+          projectId: hit.project.id,
+          productionId: hit.production.id,
+          section: view.section || 'overview'
+        };
+        global.S.activeProductionId = hit.production.id;
+        return { repaired: false, mode: 'production' };
+      }
+      if (view.projectId && findProject(view.projectId)) {
+        global.S.studioView = { mode: 'project', projectId: view.projectId };
+        global.S.activeProductionId = null;
+        return { repaired: true, mode: 'project', reason: 'production_deleted' };
+      }
+      global.S.studioView = { mode: 'list' };
+      global.S.activeProductionId = null;
+      return { repaired: true, mode: 'list', reason: 'production_deleted' };
+    }
+
+    if (view.mode === 'project' && view.projectId) {
+      if (findProject(view.projectId)) {
+        global.S.studioView = { mode: 'project', projectId: view.projectId };
+        return { repaired: false, mode: 'project' };
+      }
+      global.S.studioView = { mode: 'list' };
+      global.S.activeProductionId = null;
+      return { repaired: true, mode: 'list', reason: 'project_deleted' };
+    }
+
+    global.S.studioView = { mode: 'list' };
+    return { repaired: false, mode: 'list' };
   }
 
   function applyReadOnlyClass() {
@@ -172,6 +280,9 @@
   }
 
   function setPersonalMode(personalMeta) {
+    stopRealtime();
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
     state.activeWorkspaceKind = 'personal';
     state.activeWorkspaceRole = 'owner';
     state.activeWorkspaceName =
@@ -183,6 +294,8 @@
     state.sharedDocument = null;
     state.sharedDirty = false;
     state.conflict = null;
+    clearRemoteUpdateState();
+    state.lastLocalSave = null;
     ss(ACTIVE_KEY, 'personal');
     syncToS();
     applyReadOnlyClass();
@@ -197,10 +310,12 @@
     state.sharedDocument = normalizeDocument(document);
     state.sharedDirty = false;
     state.conflict = null;
+    clearRemoteUpdateState();
     ss(ACTIVE_KEY, meta.id);
     if (global.S) global.S.studio = state.sharedDocument;
     syncToS();
     applyReadOnlyClass();
+    startRealtime(meta.id);
   }
 
   function loadPersonalIntoStudio() {
@@ -248,6 +363,19 @@
     }, SAVE_DEBOUNCE_MS);
   }
 
+  function waitForSaveIdle(maxMs) {
+    maxMs = maxMs || 8000;
+    var started = Date.now();
+    return new Promise(function (resolve) {
+      function tick() {
+        if (!state.saving) return resolve({ ok: true });
+        if (Date.now() - started > maxMs) return resolve({ ok: false, error: 'save_busy_timeout' });
+        setTimeout(tick, 40);
+      }
+      tick();
+    });
+  }
+
   function saveNow() {
     if (!isShared() || !canEdit()) return Promise.resolve({ ok: false, skipped: true });
     if (state.saving) return Promise.resolve({ ok: false, busy: true });
@@ -267,6 +395,13 @@
         state.sharedDocument = normalizeDocument(res.document || document);
         state.sharedDirty = false;
         state.conflict = null;
+        clearRemoteUpdateState();
+        state.lastLocalSave = {
+          workspaceId: workspaceId,
+          revision: Number(res.revision) || revision,
+          at: Date.now(),
+          updated_by: (global.S && global.S.authUser && global.S.authUser.id) || null
+        };
         if (global.S) {
           global.S.studio = state.sharedDocument;
           global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
@@ -297,26 +432,206 @@
     });
   }
 
-  function isDirtyForSwitch() {
-    if (isShared()) return state.sharedDirty;
-    var st = Studio();
-    return st && st.isDirty ? st.isDirty() : false;
+  function shouldIgnoreRealtimeRevision(incomingRev, payload) {
+    var local = state.lastLocalSave;
+    if (!local || local.workspaceId !== state.activeWorkspaceId) return false;
+    if (Number(incomingRev) === Number(local.revision)) return true;
+    var me = global.S && global.S.authUser && global.S.authUser.id;
+    if (me && payload && payload.updated_by === me && Date.now() - local.at < 8000) {
+      if (Number(incomingRev) <= Number(local.revision)) return true;
+    }
+    return false;
+  }
+
+  function applyAuthoritativeRemote(loaded) {
+    if (!loaded || !loaded.ok || !isShared()) return { ok: false };
+    var loadedRev = Number(loaded.revision);
+    var currentRev = Number(state.activeWorkspaceRevision) || 0;
+    /* Never apply an older document over a newer local revision */
+    if (Number.isFinite(loadedRev) && loadedRev > 0 && loadedRev < currentRev) {
+      return { ok: false, error: 'stale_apply', revision: currentRev };
+    }
+    if (Number.isFinite(loadedRev) && loadedRev > 0 && loadedRev === currentRev && !state.remoteUpdate) {
+      /* Same revision already applied */
+      clearRemoteUpdateState();
+      return { ok: true, revision: currentRev, skipped: true };
+    }
+
+    var prevView = global.S ? Object.assign({}, global.S.studioView || {}) : null;
+    state.activeWorkspaceRevision = Number.isFinite(loadedRev) && loadedRev > 0 ? loadedRev : currentRev;
+    state.sharedDocument = normalizeDocument(loaded.document);
+    state.sharedDirty = false;
+    state.conflict = null;
+    clearRemoteUpdateState();
+    if (global.S) {
+      global.S.studio = state.sharedDocument;
+      global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
+    }
+    var repair = repairStudioView(prevView);
+    refreshStudioUI();
+    if (repair && repair.repaired && typeof global.showToast === 'function') {
+      if (repair.reason === 'production_deleted') {
+        toast('That production was removed by a collaborator');
+      } else if (repair.reason === 'project_deleted') {
+        toast('That project was removed by a collaborator');
+      }
+    }
+    return { ok: true, revision: state.activeWorkspaceRevision, repaired: !!(repair && repair.repaired) };
+  }
+
+  function fetchAndApplyRemote(reason) {
+    if (!isShared()) return Promise.resolve({ ok: false });
+    var api = API();
+    var id = state.activeWorkspaceId;
+    if (!api || !id) return Promise.resolve({ ok: false });
+
+    var token = ++_fetchToken;
+    _fetching = true;
+    var expectedMinRev =
+      (state.remoteUpdate && Number(state.remoteUpdate.revision)) ||
+      Number(state.activeWorkspaceRevision) ||
+      0;
+
+    return api.loadSharedWorkspace(id).then(function (loaded) {
+      if (token !== _fetchToken) {
+        return { ok: false, error: 'stale_fetch' };
+      }
+      _fetching = false;
+      if (!isShared() || state.activeWorkspaceId !== id) {
+        return { ok: false, error: 'stale_workspace' };
+      }
+      if (!loaded || !loaded.ok) return loaded || { ok: false };
+
+      var loadedRev = Number(loaded.revision) || 0;
+      /* Ignore late responses older than what we already know */
+      if (loadedRev > 0 && expectedMinRev > 0 && loadedRev < expectedMinRev) {
+        return { ok: false, error: 'stale_revision', revision: loadedRev };
+      }
+      if (loadedRev > 0 && loadedRev < (Number(state.activeWorkspaceRevision) || 0)) {
+        return { ok: false, error: 'stale_revision', revision: loadedRev };
+      }
+
+      /* If user became dirty while fetch was in flight, protect local work */
+      if (state.sharedDirty) {
+        state.remoteUpdate = {
+          revision: loaded.revision,
+          updated_by: loaded.updated_by || null,
+          updated_at: loaded.updated_at || null,
+          reason: reason || 'dirty_during_fetch'
+        };
+        syncToS();
+        if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.onRemoteUpdateAvailable) {
+          global.PreShootWorkspaceUI.onRemoteUpdateAvailable(state.remoteUpdate);
+        }
+        return { ok: true, deferred: true };
+      }
+      return applyAuthoritativeRemote(loaded);
+    }).catch(function (err) {
+      if (token === _fetchToken) _fetching = false;
+      return { ok: false, error: 'network_error', message: String(err && err.message) };
+    });
+  }
+
+  function onRemoteWorkspaceUpdated(evt) {
+    if (!isShared() || !evt) return;
+    if (evt.workspace_id && evt.workspace_id !== state.activeWorkspaceId) return;
+
+    var incoming = Number(evt.revision);
+    var current = Number(state.activeWorkspaceRevision) || 0;
+    if (!Number.isFinite(incoming) || incoming <= current) return;
+
+    /* Already tracking this or newer remote revision while dirty */
+    if (
+      state.remoteUpdate &&
+      Number(state.remoteUpdate.revision) >= incoming &&
+      (state.sharedDirty || state.conflict)
+    ) {
+      return;
+    }
+
+    /* Dirty: never overwrite — mark remote available */
+    if (state.sharedDirty || state.conflict) {
+      state.remoteUpdate = {
+        revision: incoming,
+        updated_by: evt.updated_by || null,
+        updated_at: evt.updated_at || null,
+        reason: 'dirty_protected'
+      };
+      syncToS();
+      if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.onRemoteUpdateAvailable) {
+        global.PreShootWorkspaceUI.onRemoteUpdateAvailable(state.remoteUpdate);
+      } else {
+        toast('This workspace was updated by another collaborator.');
+      }
+      return;
+    }
+
+    /* Clean: fetch authoritative document (gap or +1). Avoid duplicate in-flight fetches. */
+    if (_fetching) {
+      state.remoteUpdate = {
+        revision: Math.max(incoming, Number((state.remoteUpdate && state.remoteUpdate.revision) || 0)),
+        updated_by: evt.updated_by || null,
+        updated_at: evt.updated_at || null,
+        reason: 'fetch_coalesced'
+      };
+      return;
+    }
+    fetchAndApplyRemote(evt.gap ? 'revision_gap' : 'remote_update');
+  }
+
+  function reviewRemoteUpdate() {
+    if (!state.remoteUpdate && !isShared()) return Promise.resolve({ ok: false });
+    if (state.sharedDirty) {
+      var ok = confirm(
+        'Loading the latest workspace will discard your unsaved local changes. Continue?'
+      );
+      if (!ok) return Promise.resolve({ ok: false, error: 'cancelled' });
+      state.sharedDirty = false;
+    }
+    return fetchAndApplyRemote('review_update');
+  }
+
+  /**
+   * Keep local unsaved edits and dismiss the remote-update indicator.
+   * Does not merge; next save may 409 if server is ahead — conflict UI handles that.
+   */
+  function keepLocalRemoteUpdate() {
+    if (!isShared()) return { ok: false };
+    clearRemoteUpdateState();
+    syncToS();
+    refreshStudioUI();
+    toast('Kept your local changes');
+    return { ok: true, kept: true };
   }
 
   function flushBeforeSwitch() {
-    if (isShared()) {
-      if (!state.sharedDirty) return Promise.resolve({ ok: true });
-      return saveNow();
-    }
-    if (global.PreShootStudioSync && global.PreShootStudioSync.flush) {
-      return global.PreShootStudioSync.flush({ alwaysPush: true });
-    }
-    if (typeof global.saveToCloud === 'function') {
-      return Promise.resolve(global.saveToCloud()).then(function () {
-        return { ok: true };
-      });
-    }
-    return Promise.resolve({ ok: true });
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+    return waitForSaveIdle().then(function () {
+      if (isShared()) {
+        if (!state.sharedDirty) return { ok: true };
+        return saveNow().then(function (res) {
+          if (res && res.busy) return { ok: false, error: 'save_busy' };
+          return res;
+        });
+      }
+      if (global.PreShootStudioSync && global.PreShootStudioSync.flush) {
+        return global.PreShootStudioSync.flush({ alwaysPush: true });
+      }
+      if (typeof global.saveToCloud === 'function') {
+        return Promise.resolve(global.saveToCloud()).then(function () {
+          return { ok: true };
+        });
+      }
+      return { ok: true };
+    });
+  }
+
+  function isDirtyForSwitch() {
+    if (isShared()) return state.sharedDirty;
+    var st = Studio();
+    if (st && st.isPersonalDirty) return st.isPersonalDirty();
+    return st && st.isDirty ? st.isDirty() : false;
   }
 
   /**
@@ -359,6 +674,13 @@
 
     var token = ++_switchToken;
     state.switching = true;
+    /* Unsubscribe immediately so Workspace A events cannot touch B */
+    stopRealtime();
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+    clearRemoteUpdateState();
+    _fetchToken += 1;
+    _fetching = false;
     syncToS();
     refreshStudioUI();
 
@@ -459,12 +781,14 @@
     if (!state.conflict || !isShared()) return Promise.resolve({ ok: false });
     var api = API();
     var id = state.activeWorkspaceId;
+    var prevView = global.S ? Object.assign({}, global.S.studioView || {}) : null;
     return api.loadSharedWorkspace(id).then(function (loaded) {
       if (!loaded || !loaded.ok) {
         toast('Could not reload workspace');
         return loaded;
       }
       state.conflict = null;
+      clearRemoteUpdateState();
       setSharedMode(
         {
           id: id,
@@ -474,7 +798,7 @@
         loaded.document,
         loaded.revision
       );
-      clearStudioView();
+      repairStudioView(prevView);
       if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.closeConflict) {
         global.PreShootWorkspaceUI.closeConflict();
       }
@@ -488,16 +812,12 @@
     if (!state.conflict || !isShared()) return Promise.resolve({ ok: false });
     var draft = state.conflict.localDraft;
     var serverRev = state.conflict.revision;
-    /* Keep local draft in editor; adopt server revision so next save can 409 again until user merges — 
-       Spec: keep my changes / review local. User must explicitly save after reviewing.
-       We set revision to server so they understand they need to re-save (will 409 until reload OR
-       we allow force by saving with server revision after confirming overwrite intent).
-       Better UX: keep local, set revision to server revision, mark dirty — next save retries with
-       server's revision base which OVERWRITES server with local (explicit keep-mine). */
+    /* Keep local draft; adopt server revision so an explicit save can overwrite after user confirms. */
     state.sharedDocument = normalizeDocument(draft);
     state.activeWorkspaceRevision = Number(serverRev) || state.activeWorkspaceRevision;
     state.sharedDirty = true;
     state.conflict = null;
+    clearRemoteUpdateState();
     if (global.S) {
       global.S.studio = state.sharedDocument;
       global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
@@ -599,6 +919,14 @@
     resolveConflictKeepLocal: resolveConflictKeepLocal,
     workspaceIdForUpload: workspaceIdForUpload,
     workspaceIdForDirector: workspaceIdForDirector,
-    applyReadOnlyClass: applyReadOnlyClass
+    applyReadOnlyClass: applyReadOnlyClass,
+    shouldIgnoreRealtimeRevision: shouldIgnoreRealtimeRevision,
+    onRemoteWorkspaceUpdated: onRemoteWorkspaceUpdated,
+    onRealtimeReconnected: onRealtimeReconnected,
+    reviewRemoteUpdate: reviewRemoteUpdate,
+    keepLocalRemoteUpdate: keepLocalRemoteUpdate,
+    fetchAndApplyRemote: fetchAndApplyRemote,
+    repairStudioView: repairStudioView,
+    clearRemoteUpdateState: clearRemoteUpdateState
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
