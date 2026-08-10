@@ -556,6 +556,7 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- Shared Studio lives in workspace_data.document.
 --
 -- Phase 3A Realtime: also run supabase_workspaces_phase3a_realtime.sql
+-- Phase 4 Versions: also run supabase_workspaces_phase4_versions.sql
 -- (private Broadcast channel RLS on realtime.messages).
 -- ═══════════════════════════════════════════════════════════
 
