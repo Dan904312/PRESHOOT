@@ -323,18 +323,51 @@
 
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') {
-        if (Studio() && Studio().isDirty()) pushNow();
+        /* Shared dirty → workspace-sync; personal dirty → /api/sync. Never mix. */
+        if (
+          global.PreShootWorkspace &&
+          PreShootWorkspace.isShared &&
+          PreShootWorkspace.isShared()
+        ) {
+          if (PreShootWorkspace.isSharedDirty && PreShootWorkspace.isSharedDirty()) {
+            PreShootWorkspace.saveNow().catch(function () {});
+          }
+        } else if (Studio() && (Studio().isPersonalDirty ? Studio().isPersonalDirty() : Studio().isDirty())) {
+          pushNow();
+        }
       } else if (document.visibilityState === 'visible' && authUser()) {
-        flush();
+        if (
+          global.PreShootWorkspace &&
+          PreShootWorkspace.isShared &&
+          PreShootWorkspace.isShared()
+        ) {
+          if (PreShootWorkspace.onRealtimeReconnected) {
+            var id = PreShootWorkspace.getContext().activeWorkspaceId;
+            if (id) PreShootWorkspace.onRealtimeReconnected(id);
+          }
+          if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.onAuthChanged) {
+            PreShootWorkspaceRealtime.onAuthChanged();
+          }
+        } else {
+          flush();
+        }
       }
     });
 
     window.addEventListener('pagehide', function () {
-      if (Studio() && Studio().isDirty()) {
-        try {
+      try {
+        if (
+          global.PreShootWorkspace &&
+          PreShootWorkspace.isShared &&
+          PreShootWorkspace.isShared()
+        ) {
+          if (PreShootWorkspace.isSharedDirty && PreShootWorkspace.isSharedDirty()) {
+            PreShootWorkspace.saveNow();
+          }
+        } else if (Studio() && (Studio().isPersonalDirty ? Studio().isPersonalDirty() : Studio().isDirty())) {
           pushNow();
-        } catch (e) {}
-      }
+        }
+      } catch (e) {}
     });
 
     window.addEventListener('focus', function () {

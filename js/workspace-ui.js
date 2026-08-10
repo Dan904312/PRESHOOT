@@ -71,6 +71,10 @@
     if (ctx && ctx.isShared) {
       h +=
         '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openMembers()">Members</button>';
+      if (ctx.remoteUpdate) {
+        h +=
+          '<button type="button" class="studio-btn ghost sm ws-remote-btn" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button>';
+      }
       if (ctx.sharedDirty || (global.PreShootStudio && PreShootStudio.isDirty && PreShootStudio.isDirty())) {
         h +=
           '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.saveShared()">Save</button>';
@@ -457,7 +461,41 @@
     Ctx().resolveConflictKeepLocal();
   }
 
+  function onRemoteUpdateAvailable(info) {
+    refreshChrome();
+    toast('Someone updated this workspace.');
+    var banner = document.getElementById('ws-remote-banner');
+    if (banner) {
+      banner.hidden = false;
+      var t = document.getElementById('ws-remote-banner-text');
+      if (t) {
+        t.textContent =
+          'Someone updated this workspace' +
+          (info && info.revision ? ' (revision ' + info.revision + ')' : '') +
+          '. Your local edits were kept.';
+      }
+    }
+  }
+
+  function hideRemoteBanner() {
+    var banner = document.getElementById('ws-remote-banner');
+    if (banner) banner.hidden = true;
+  }
+
+  function reviewRemoteUpdate() {
+    if (!Ctx()) return;
+    Ctx().reviewRemoteUpdate().then(function (res) {
+      if (res && res.ok && !res.deferred) {
+        hideRemoteBanner();
+        toast('Loaded latest version');
+      }
+      refreshChrome();
+      if (global.PreShootStudioUI) PreShootStudioUI.renderStudio();
+    });
+  }
+
   function onSaveOk() {
+    hideRemoteBanner();
     refreshChrome();
   }
 
@@ -508,6 +546,9 @@
     conflictReload: conflictReload,
     conflictKeep: conflictKeep,
     onSaveOk: onSaveOk,
+    onRemoteUpdateAvailable: onRemoteUpdateAvailable,
+    reviewRemoteUpdate: reviewRemoteUpdate,
+    hideRemoteBanner: hideRemoteBanner,
     consumeInviteFromUrl: consumeInviteFromUrl
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
