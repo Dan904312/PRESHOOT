@@ -9,7 +9,7 @@
     "test:workspaces": "node tests/workspaces-phase1.test.mjs",
     "test:vercel-budget": "node tests/vercel-function-budget.test.mjs",
     "assert:hobby-budget": "node scripts/assert-hobby-function-budget.mjs",
-    "test": "node scripts/assert-hobby-function-budget.mjs && node tests/workspaces-phase1.test.mjs && node tests/workspaces-phase2.test.mjs && node tests/vercel-function-budget.test.mjs"
+    "test": "node scripts/assert-hobby-function-budget.mjs && node tests/workspaces-phase1.test.mjs && node tests/workspaces-phase2.test.mjs && node tests/workspaces-phase3a.test.mjs && node tests/workspaces-phase3b.test.mjs && node tests/vercel-function-budget.test.mjs"
   },
   "dependencies": {
     "stripe": "17.7.0"
