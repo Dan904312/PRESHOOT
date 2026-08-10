@@ -2162,72 +2162,137 @@
       toast(verified.message || 'Action failed');
       return;
     }
-    /* Ensure other devices see the mutation — local is authoritative after confirmed execute */
+
+    function finishDirectorSuccess() {
+      setDirectorGoState('done');
+      setDirectorPanel(
+        actionCardHtml(
+          action,
+          payload,
+          action === 'update_script'
+            ? 'Done — script updated.'
+            : action === 'rebuild_shot_list'
+              ? 'Done — shot list rebuilt.'
+              : verified.label
+                ? 'Updated to “' + verified.label + '”'
+                : 'Completed',
+          'done'
+        )
+      );
+      setDirectorStatus(
+        'done',
+        action === 'update_script'
+          ? 'Done — script updated.'
+          : action === 'rebuild_shot_list'
+            ? 'Done — shot list rebuilt.'
+            : 'Completed'
+      );
+      toast(
+        action === 'update_script'
+          ? 'Script updated'
+          : action === 'rebuild_shot_list'
+            ? 'Shot list rebuilt'
+            : 'Done'
+      );
+      if (action === 'update_script') {
+        refreshScriptFullscreenIfOpen(payload.productionId);
+      }
+      if (action === 'rebuild_shot_list' && payload.productionId && global.S) {
+        global.S.studioView = global.S.studioView || {};
+        global.S.studioView.mode = 'production';
+        global.S.studioView.productionId = payload.productionId;
+        global.S.studioView.section = 'shots';
+      }
+      var openId =
+        (result.open &&
+          ((result.result && result.result.productionId) || payload.productionId)) ||
+        null;
+      setTimeout(function () {
+        if (openId) {
+          openProduction(openId);
+          return;
+        }
+        renderContinueCard();
+        renderStudio();
+        setTimeout(function () {
+          setDirectorPanel(
+            '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Completed ✓</div></div>'
+          );
+          setDirectorGoState('done');
+          setTimeout(function () {
+            setDirectorGoState('idle');
+          }, 1400);
+        }, 40);
+      }, 420);
+    }
+
+    function failDirectorPersist(msg) {
+      setDirectorGoState('idle');
+      setDirectorPanel(actionCardHtml(action, payload, msg || 'Save failed', 'error'));
+      setDirectorStatus('error', msg || 'Save failed');
+      toast(msg || 'Save failed');
+    }
+
+    /* Shared workspace: only claim Done after workspace-sync confirms */
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared()
+    ) {
+      if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
+        failDirectorPersist('Read-only workspace — changes were not saved');
+        return;
+      }
+      if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
+      setDirectorStatus('executing', 'Saving workspace…');
+      var savePromise =
+        typeof PreShootWorkspace.saveNow === 'function'
+          ? PreShootWorkspace.saveNow()
+          : Promise.resolve({ ok: false, error: 'no_save' });
+      savePromise.then(function (saveRes) {
+        if (saveRes && (saveRes.ok || saveRes.skipped)) {
+          finishDirectorSuccess();
+          return;
+        }
+        if (saveRes && saveRes.busy) {
+          /* Wait briefly then retry once */
+          return waitMs(200).then(function () {
+            return PreShootWorkspace.saveNow().then(function (retry) {
+              if (retry && (retry.ok || retry.skipped)) finishDirectorSuccess();
+              else if (retry && retry.conflict) {
+                failDirectorPersist(
+                  'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+                );
+              } else {
+                failDirectorPersist((retry && retry.message) || 'Workspace save failed');
+              }
+            });
+          });
+        }
+        if (saveRes && saveRes.conflict) {
+          failDirectorPersist(
+            'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+          );
+          return;
+        }
+        failDirectorPersist((saveRes && saveRes.message) || 'Workspace save failed');
+      });
+      return;
+    }
+
+    /* Personal Studio: existing flush (fire-and-forget) */
     if (global.PreShootStudioSync && typeof global.PreShootStudioSync.flush === 'function') {
       global.PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
     } else if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
       global.PreShootStudioSync.pushNow().catch(function () {});
     }
-    setDirectorGoState('done');
-    setDirectorPanel(
-      actionCardHtml(
-        action,
-        payload,
-        action === 'update_script'
-          ? 'Done — script updated.'
-          : action === 'rebuild_shot_list'
-            ? 'Done — shot list rebuilt.'
-            : verified.label
-              ? 'Updated to “' + verified.label + '”'
-              : 'Completed',
-        'done'
-      )
-    );
-    setDirectorStatus(
-      'done',
-      action === 'update_script'
-        ? 'Done — script updated.'
-        : action === 'rebuild_shot_list'
-          ? 'Done — shot list rebuilt.'
-          : 'Completed'
-    );
-    toast(
-      action === 'update_script'
-        ? 'Script updated'
-        : action === 'rebuild_shot_list'
-          ? 'Shot list rebuilt'
-          : 'Done'
-    );
-    if (action === 'update_script') {
-      refreshScriptFullscreenIfOpen(payload.productionId);
-    }
-    if (action === 'rebuild_shot_list' && payload.productionId && global.S) {
-      global.S.studioView = global.S.studioView || {};
-      global.S.studioView.mode = 'production';
-      global.S.studioView.productionId = payload.productionId;
-      global.S.studioView.section = 'shots';
-    }
-    var openId =
-      (result.open &&
-        ((result.result && result.result.productionId) || payload.productionId)) ||
-      null;
-    setTimeout(function () {
-      if (openId) {
-        openProduction(openId);
-        return;
-      }
-      renderContinueCard();
-      renderStudio();
-      setTimeout(function () {
-        setDirectorPanel(
-          '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Completed ✓</div></div>'
-        );
-        setDirectorGoState('done');
-        setTimeout(function () {
-          setDirectorGoState('idle');
-        }, 1400);
-      }, 40);
-    }, 420);
+    finishDirectorSuccess();
+  }
+
+  function waitMs(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
   }
 
   function submitDirectorCommand(forcedText) {
@@ -3748,27 +3813,56 @@
       toast(verified.message || 'Action failed');
       return;
     }
+
+    function finishModalSuccess() {
+      toast(verified.label ? 'Updated to “' + verified.label + '”' : 'Done');
+      var openId =
+        (result.open &&
+          ((result.result && result.result.productionId) || payload.productionId)) ||
+        null;
+      if (openId) {
+        openProduction(openId);
+        return;
+      }
+      renderContinueCard();
+      renderStudio();
+      setTimeout(function () {
+        setDirectorStatus('done', 'Done ✓');
+        setDirectorGoState('done');
+        setTimeout(function () {
+          setDirectorGoState('idle');
+        }, 1400);
+      }, 40);
+    }
+
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared()
+    ) {
+      if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
+        toast('Read-only workspace — changes were not saved');
+        return;
+      }
+      if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
+      PreShootWorkspace.saveNow().then(function (saveRes) {
+        if (saveRes && (saveRes.ok || saveRes.skipped)) {
+          finishModalSuccess();
+          return;
+        }
+        if (saveRes && saveRes.conflict) {
+          toast('Another collaborator changed this workspace. Resolve the conflict, then try again.');
+          return;
+        }
+        toast((saveRes && saveRes.message) || 'Workspace save failed');
+      });
+      return;
+    }
+
     if (global.PreShootStudioSync && typeof global.PreShootStudioSync.flush === 'function') {
       global.PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
     }
-    toast(verified.label ? 'Updated to “' + verified.label + '”' : 'Done');
-    var openId =
-      (result.open &&
-        ((result.result && result.result.productionId) || payload.productionId)) ||
-      null;
-    if (openId) {
-      openProduction(openId);
-      return;
-    }
-    renderContinueCard();
-    renderStudio();
-    setTimeout(function () {
-      setDirectorStatus('done', 'Done ✓');
-      setDirectorGoState('done');
-      setTimeout(function () {
-        setDirectorGoState('idle');
-      }, 1400);
-    }, 40);
+    finishModalSuccess();
   }
 
   function cancelDirectorAction() {

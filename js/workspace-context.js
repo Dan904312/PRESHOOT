@@ -8,6 +8,8 @@
 
   var ACTIVE_KEY = 'active_workspace_id';
   var SAVE_DEBOUNCE_MS = 1400;
+  /* Recovery drafts: scout_ws_recovery_{userId}_{workspaceId} — never auto-applied */
+  var RECOVERY_PREFIX = 'ws_recovery_';
 
   var state = {
     activeWorkspaceId: null,
@@ -23,6 +25,12 @@
     conflict: null,
     remoteUpdate: null /* { revision, updated_by, updated_at } when dirty */,
     lastLocalSave: null /* { workspaceId, revision, at } for loop prevention */,
+    /* Authoritative shared save UX: saved|saving|dirty|conflict|error|offline */
+    saveStatus: 'saved',
+    saveError: null,
+    lastActivity: null /* { revision, updated_by, updated_at, name } */,
+    versionPreview: null /* view-only snapshot; does not mutate active doc */,
+    pendingRecovery: null /* { workspaceId, document, revision, savedAt } prompt */,
     list: [],
     listLoadedAt: 0
   };
@@ -70,6 +78,110 @@
     global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
     global.S.studioReadOnly = isShared() && !canEdit();
     global.S.workspaceRemoteUpdate = state.remoteUpdate;
+    global.S.workspaceSaveStatus = isShared() ? state.saveStatus : null;
+    global.S.workspaceLastActivity = state.lastActivity;
+    global.S.workspaceVersionPreview = state.versionPreview;
+  }
+
+  function setSaveStatus(status, err) {
+    if (!isShared()) {
+      state.saveStatus = 'saved';
+      state.saveError = null;
+      return;
+    }
+    state.saveStatus = status || 'saved';
+    state.saveError = err || null;
+    syncToS();
+    if (global.PreShootWorkspaceUI && typeof global.PreShootWorkspaceUI.onSaveStatus === 'function') {
+      global.PreShootWorkspaceUI.onSaveStatus(state.saveStatus, state.saveError);
+    }
+  }
+
+  function recoveryKey(workspaceId) {
+    var uid = global.S && global.S.authUser && global.S.authUser.id;
+    if (!uid || !workspaceId) return null;
+    return RECOVERY_PREFIX + uid + '_' + workspaceId;
+  }
+
+  function writeRecoveryDraft() {
+    if (!isShared() || !canEdit()) return;
+    var key = recoveryKey(state.activeWorkspaceId);
+    if (!key) return;
+    try {
+      ss(key, {
+        workspaceId: state.activeWorkspaceId,
+        revision: state.activeWorkspaceRevision,
+        document: exportSharedDocument(),
+        savedAt: Date.now()
+      });
+    } catch (e) {}
+  }
+
+  function clearRecoveryDraft(workspaceId) {
+    var key = recoveryKey(workspaceId || state.activeWorkspaceId);
+    if (!key) return;
+    try {
+      if (typeof global.ss === 'function') {
+        /* ss stores JSON; clear by writing null */
+        ss(key, null);
+      }
+      localStorage.removeItem('scout_' + key);
+    } catch (e) {}
+  }
+
+  function readRecoveryDraft(workspaceId) {
+    var key = recoveryKey(workspaceId);
+    if (!key) return null;
+    var raw = gs(key, null);
+    if (!raw || typeof raw !== 'object' || !raw.document) return null;
+    if (raw.workspaceId && raw.workspaceId !== workspaceId) return null;
+    return raw;
+  }
+
+  function checkPendingRecovery(workspaceId) {
+    var draft = readRecoveryDraft(workspaceId);
+    if (!draft) {
+      state.pendingRecovery = null;
+      return null;
+    }
+    state.pendingRecovery = {
+      workspaceId: workspaceId,
+      document: draft.document,
+      revision: draft.revision,
+      savedAt: draft.savedAt
+    };
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showRecoveryPrompt) {
+      global.PreShootWorkspaceUI.showRecoveryPrompt(state.pendingRecovery);
+    }
+    return state.pendingRecovery;
+  }
+
+  function recoverPendingDraft() {
+    if (!state.pendingRecovery || !isShared()) return { ok: false };
+    if (state.pendingRecovery.workspaceId !== state.activeWorkspaceId) return { ok: false };
+    var doc = normalizeDocument(state.pendingRecovery.document);
+    state.sharedDocument = doc;
+    if (global.S) global.S.studio = doc;
+    state.sharedDirty = true;
+    setSaveStatus('dirty');
+    state.pendingRecovery = null;
+    clearRecoveryDraft(state.activeWorkspaceId);
+    writeRecoveryDraft();
+    refreshStudioUI();
+    toast('Recovered unsaved changes from your previous session');
+    return { ok: true };
+  }
+
+  function discardPendingRecovery() {
+    if (!state.pendingRecovery) return { ok: false };
+    var wid = state.pendingRecovery.workspaceId;
+    state.pendingRecovery = null;
+    clearRecoveryDraft(wid);
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.hideRecoveryPrompt) {
+      global.PreShootWorkspaceUI.hideRecoveryPrompt();
+    }
+    toast('Discarded previous unsaved changes');
+    return { ok: true };
   }
 
   function RT() {
@@ -132,6 +244,8 @@
   function markSharedDirty() {
     if (!canEdit()) return;
     state.sharedDirty = true;
+    if (state.saveStatus !== 'conflict') setSaveStatus('dirty');
+    writeRecoveryDraft();
   }
 
   function clearSharedDirty() {
@@ -153,6 +267,11 @@
       switching: state.switching,
       conflict: state.conflict,
       remoteUpdate: state.remoteUpdate,
+      saveStatus: state.saveStatus,
+      saveError: state.saveError,
+      lastActivity: state.lastActivity,
+      versionPreview: state.versionPreview,
+      pendingRecovery: state.pendingRecovery,
       list: state.list.slice()
     };
   }
@@ -294,6 +413,11 @@
     state.sharedDocument = null;
     state.sharedDirty = false;
     state.conflict = null;
+    state.saveStatus = 'saved';
+    state.saveError = null;
+    state.lastActivity = null;
+    state.versionPreview = null;
+    state.pendingRecovery = null;
     clearRemoteUpdateState();
     state.lastLocalSave = null;
     ss(ACTIVE_KEY, 'personal');
@@ -301,7 +425,7 @@
     applyReadOnlyClass();
   }
 
-  function setSharedMode(meta, document, revision) {
+  function setSharedMode(meta, document, revision, activity) {
     state.activeWorkspaceKind = 'shared';
     state.activeWorkspaceId = meta.id;
     state.activeWorkspaceName = meta.name || 'Workspace';
@@ -310,12 +434,23 @@
     state.sharedDocument = normalizeDocument(document);
     state.sharedDirty = false;
     state.conflict = null;
+    state.saveStatus = 'saved';
+    state.saveError = null;
+    state.versionPreview = null;
+    state.lastActivity = activity || {
+      revision: state.activeWorkspaceRevision,
+      updated_by: (activity && activity.updated_by) || null,
+      updated_at: (activity && activity.updated_at) || null,
+      name: (activity && activity.name) || null
+    };
     clearRemoteUpdateState();
     ss(ACTIVE_KEY, meta.id);
     if (global.S) global.S.studio = state.sharedDocument;
     syncToS();
     applyReadOnlyClass();
     startRealtime(meta.id);
+    /* Never auto-apply recovery — prompt only */
+    checkPendingRecovery(meta.id);
   }
 
   function loadPersonalIntoStudio() {
@@ -388,6 +523,8 @@
     var revision = state.activeWorkspaceRevision;
     var document = exportSharedDocument();
     state.saving = true;
+    setSaveStatus('saving');
+    writeRecoveryDraft();
     return api.saveSharedWorkspace(workspaceId, document, revision).then(function (res) {
       state.saving = false;
       if (res && res.ok) {
@@ -396,12 +533,20 @@
         state.sharedDirty = false;
         state.conflict = null;
         clearRemoteUpdateState();
+        clearRecoveryDraft(workspaceId);
         state.lastLocalSave = {
           workspaceId: workspaceId,
           revision: Number(res.revision) || revision,
           at: Date.now(),
           updated_by: (global.S && global.S.authUser && global.S.authUser.id) || null
         };
+        state.lastActivity = {
+          revision: Number(res.revision) || revision,
+          updated_by: res.updated_by || state.lastLocalSave.updated_by,
+          updated_at: res.updated_at || new Date().toISOString(),
+          name: (global.S && global.S.profile && global.S.profile.name) || null
+        };
+        setSaveStatus('saved');
         if (global.S) {
           global.S.studio = state.sharedDocument;
           global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
@@ -420,6 +565,8 @@
           updated_by: res.updated_by,
           message: res.message
         };
+        setSaveStatus('conflict');
+        writeRecoveryDraft();
         if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showConflict) {
           global.PreShootWorkspaceUI.showConflict(state.conflict);
         } else {
@@ -427,7 +574,20 @@
         }
         return res;
       }
-      toast((res && res.message) || 'Could not save workspace');
+      var offline =
+        !!(res && res.offline) ||
+        (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+        (res && (res.error === 'network_error' || res.status === 0));
+      setSaveStatus(offline ? 'offline' : 'error', {
+        status: res && res.status,
+        error: res && res.error,
+        message: res && res.message
+      });
+      writeRecoveryDraft();
+      toast(
+        (res && res.message) ||
+          (offline ? 'Offline — changes stored locally' : 'Could not save workspace')
+      );
       return res;
     });
   }
@@ -462,6 +622,13 @@
     state.sharedDocument = normalizeDocument(loaded.document);
     state.sharedDirty = false;
     state.conflict = null;
+    state.lastActivity = {
+      revision: state.activeWorkspaceRevision,
+      updated_by: loaded.updated_by || null,
+      updated_at: loaded.updated_at || null,
+      name: null
+    };
+    setSaveStatus('saved');
     clearRemoteUpdateState();
     if (global.S) {
       global.S.studio = state.sharedDocument;
@@ -745,7 +912,13 @@
               role: loaded.role
             },
             loaded.document,
-            loaded.revision
+            loaded.revision,
+            {
+              revision: loaded.revision,
+              updated_by: loaded.updated_by || null,
+              updated_at: loaded.updated_at || null,
+              name: null
+            }
           );
           clearStudioView();
           state.switching = false;
@@ -796,8 +969,15 @@
           role: loaded.role || state.activeWorkspaceRole
         },
         loaded.document,
-        loaded.revision
+        loaded.revision,
+        {
+          revision: loaded.revision,
+          updated_by: loaded.updated_by || null,
+          updated_at: loaded.updated_at || null,
+          name: null
+        }
       );
+      setSaveStatus('saved');
       repairStudioView(prevView);
       if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.closeConflict) {
         global.PreShootWorkspaceUI.closeConflict();
@@ -817,7 +997,9 @@
     state.activeWorkspaceRevision = Number(serverRev) || state.activeWorkspaceRevision;
     state.sharedDirty = true;
     state.conflict = null;
+    setSaveStatus('dirty');
     clearRemoteUpdateState();
+    writeRecoveryDraft();
     if (global.S) {
       global.S.studio = state.sharedDocument;
       global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
@@ -826,11 +1008,154 @@
       global.PreShootWorkspaceUI.closeConflict();
     }
     refreshStudioUI();
-    toast('Kept your local changes — save to overwrite the latest server version');
-    return saveNow();
+    toast('Kept your local changes — save when ready to write them as a new revision');
+    return Promise.resolve({ ok: true, kept: true });
+  }
+
+  /**
+   * View-only: load a version snapshot into preview state.
+   * Does NOT mutate the active Studio document.
+   */
+  function viewVersion(versionId) {
+    if (!isShared()) return Promise.resolve({ ok: false });
+    var api = API();
+    if (!api) return Promise.resolve({ ok: false });
+    return api.getVersion(state.activeWorkspaceId, versionId).then(function (res) {
+      if (!res || !res.ok || !res.version) {
+        toast((res && res.error) || 'Could not load version');
+        return res || { ok: false };
+      }
+      state.versionPreview = {
+        id: res.version.id,
+        revision: res.version.revision,
+        document: normalizeDocument(res.version.document),
+        created_by: res.version.created_by,
+        created_at: res.version.created_at,
+        name: res.version.name,
+        reason: res.version.reason,
+        canRestore: !!res.canRestore
+      };
+      syncToS();
+      if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showVersionPreview) {
+        global.PreShootWorkspaceUI.showVersionPreview(state.versionPreview);
+      }
+      return { ok: true, version: state.versionPreview };
+    });
+  }
+
+  function clearVersionPreview() {
+    state.versionPreview = null;
+    syncToS();
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.hideVersionPreview) {
+      global.PreShootWorkspaceUI.hideVersionPreview();
+    }
+  }
+
+  /**
+   * Restore creates a NEW revision via optimistic concurrency.
+   * Stale expected revision → 409 (does not overwrite).
+   */
+  function restoreVersion(versionId) {
+    if (!isShared() || !canEdit()) {
+      toast('Only owners and editors can restore versions');
+      return Promise.resolve({ ok: false, error: 'forbidden' });
+    }
+    if (state.sharedDirty) {
+      var ok = confirm(
+        'You have unsaved changes. Restoring will replace them with the selected version as a new revision. Continue?'
+      );
+      if (!ok) return Promise.resolve({ ok: false, error: 'cancelled' });
+    }
+    var api = API();
+    if (!api) return Promise.resolve({ ok: false });
+    var expected = state.activeWorkspaceRevision;
+    setSaveStatus('saving');
+    return api.restoreVersion(state.activeWorkspaceId, versionId, expected).then(function (res) {
+      if (res && res.ok) {
+        state.activeWorkspaceRevision = res.revision;
+        state.sharedDocument = normalizeDocument(res.document);
+        state.sharedDirty = false;
+        state.conflict = null;
+        clearRemoteUpdateState();
+        clearRecoveryDraft(state.activeWorkspaceId);
+        clearVersionPreview();
+        state.lastLocalSave = {
+          workspaceId: state.activeWorkspaceId,
+          revision: Number(res.revision),
+          at: Date.now(),
+          updated_by: (global.S && global.S.authUser && global.S.authUser.id) || null
+        };
+        state.lastActivity = {
+          revision: Number(res.revision),
+          updated_by: res.updated_by || null,
+          updated_at: res.updated_at || new Date().toISOString(),
+          name: (global.S && global.S.profile && global.S.profile.name) || null
+        };
+        if (global.S) {
+          global.S.studio = state.sharedDocument;
+          global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
+        }
+        setSaveStatus('saved');
+        refreshStudioUI();
+        toast(
+          'Restored revision ' +
+            (res.restored_from_revision || '') +
+            ' as new revision ' +
+            res.revision
+        );
+        return res;
+      }
+      if (res && res.conflict) {
+        state.conflict = {
+          localDraft: exportSharedDocument(),
+          serverDocument: res.document,
+          revision: res.revision,
+          updated_at: res.updated_at,
+          updated_by: res.updated_by,
+          message:
+            'This workspace changed before restore completed. Review the latest revision, then try again.'
+        };
+        setSaveStatus('conflict');
+        if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showConflict) {
+          global.PreShootWorkspaceUI.showConflict(state.conflict);
+        }
+        return res;
+      }
+      setSaveStatus('error', { error: res && res.error, message: res && res.message });
+      toast((res && res.message) || 'Could not restore version');
+      return res;
+    });
+  }
+
+  function bindRecoveryLifecycle() {
+    if (typeof window === 'undefined') return;
+    window.addEventListener('beforeunload', function (e) {
+      if (!isShared() || !state.sharedDirty) return;
+      writeRecoveryDraft();
+      e.preventDefault();
+      e.returnValue = '';
+    });
+    window.addEventListener('pagehide', function () {
+      if (isShared() && state.sharedDirty) writeRecoveryDraft();
+    });
+    window.addEventListener('online', function () {
+      if (!isShared()) return;
+      if (state.saveStatus === 'offline') {
+        setSaveStatus(state.sharedDirty ? 'dirty' : 'saved');
+        if (state.sharedDirty) scheduleSave();
+      }
+    });
+    window.addEventListener('offline', function () {
+      if (!isShared()) return;
+      if (state.sharedDirty || state.saveStatus === 'saving') {
+        setSaveStatus('offline');
+        writeRecoveryDraft();
+      }
+    });
   }
 
   function bootstrap() {
+    bindRecoveryLifecycle();
     syncToS();
     if (!global.S || !global.S.authUser) return Promise.resolve();
     return refreshList(true).then(function () {
@@ -917,6 +1242,12 @@
     handleInviteToken: handleInviteToken,
     resolveConflictReload: resolveConflictReload,
     resolveConflictKeepLocal: resolveConflictKeepLocal,
+    viewVersion: viewVersion,
+    clearVersionPreview: clearVersionPreview,
+    restoreVersion: restoreVersion,
+    recoverPendingDraft: recoverPendingDraft,
+    discardPendingRecovery: discardPendingRecovery,
+    writeRecoveryDraft: writeRecoveryDraft,
     workspaceIdForUpload: workspaceIdForUpload,
     workspaceIdForDirector: workspaceIdForDirector,
     applyReadOnlyClass: applyReadOnlyClass,
@@ -927,6 +1258,7 @@
     keepLocalRemoteUpdate: keepLocalRemoteUpdate,
     fetchAndApplyRemote: fetchAndApplyRemote,
     repairStudioView: repairStudioView,
-    clearRemoteUpdateState: clearRemoteUpdateState
+    clearRemoteUpdateState: clearRemoteUpdateState,
+    setSaveStatus: setSaveStatus
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);

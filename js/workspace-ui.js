@@ -43,11 +43,19 @@
     var name = (ctx && ctx.activeWorkspaceName) || 'Personal';
     var kind = (ctx && ctx.activeWorkspaceKind) || 'personal';
     var role = ctx && ctx.isShared ? roleLabel(ctx.activeWorkspaceRole) : '';
-    var dirty = ctx && ctx.isShared && ctx.sharedDirty ? ' · Unsaved' : '';
+    var statusLabel = '';
+    if (ctx && ctx.isShared) {
+      var st = ctx.saveStatus || (ctx.sharedDirty ? 'dirty' : 'saved');
+      if (st === 'saving') statusLabel = ' · Saving…';
+      else if (st === 'dirty') statusLabel = ' · Unsaved';
+      else if (st === 'conflict') statusLabel = ' · Conflict';
+      else if (st === 'offline') statusLabel = ' · Offline';
+      else if (st === 'error') statusLabel = ' · Save failed';
+    }
     var sub =
       kind === 'shared'
-        ? role + dirty
-        : 'Personal Studio' + (ctx && ctx.sharedDirty ? '' : '');
+        ? role + statusLabel
+        : 'Personal Studio';
     return (
       '<button type="button" class="ws-switch-btn" onclick="PreShootWorkspaceUI.openSwitcher()" aria-haspopup="dialog">' +
       '<span class="ws-switch-btn-kicker">' +
@@ -63,19 +71,61 @@
     );
   }
 
+  function saveStatusLabel(status) {
+    switch (status) {
+      case 'saving':
+        return 'Saving…';
+      case 'dirty':
+        return 'Unsaved changes';
+      case 'conflict':
+        return 'Conflict — review required';
+      case 'offline':
+        return 'Offline — changes stored locally';
+      case 'error':
+        return 'Save failed — retry';
+      case 'saved':
+      default:
+        return 'Saved';
+    }
+  }
+
+  function saveStatusIndicatorHtml() {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    if (!ctx || !ctx.isShared) return '';
+    var st = ctx.saveStatus || 'saved';
+    return (
+      '<span class="ws-save-status ws-save-' +
+      esc(st) +
+      '" id="ws-save-status" title="' +
+      esc(saveStatusLabel(st)) +
+      '">' +
+      esc(saveStatusLabel(st)) +
+      '</span>'
+    );
+  }
+
   function studioHeaderActionsHtml() {
     var ctx = Ctx() ? Ctx().getContext() : null;
     var canEdit = !ctx || !ctx.isShared || ctx.canEdit;
     var h = '';
     h += workspaceSwitcherButtonHtml();
     if (ctx && ctx.isShared) {
+      h += saveStatusIndicatorHtml();
       h +=
         '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openMembers()">Members</button>';
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openHistory()">History</button>';
       if (ctx.remoteUpdate) {
         h +=
           '<button type="button" class="studio-btn ghost sm ws-remote-btn" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button>';
       }
-      if (ctx.sharedDirty || (global.PreShootStudio && PreShootStudio.isDirty && PreShootStudio.isDirty())) {
+      if (
+        ctx.saveStatus === 'dirty' ||
+        ctx.saveStatus === 'error' ||
+        ctx.saveStatus === 'offline' ||
+        ctx.sharedDirty ||
+        (global.PreShootStudio && PreShootStudio.isDirty && PreShootStudio.isDirty())
+      ) {
         h +=
           '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.saveShared()">Save</button>';
       }
@@ -439,12 +489,67 @@
 
   function showConflict(conflict) {
     var msg = document.getElementById('ws-conflict-msg');
+    var meta = document.getElementById('ws-conflict-meta');
+    var cmp = document.getElementById('ws-conflict-compare');
+    var who =
+      (conflict && (conflict.name || conflict.updated_by)) ||
+      null;
+    var when = conflict && conflict.updated_at ? relativeTime(conflict.updated_at) : '';
     if (msg) {
       msg.textContent =
         (conflict && conflict.message) ||
-        'This workspace was updated by someone else. Your local edits were kept.';
+        'This workspace changed while you were editing. Your local edits were kept.';
+    }
+    if (meta) {
+      meta.innerHTML =
+        '<div style="font-size:12px;color:var(--text3);line-height:1.5;margin:0 0 12px">' +
+        'Latest server revision: <strong style="color:var(--text2)">' +
+        esc(conflict && conflict.revision != null ? conflict.revision : '—') +
+        '</strong>' +
+        (who ? '<br>Last saved by: ' + esc(String(who).slice(0, 48)) : '') +
+        (when ? '<br>' + esc(when) : '') +
+        '</div>';
+    }
+    if (cmp) {
+      var api = API();
+      var diff =
+        api && api.summarizeDocumentDiff
+          ? api.summarizeDocumentDiff(
+              conflict && conflict.localDraft,
+              conflict && conflict.serverDocument
+            )
+          : null;
+      if (diff) {
+        cmp.innerHTML =
+          '<div style="font-size:12px;color:var(--text2);margin:0 0 14px;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px">' +
+          '<div style="font-weight:600;margin-bottom:4px">Compare summary</div>' +
+          '<div>' +
+          esc(diff.summary) +
+          '</div>' +
+          '<div style="margin-top:6px;color:var(--text3)">Your projects: ' +
+          diff.localProjects +
+          ' · Server projects: ' +
+          diff.serverProjects +
+          '</div></div>';
+      } else {
+        cmp.innerHTML = '';
+      }
     }
     openM('ws-conflict-modal');
+  }
+
+  function relativeTime(iso) {
+    try {
+      var t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return '';
+      var sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+      if (sec < 60) return 'just now';
+      if (sec < 3600) return Math.floor(sec / 60) + ' minutes ago';
+      if (sec < 86400) return Math.floor(sec / 3600) + ' hours ago';
+      return new Date(t).toLocaleString();
+    } catch (e) {
+      return '';
+    }
   }
 
   function closeConflict() {
@@ -459,6 +564,194 @@
   function conflictKeep() {
     if (!Ctx()) return;
     Ctx().resolveConflictKeepLocal();
+  }
+
+  function conflictCompare() {
+    /* Compare summary is already rendered in showConflict */
+    var cmp = document.getElementById('ws-conflict-compare');
+    if (cmp) cmp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function openHistory() {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    var api = API();
+    if (!ctx || !ctx.isShared || !api) return;
+    var body = document.getElementById('ws-history-body');
+    if (body) body.innerHTML = '<div class="pw-section-sub">Loading…</div>';
+    openM('ws-history-modal');
+    api.listVersions(ctx.activeWorkspaceId).then(function (res) {
+      if (!body) return;
+      if (!res || !res.ok) {
+        body.innerHTML =
+          '<div class="pw-section-sub">' + esc((res && res.error) || 'Could not load history') + '</div>';
+        return;
+      }
+      var versions = res.versions || [];
+      var canRestore = !!res.canRestore;
+      var act = ctx.lastActivity;
+      var h = '';
+      if (act && act.revision) {
+        h +=
+          '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">Current revision ' +
+          esc(String(act.revision)) +
+          (act.updated_at ? ' · ' + esc(relativeTime(act.updated_at)) : '') +
+          '</div>';
+      }
+      if (!versions.length) {
+        h += '<div class="pw-section-sub">No saved versions yet. Versions appear after successful saves.</div>';
+        body.innerHTML = h;
+        return;
+      }
+      versions.forEach(function (v) {
+        var who = v.name || (v.email ? String(v.email).split('@')[0] : null) || 'Collaborator';
+        var reason = v.reason === 'restore' ? ' · restored' : '';
+        h +=
+          '<div class="ws-history-row" style="padding:12px 0;border-bottom:1px solid var(--border)">' +
+          '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
+          '<div style="min-width:0">' +
+          '<div style="font-family:var(--fd);font-weight:700;font-size:14px">Revision ' +
+          esc(String(v.revision)) +
+          reason +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:3px">' +
+          esc(who) +
+          ' — ' +
+          esc(relativeTime(v.created_at) || '') +
+          '</div></div>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">' +
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.viewHistoryVersion(\'' +
+          esc(v.id) +
+          '\')">View</button>' +
+          (canRestore
+            ? '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.restoreHistoryVersion(\'' +
+              esc(v.id) +
+              '\')">Restore</button>'
+            : '') +
+          '</div></div></div>';
+      });
+      h +=
+        '<div style="font-size:11px;color:var(--text3);margin-top:12px">Keeps the latest ' +
+        esc(String(res.retention || 12)) +
+        ' successful saves.</div>';
+      body.innerHTML = h;
+    });
+  }
+
+  function viewHistoryVersion(versionId) {
+    if (!Ctx()) return;
+    Ctx().viewVersion(versionId);
+  }
+
+  function showVersionPreview(preview) {
+    var body = document.getElementById('ws-version-preview-body');
+    if (!body || !preview) return;
+    var doc = preview.document || {};
+    var projects = Array.isArray(doc.projects) ? doc.projects : [];
+    var prodCount = 0;
+    projects.forEach(function (p) {
+      prodCount += (p.productions && p.productions.length) || 0;
+    });
+    var who = preview.name || 'Collaborator';
+    body.innerHTML =
+      '<div style="padding:10px 12px;margin-bottom:12px;background:rgba(212,168,83,.12);border:1px solid rgba(212,168,83,.35);border-radius:8px;font-size:13px;color:var(--text2);line-height:1.5">' +
+      'Viewing an older version. Your current workspace has not been changed.' +
+      '</div>' +
+      '<div style="font-family:var(--fd);font-weight:700;font-size:16px;margin-bottom:4px">Revision ' +
+      esc(String(preview.revision)) +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">' +
+      esc(who) +
+      (preview.created_at ? ' — ' + esc(relativeTime(preview.created_at)) : '') +
+      (preview.reason === 'restore' ? ' · restore snapshot' : '') +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--text2);line-height:1.6">' +
+      esc(String(projects.length)) +
+      ' projects · ' +
+      esc(String(prodCount)) +
+      ' productions</div>' +
+      (projects.length
+        ? '<ul style="margin:12px 0 0;padding-left:18px;font-size:13px;color:var(--text2)">' +
+          projects
+            .slice(0, 12)
+            .map(function (p) {
+              return '<li>' + esc(p.name || 'Untitled') + '</li>';
+            })
+            .join('') +
+          (projects.length > 12 ? '<li>…</li>' : '') +
+          '</ul>'
+        : '') +
+      '<div style="display:flex;gap:8px;margin-top:18px">' +
+      '<button type="button" class="studio-btn ghost" style="flex:1" onclick="PreShootWorkspaceUI.closeVersionPreview()">Close</button>' +
+      (preview.canRestore
+        ? '<button type="button" class="studio-btn primary" style="flex:1" onclick="PreShootWorkspaceUI.restoreHistoryVersion(\'' +
+          esc(preview.id) +
+          '\')">Restore</button>'
+        : '') +
+      '</div>';
+    openM('ws-version-preview-modal');
+  }
+
+  function hideVersionPreview() {
+    closeM('ws-version-preview-modal');
+  }
+
+  function closeVersionPreview() {
+    if (Ctx() && Ctx().clearVersionPreview) Ctx().clearVersionPreview();
+    hideVersionPreview();
+  }
+
+  function restoreHistoryVersion(versionId) {
+    if (!Ctx()) return;
+    var ok = confirm(
+      'Restore this version as a new revision? Previous revisions stay in history.'
+    );
+    if (!ok) return;
+    Ctx().restoreVersion(versionId).then(function (res) {
+      if (res && res.ok) {
+        closeM('ws-history-modal');
+        closeVersionPreview();
+        if (global.PreShootStudioUI) PreShootStudioUI.renderStudio();
+      }
+    });
+  }
+
+  function showRecoveryPrompt(info) {
+    var el = document.getElementById('ws-recovery-banner');
+    var t = document.getElementById('ws-recovery-banner-text');
+    if (!el) return;
+    el.hidden = false;
+    if (t) {
+      t.textContent =
+        'Unsaved changes from your previous session were found' +
+        (info && info.savedAt ? ' (' + relativeTime(new Date(info.savedAt).toISOString()) + ')' : '') +
+        '.';
+    }
+  }
+
+  function hideRecoveryPrompt() {
+    var el = document.getElementById('ws-recovery-banner');
+    if (el) el.hidden = true;
+  }
+
+  function recoverSessionDraft() {
+    if (!Ctx()) return;
+    Ctx().recoverPendingDraft();
+    hideRecoveryPrompt();
+    refreshChrome();
+    if (global.PreShootStudioUI) PreShootStudioUI.renderStudio();
+  }
+
+  function discardSessionDraft() {
+    if (!Ctx()) return;
+    Ctx().discardPendingRecovery();
+    hideRecoveryPrompt();
+  }
+
+  function onSaveStatus() {
+    refreshChrome();
+    if (global.S && global.S.tab === 'studio' && global.PreShootStudioUI && PreShootStudioUI.renderStudio) {
+      /* Light refresh of chrome only via render is heavy — refreshChrome covers indicator */
+    }
   }
 
   function onRemoteUpdateAvailable(info) {
@@ -552,6 +845,7 @@
   global.PreShootWorkspaceUI = {
     workspaceSwitcherButtonHtml: workspaceSwitcherButtonHtml,
     studioHeaderActionsHtml: studioHeaderActionsHtml,
+    saveStatusIndicatorHtml: saveStatusIndicatorHtml,
     refreshChrome: refreshChrome,
     openSwitcher: openSwitcher,
     choosePersonal: choosePersonal,
@@ -559,6 +853,12 @@
     openCreate: openCreate,
     submitCreate: submitCreate,
     openMembers: openMembers,
+    openHistory: openHistory,
+    viewHistoryVersion: viewHistoryVersion,
+    restoreHistoryVersion: restoreHistoryVersion,
+    showVersionPreview: showVersionPreview,
+    hideVersionPreview: hideVersionPreview,
+    closeVersionPreview: closeVersionPreview,
     saveShared: saveShared,
     changeRole: changeRole,
     removeMember: removeMember,
@@ -569,13 +869,19 @@
     closeConflict: closeConflict,
     conflictReload: conflictReload,
     conflictKeep: conflictKeep,
+    conflictCompare: conflictCompare,
     onSaveOk: onSaveOk,
+    onSaveStatus: onSaveStatus,
     onRemoteUpdateAvailable: onRemoteUpdateAvailable,
     syncRemoteBanner: syncRemoteBanner,
     reviewRemoteUpdate: reviewRemoteUpdate,
     keepLocalChanges: keepLocalChanges,
     dismissRemoteUpdate: dismissRemoteUpdate,
     hideRemoteBanner: hideRemoteBanner,
+    showRecoveryPrompt: showRecoveryPrompt,
+    hideRecoveryPrompt: hideRecoveryPrompt,
+    recoverSessionDraft: recoverSessionDraft,
+    discardSessionDraft: discardSessionDraft,
     consumeInviteFromUrl: consumeInviteFromUrl
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);

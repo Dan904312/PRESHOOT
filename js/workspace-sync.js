@@ -69,29 +69,49 @@
       .then(function (res) {
         return res.json().then(function (data) {
           var conflict = res.status === 409 || (data && data.error === 'revision_conflict');
+          var status = res.status;
+          var error = data && data.error;
+          if (conflict) {
+            error = error || 'revision_conflict';
+          } else if (!res.ok) {
+            if (status === 401) error = error || 'unauthorized';
+            else if (status === 403) error = error || 'forbidden';
+            else if (status === 404) error = error || 'not_found';
+            else if (status === 422) error = error || 'invalid';
+            else if (status === 429) error = error || 'rate_limited';
+            else if (status >= 500) error = error || 'server_error';
+          }
           return {
             ok: !!(res.ok && data && data.ok),
-            status: res.status,
+            status: status,
             conflict: conflict,
             /* Preserve caller's unsaved work — UI must warn, not discard */
-            localDraft: conflict ? localDraft : null,
+            localDraft: conflict || !res.ok ? localDraft : null,
             document: data && data.document,
             revision: data && data.revision,
             updated_at: data && data.updated_at,
             updated_by: data && data.updated_by,
-            error: data && data.error,
+            error: error,
             message:
               (data && data.message) ||
               (conflict
-                ? 'Someone else saved this workspace. Your local edits were kept — reload the latest version or merge carefully.'
-                : null)
+                ? 'This workspace changed while you were editing. Your local edits were kept.'
+                : status === 429
+                  ? 'Too many save requests. Try again shortly.'
+                  : status === 403
+                    ? 'You do not have permission to save this workspace.'
+                    : status >= 500
+                      ? 'Server error while saving. Your changes are still local.'
+                      : null)
           };
         });
       })
       .catch(function (err) {
         return {
           ok: false,
+          status: 0,
           error: 'network_error',
+          offline: typeof navigator !== 'undefined' && navigator.onLine === false,
           message: String(err && err.message),
           localDraft: localDraft
         };
@@ -323,6 +343,177 @@
     return role === 'owner';
   }
 
+  function listVersions(workspaceId) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/versions', {
+      method: 'GET'
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            versions: (data && data.versions) || [],
+            retention: data && data.retention,
+            canRestore: !!(data && data.canRestore),
+            role: data && data.role,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function getVersion(workspaceId, versionId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/versions/' +
+        encodeURIComponent(versionId),
+      { method: 'GET' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            version: data && data.version,
+            canRestore: !!(data && data.canRestore),
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function restoreVersion(workspaceId, versionId, expectedCurrentRevision) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/versions/' +
+        encodeURIComponent(versionId) +
+        '/restore',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revision: expectedCurrentRevision })
+      }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          var conflict = res.status === 409 || (data && data.error === 'revision_conflict');
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            conflict: conflict,
+            revision: data && data.revision,
+            document: data && data.document,
+            updated_at: data && data.updated_at,
+            updated_by: data && data.updated_by,
+            restored_from_revision: data && data.restored_from_revision,
+            error: data && data.error,
+            message: data && data.message
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  /**
+   * Structured compare for conflict UI — not a merge engine.
+   */
+  function summarizeDocumentDiff(localDoc, serverDoc) {
+    var local = localDoc && typeof localDoc === 'object' ? localDoc : { projects: [] };
+    var server = serverDoc && typeof serverDoc === 'object' ? serverDoc : { projects: [] };
+    var lp = Array.isArray(local.projects) ? local.projects : [];
+    var sp = Array.isArray(server.projects) ? server.projects : [];
+    var lMap = {};
+    var sMap = {};
+    lp.forEach(function (p) {
+      if (p && p.id) lMap[p.id] = p;
+    });
+    sp.forEach(function (p) {
+      if (p && p.id) sMap[p.id] = p;
+    });
+    var added = [];
+    var removed = [];
+    var changed = [];
+    Object.keys(lMap).forEach(function (id) {
+      if (!sMap[id]) added.push({ type: 'project', id: id, name: lMap[id].name || 'Untitled' });
+    });
+    Object.keys(sMap).forEach(function (id) {
+      if (!lMap[id]) removed.push({ type: 'project', id: id, name: sMap[id].name || 'Untitled' });
+    });
+    Object.keys(lMap).forEach(function (id) {
+      if (!sMap[id]) return;
+      var lpj = lMap[id];
+      var spj = sMap[id];
+      var lProds = Array.isArray(lpj.productions) ? lpj.productions : [];
+      var sProds = Array.isArray(spj.productions) ? spj.productions : [];
+      var lPm = {};
+      var sPm = {};
+      lProds.forEach(function (x) {
+        if (x && x.id) lPm[x.id] = x;
+      });
+      sProds.forEach(function (x) {
+        if (x && x.id) sPm[x.id] = x;
+      });
+      Object.keys(lPm).forEach(function (pid) {
+        if (!sPm[pid]) {
+          added.push({
+            type: 'production',
+            id: pid,
+            name: lPm[pid].name || 'Untitled',
+            project: lpj.name || 'Project'
+          });
+          return;
+        }
+        var prod = lPm[pid];
+        var sprod = sPm[pid];
+        var lShots = Array.isArray(prod.shots) ? prod.shots.length : 0;
+        var sShots = Array.isArray(sprod.shots) ? sprod.shots.length : 0;
+        var lScript = String((prod.script && prod.script.body) || prod.script || '');
+        var sScript = String((sprod.script && sprod.script.body) || sprod.script || '');
+        if (lShots !== sShots || lScript !== sScript || String(prod.name || '') !== String(sprod.name || '')) {
+          changed.push({
+            type: 'production',
+            id: pid,
+            name: prod.name || sprod.name || 'Untitled',
+            detail:
+              (lScript !== sScript ? 'script' : '') +
+              (lShots !== sShots ? (lScript !== sScript ? ', shots' : 'shots') : '')
+          });
+        }
+      });
+      Object.keys(sPm).forEach(function (pid) {
+        if (!lPm[pid]) {
+          removed.push({
+            type: 'production',
+            id: pid,
+            name: sPm[pid].name || 'Untitled',
+            project: spj.name || 'Project'
+          });
+        }
+      });
+    });
+    return {
+      localProjects: lp.length,
+      serverProjects: sp.length,
+      added: added,
+      removed: removed,
+      changed: changed,
+      summary:
+        added.length || removed.length || changed.length
+          ? added.length + ' added · ' + removed.length + ' removed · ' + changed.length + ' changed'
+          : 'Same project/production structure (deeper field diffs may still exist)'
+    };
+  }
+
   global.PreShootWorkspaces = {
     loadSharedWorkspace: loadSharedWorkspace,
     saveSharedWorkspace: saveSharedWorkspace,
@@ -336,6 +527,10 @@
     updateMemberRole: updateMemberRole,
     removeMember: removeMember,
     patchWorkspace: patchWorkspace,
+    listVersions: listVersions,
+    getVersion: getVersion,
+    restoreVersion: restoreVersion,
+    summarizeDocumentDiff: summarizeDocumentDiff,
     canEditRole: canEditRole,
     canManageMembersRole: canManageMembersRole
   };
