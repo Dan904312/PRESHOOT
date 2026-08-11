@@ -48,7 +48,7 @@ await test('SQL private channel policies exist; no client INSERT', () => {
   assert.ok(sql.includes('workspace_id_from_realtime_topic'));
   assert.ok(sql.includes('No authenticated INSERT') || sql.includes('service_role only'));
   assert.ok(!/FOR INSERT[\s\S]*TO authenticated/i.test(sql));
-  assert.ok(sql.includes("extension = 'presence'")); /* future-ready receive */
+  assert.ok(sql.includes("extension = 'presence'")); /* presence receive (5B adds INSERT separately) */
 });
 
 await test('server broadcasts metadata-only after save', () => {
@@ -72,7 +72,8 @@ await test('client realtime module is private + loop-safe hooks', () => {
   assert.ok(src.includes('workspace.updated'));
   assert.ok(src.includes('shouldIgnoreRealtimeRevision') || src.includes('handleBroadcast'));
   assert.ok(!/cursor|CRDT|operational.?transform|typing/i.test(src));
-  assert.ok(!src.includes('track(')); /* no presence track */
+  /* Presence track added in Phase 5B — still no document payloads */
+  assert.ok(!/script contents|document:/.test(src) || src.includes('Never broadcasts documents'));
 });
 
 await test('workspace context protects dirty local state', () => {

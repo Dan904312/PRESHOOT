@@ -34,12 +34,12 @@ test('workspace context layer exists', () => {
   assert.ok(!src.includes('CRDT') && !src.includes('websocket'));
 });
 
-test('workspace UI exists without realtime', () => {
+test('workspace UI exists without cursors/CRDT', () => {
   const src = fs.readFileSync(path.join(root, 'js/workspace-ui.js'), 'utf8');
   assert.ok(src.includes('openSwitcher'));
   assert.ok(src.includes('showConflict'));
   assert.ok(src.includes('sendInvite'));
-  assert.ok(!/presence|live.?cursor|typing.?indicator/i.test(src));
+  assert.ok(!/live.?cursor|typing.?indicator|CRDT|character-level/i.test(src));
 });
 
 test('studio.js keeps personal and shared stores separate', () => {

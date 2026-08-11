@@ -97,7 +97,7 @@ test('client has change helpers, editing context, same-entity banner', () => {
   assert.ok(ctx.includes('getEditingContext'));
   assert.ok(ui.includes('Another collaborator changed this production'));
   assert.ok(ui.includes('Your revision:'));
-  assert.ok(!/CRDT|operational transform|live cursor|presence UI/i.test(ctx));
+  assert.ok(!/CRDT|operational transform|live cursor|character-level/i.test(ctx));
 });
 
 test('Director sets accurate change hints before shared save', () => {
