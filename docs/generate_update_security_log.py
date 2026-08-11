@@ -30,8 +30,8 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.13.0"
-LAST_UPDATED = "2026-08-10"
+CURRENT_VERSION = "v2.14.0"
+LAST_UPDATED = "2026-08-11"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
 
@@ -40,6 +40,52 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0028",
+        "version": "v2.14.0",
+        "date": "2026-08-11",
+        "categories": ["Feature", "Realtime", "Frontend", "UX"],
+        "title": "Collaborative Workspaces Phase 5B — presence & collaboration UX",
+        "what_changed": (
+            "Ephemeral Supabase Presence on private workspace channels; people chip + sheet; "
+            "activity panel with filters; same-production remote-change banners; grouped "
+            "notifications; Director shared activity context. Fixed realtime dropping Phase 5A "
+            "change fields. No CRDT/OT/cursors/comments/chat. No new Serverless Functions."
+        ),
+        "files": [
+            "supabase_workspaces_phase5b_presence.sql",
+            "supabase_setup.sql",
+            "js/workspace-realtime.js",
+            "js/workspace-context.js",
+            "js/workspace-ui.js",
+            "js/workspace-changes.js",
+            "js/studio-ui.js",
+            "app.html",
+            "tests/workspaces-phase5b.test.mjs",
+            "tests/workspaces-phase1.test.mjs",
+            "tests/workspaces-phase2.test.mjs",
+            "tests/workspaces-phase3a.test.mjs",
+            "tests/workspaces-phase5a.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Collaborators lacked who-is-here awareness; realtime handler dropped change "
+            "metadata so same-entity UX could not work; activity lived only in History modal."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Presence INSERT must stay member-scoped; presence payloads must never include documents."
+        ),
+        "fix_applied": (
+            "Member-only presence INSERT RLS; ephemeral track/untrack on workspace switch; "
+            "forward change fields in handleBroadcast; dirty same-production Review/Keep Editing."
+        ),
+        "testing": "npm test (Phase 1–5B + Hobby budget=12).",
+        "git": None,
+    },
     {
         "id": "UPDATE-0027",
         "version": "v2.13.0",
@@ -1464,6 +1510,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.14.0",
+        "date": "2026-08-11",
+        "label": "Collaborative Workspaces Phase 5B (presence & collab UX)",
+        "changes": [
+            "Ephemeral workspace presence + activity panel + smarter remote-change UX (UPDATE-0028)",
+            "Realtime now forwards Phase 5A change metadata to clients",
+        ],
+    },
     {
         "version": "v2.13.0",
         "date": "2026-08-10",
