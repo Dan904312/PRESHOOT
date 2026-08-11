@@ -32,9 +32,16 @@
     versionPreview: null /* view-only snapshot; does not mutate active doc */,
     pendingRecovery: null /* { workspaceId, document, revision, savedAt } prompt */,
     pendingChangeHint: null /* optional client hint; server re-validates */,
+    presence: [], /* ephemeral collaborators from realtime presence */
+    recentActivity: [], /* last fetched version/activity rows for Director/UI */
+    notifyQueue: [], /* for grouping rapid remote toasts */
     list: [],
     listLoadedAt: 0
   };
+
+  var _notifyTimer = null;
+  var _lastNotifyKey = '';
+  var _lastNotifyAt = 0;
 
   var _saveTimer = null;
   var _switchToken = 0;
@@ -250,6 +257,9 @@
     }
     if (state.saveStatus !== 'conflict') setSaveStatus('dirty');
     writeRecoveryDraft();
+    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
+      PreShootWorkspaceRealtime.scheduleTrack();
+    }
   }
 
   function setPendingChangeHint(hint) {
@@ -294,6 +304,8 @@
       pendingRecovery: state.pendingRecovery,
       pendingChangeHint: state.pendingChangeHint,
       editingContext: getEditingContext(),
+      presence: state.presence.slice(),
+      recentActivity: state.recentActivity.slice(),
       list: state.list.slice()
     };
   }
@@ -440,6 +452,9 @@
     state.lastActivity = null;
     state.versionPreview = null;
     state.pendingRecovery = null;
+    state.presence = [];
+    state.recentActivity = [];
+    state.notifyQueue = [];
     clearRemoteUpdateState();
     state.lastLocalSave = null;
     ss(ACTIVE_KEY, 'personal');
@@ -465,6 +480,7 @@
       updated_at: (activity && activity.updated_at) || null,
       name: (activity && activity.name) || null
     };
+    state.notifyQueue = [];
     clearRemoteUpdateState();
     ss(ACTIVE_KEY, meta.id);
     if (global.S) global.S.studio = state.sharedDocument;
@@ -473,6 +489,123 @@
     startRealtime(meta.id);
     /* Never auto-apply recovery — prompt only */
     checkPendingRecovery(meta.id);
+    refreshActivity(meta.id);
+  }
+
+  function onPresenceChanged(list) {
+    if (!isShared()) {
+      state.presence = [];
+      return;
+    }
+    state.presence = Array.isArray(list) ? list.slice() : [];
+    if (global.S) global.S.workspacePresence = state.presence.slice();
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.refreshPresence) {
+      global.PreShootWorkspaceUI.refreshPresence(state.presence);
+    }
+  }
+
+  function refreshActivity(workspaceId) {
+    var api = API();
+    var id = workspaceId || state.activeWorkspaceId;
+    if (!api || !id || !isShared()) {
+      state.recentActivity = [];
+      return Promise.resolve({ ok: false });
+    }
+    return api.listVersions(id).then(function (res) {
+      if (!isShared() || state.activeWorkspaceId !== id) return { ok: false, stale: true };
+      if (res && res.ok) {
+        state.recentActivity = (res.versions || []).slice(0, 30);
+      }
+      return res;
+    });
+  }
+
+  function presenceOnProduction(productionId) {
+    if (!productionId) return [];
+    var pid = String(productionId);
+    var me = global.S && global.S.authUser && global.S.authUser.id;
+    return state.presence.filter(function (p) {
+      return (
+        p &&
+        p.activeProductionId &&
+        String(p.activeProductionId) === pid &&
+        (!me || p.userId !== me)
+      );
+    });
+  }
+
+  function queueRemoteNotification(info) {
+    if (!info) return;
+    var change = info.change;
+    var label =
+      info.activity_label ||
+      (change &&
+        global.PreShootWorkspaceChanges &&
+        PreShootWorkspaceChanges.changeTypeLabel &&
+        PreShootWorkspaceChanges.changeTypeLabel(change.type)) ||
+      'Workspace updated';
+    var entity = (change && (change.entityLabel || change.entity_label)) || '';
+    var key =
+      (change && change.type) +
+      '|' +
+      ((change && change.productionId) || '') +
+      '|' +
+      info.revision;
+    state.notifyQueue.push({
+      key: key,
+      sameEntity: !!info.sameEntity,
+      label: label,
+      entity: entity,
+      revision: info.revision,
+      at: Date.now()
+    });
+    if (_notifyTimer) clearTimeout(_notifyTimer);
+    _notifyTimer = setTimeout(flushRemoteNotifications, 700);
+  }
+
+  function flushRemoteNotifications() {
+    _notifyTimer = null;
+    if (!state.notifyQueue.length) return;
+    var items = state.notifyQueue.slice();
+    state.notifyQueue = [];
+    var same = items.filter(function (i) {
+      return i.sameEntity;
+    });
+    var other = items.filter(function (i) {
+      return !i.sameEntity;
+    });
+
+    if (same.length) {
+      var s = same[same.length - 1];
+      var msg =
+        s.entity
+          ? 'Production updated — "' + s.entity + '"'
+          : 'This production was updated by a collaborator';
+      if (state.sharedDirty) {
+        msg =
+          'A collaborator updated this production while you have unsaved changes.';
+      }
+      /* Same-entity: banner already covers Review; toast once */
+      var nkey = 'same|' + s.revision;
+      if (nkey !== _lastNotifyKey || Date.now() - _lastNotifyAt > 8000) {
+        _lastNotifyKey = nkey;
+        _lastNotifyAt = Date.now();
+        toast(msg);
+      }
+    } else if (other.length) {
+      var o = other[other.length - 1];
+      var okey = 'other|' + o.key;
+      if (okey === _lastNotifyKey && Date.now() - _lastNotifyAt < 5000) return;
+      _lastNotifyKey = okey;
+      _lastNotifyAt = Date.now();
+      if (other.length >= 3) {
+        toast('Collaborators made ' + other.length + ' updates');
+      } else {
+        toast(
+          o.label + (o.entity ? ' — "' + o.entity + '"' : '')
+        );
+      }
+    }
   }
 
   function loadPersonalIntoStudio() {
@@ -582,6 +715,10 @@
           activity_label: res.activity_label || null
         };
         setSaveStatus('saved');
+        if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
+          PreShootWorkspaceRealtime.scheduleTrack();
+        }
+        refreshActivity(workspaceId);
         if (global.S) {
           global.S.studio = state.sharedDocument;
           global.S.activeWorkspaceRevision = state.activeWorkspaceRevision;
@@ -788,14 +925,10 @@
         activity_label: evt.activity_label || null
       };
       syncToS();
+      queueRemoteNotification(state.remoteUpdate);
+      refreshActivity(state.activeWorkspaceId);
       if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.onRemoteUpdateAvailable) {
         global.PreShootWorkspaceUI.onRemoteUpdateAvailable(state.remoteUpdate);
-      } else {
-        toast(
-          sameEntity
-            ? 'Another collaborator changed this production while you were editing it.'
-            : 'This workspace was updated by another collaborator.'
-        );
       }
       return;
     }
@@ -822,6 +955,8 @@
       sameEntity: sameEntity,
       activity_label: evt.activity_label || null
     };
+    queueRemoteNotification(state.remoteUpdate);
+    refreshActivity(state.activeWorkspaceId);
     fetchAndApplyRemote(evt.gap ? 'revision_gap' : 'remote_update');
   }
 
@@ -925,6 +1060,10 @@
     clearTimeout(_saveTimer);
     _saveTimer = null;
     clearRemoteUpdateState();
+    state.presence = [];
+    state.recentActivity = [];
+    state.notifyQueue = [];
+    if (global.S) global.S.workspacePresence = [];
     _fetchToken += 1;
     _fetching = false;
     syncToS();
@@ -1335,6 +1474,9 @@
     shouldIgnoreRealtimeRevision: shouldIgnoreRealtimeRevision,
     onRemoteWorkspaceUpdated: onRemoteWorkspaceUpdated,
     onRealtimeReconnected: onRealtimeReconnected,
+    onPresenceChanged: onPresenceChanged,
+    refreshActivity: refreshActivity,
+    presenceOnProduction: presenceOnProduction,
     reviewRemoteUpdate: reviewRemoteUpdate,
     keepLocalRemoteUpdate: keepLocalRemoteUpdate,
     fetchAndApplyRemote: fetchAndApplyRemote,

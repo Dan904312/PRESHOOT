@@ -250,13 +250,29 @@
   function openProject(projectId) {
     if (!global.S) return;
     global.S.studioView = { mode: 'project', projectId: projectId };
+    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
+      PreShootWorkspaceRealtime.scheduleTrack();
+    }
     renderStudio();
   }
 
   function openProduction(productionId) {
     if (!global.S) return;
     Studio().setContinueWorking(productionId);
-    global.S.studioView = { mode: 'production', productionId: productionId, section: 'overview' };
+    var projectId = null;
+    try {
+      var found = Studio().findProduction(productionId);
+      if (found && found.project) projectId = found.project.id;
+    } catch (e) {}
+    global.S.studioView = {
+      mode: 'production',
+      projectId: projectId,
+      productionId: productionId,
+      section: 'overview'
+    };
+    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
+      PreShootWorkspaceRealtime.scheduleTrack();
+    }
     if (typeof global.goTab === 'function') global.goTab('studio');
     else renderStudio();
   }
@@ -264,6 +280,9 @@
   function backToList() {
     if (!global.S) return;
     global.S.studioView = { mode: 'list' };
+    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
+      PreShootWorkspaceRealtime.scheduleTrack();
+    }
     renderStudio();
   }
 
@@ -2973,6 +2992,9 @@
     h += '<div class="studio-hd-text">';
     h += '<div class="studio-eyebrow">' + esc(project.name) + '</div>';
     h += '<div class="studio-title">' + esc(prod.name) + '</div>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.productionPresenceHtml) {
+      h += PreShootWorkspaceUI.productionPresenceHtml(productionId);
+    }
     var healthScore = Studio().computeProductionHealth
       ? Studio().computeProductionHealth(prod).score
       : prod.healthScore || 0;
@@ -3000,6 +3022,9 @@
       esc(productionId) +
       '\')" aria-label="Production options">⋯</button>';
     h += '</div>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.productionActivityHtml) {
+      h += PreShootWorkspaceUI.productionActivityHtml(productionId);
+    }
 
     h += '<div id="st-production-menu" class="st-overflow-menu" hidden>';
     h +=
@@ -3090,11 +3115,21 @@
 
   function setProdSection(productionId, section) {
     if (!global.S) return;
+    var projectId =
+      (global.S.studioView && global.S.studioView.projectId) || null;
+    try {
+      var found = Studio().findProduction(productionId);
+      if (found && found.project) projectId = found.project.id;
+    } catch (e) {}
     global.S.studioView = {
       mode: 'production',
+      projectId: projectId,
       productionId: productionId,
       section: section || 'overview'
     };
+    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
+      PreShootWorkspaceRealtime.scheduleTrack();
+    }
     renderStudio();
   }
 

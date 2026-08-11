@@ -242,25 +242,43 @@
 
   function editingContextFromStudio() {
     var view = global.S && global.S.studioView;
-    if (!view) return { activeProjectId: null, activeProductionId: null, activeEntity: null };
-    if (view.mode === 'production' && view.productionId) {
+    if (!view) {
       return {
-        activeProjectId: view.projectId || null,
+        activeProjectId: null,
+        activeProductionId: null,
+        activeEntity: null,
+        activeSection: null
+      };
+    }
+    var section = view.section || null;
+    if (view.mode === 'production' && view.productionId) {
+      var projectId = view.projectId || null;
+      if (!projectId && global.PreShootStudio && PreShootStudio.findProduction) {
+        try {
+          var hit = PreShootStudio.findProduction(view.productionId);
+          if (hit && hit.project) projectId = hit.project.id;
+        } catch (e) {}
+      }
+      return {
+        activeProjectId: projectId,
         activeProductionId: view.productionId,
-        activeEntity: 'production'
+        activeEntity: 'production',
+        activeSection: section || 'overview'
       };
     }
     if (view.mode === 'project' && view.projectId) {
       return {
         activeProjectId: view.projectId,
         activeProductionId: null,
-        activeEntity: 'project'
+        activeEntity: 'project',
+        activeSection: null
       };
     }
     return {
       activeProjectId: view.projectId || null,
       activeProductionId: view.productionId || null,
-      activeEntity: null
+      activeEntity: null,
+      activeSection: section
     };
   }
 

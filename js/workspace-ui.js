@@ -44,6 +44,7 @@
     var kind = (ctx && ctx.activeWorkspaceKind) || 'personal';
     var role = ctx && ctx.isShared ? roleLabel(ctx.activeWorkspaceRole) : '';
     var statusLabel = '';
+    var peopleLabel = '';
     if (ctx && ctx.isShared) {
       var st = ctx.saveStatus || (ctx.sharedDirty ? 'dirty' : 'saved');
       if (st === 'saving') statusLabel = ' · Saving…';
@@ -51,10 +52,12 @@
       else if (st === 'conflict') statusLabel = ' · Conflict';
       else if (st === 'offline') statusLabel = ' · Offline';
       else if (st === 'error') statusLabel = ' · Save failed';
+      var n = (ctx.presence && ctx.presence.length) || 0;
+      if (n > 0) peopleLabel = ' · ' + n + (n === 1 ? ' person' : ' people');
     }
     var sub =
       kind === 'shared'
-        ? role + statusLabel
+        ? 'Shared · ' + role + peopleLabel + statusLabel
         : 'Personal Studio';
     return (
       '<button type="button" class="ws-switch-btn" onclick="PreShootWorkspaceUI.openSwitcher()" aria-haspopup="dialog">' +
@@ -69,6 +72,86 @@
         : '') +
       '</button>'
     );
+  }
+
+  function presenceChipHtml() {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    if (!ctx || !ctx.isShared) return '';
+    var list = ctx.presence || [];
+    var me = global.S && global.S.authUser && global.S.authUser.id;
+    var others = list.filter(function (p) {
+      return p && p.userId && p.userId !== me;
+    });
+    var total = list.length || 1;
+    var names = others.slice(0, 2).map(function (p) {
+      return p.displayName || 'Someone';
+    });
+    var extra = others.length > 2 ? ' +' + (others.length - 2) : '';
+    var label =
+      names.length
+        ? names.join(' · ') + extra
+        : total <= 1
+          ? 'Just you'
+          : total + ' here';
+    return (
+      '<button type="button" class="ws-presence-chip" onclick="PreShootWorkspaceUI.openPeople()" title="People here">' +
+      '<span class="ws-presence-dot" aria-hidden="true"></span>' +
+      '<span class="ws-presence-label">' +
+      esc(label) +
+      '</span></button>'
+    );
+  }
+
+  function productionPresenceHtml(productionId) {
+    if (!Ctx() || !Ctx().presenceOnProduction || !productionId) return '';
+    var peers = Ctx().presenceOnProduction(productionId);
+    if (!peers.length) return '';
+    var lines = peers.slice(0, 3).map(function (p) {
+      var verb = p.editing ? 'editing' : 'viewing';
+      return esc(p.displayName || 'Collaborator') + ' is ' + verb + ' this production';
+    });
+    return (
+      '<div class="ws-prod-presence">' +
+      lines.map(function (l) {
+        return '<div class="ws-prod-presence-line">' + l + '</div>';
+      }).join('') +
+      '</div>'
+    );
+  }
+
+  function productionActivityHtml(productionId) {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    if (!ctx || !ctx.isShared || !productionId) return '';
+    var rows = (ctx.recentActivity || []).filter(function (v) {
+      var pid =
+        (v.change && v.change.productionId) ||
+        v.production_id ||
+        (v.change && v.change.production_id);
+      return pid && String(pid) === String(productionId);
+    }).slice(0, 4);
+    if (!rows.length) return '';
+    var h =
+      '<div class="ws-prod-activity"><div class="ws-prod-activity-hd">Recent activity</div>';
+    rows.forEach(function (v) {
+      var who = v.name || 'Collaborator';
+      var type =
+        v.type_label ||
+        (v.change &&
+          global.PreShootWorkspaceChanges &&
+          PreShootWorkspaceChanges.changeTypeLabel &&
+          PreShootWorkspaceChanges.changeTypeLabel(v.change.type)) ||
+        'Updated';
+      h +=
+        '<div class="ws-prod-activity-row">' +
+        esc(who) +
+        ' · ' +
+        esc(type) +
+        ' · ' +
+        esc(relativeTime(v.created_at) || '') +
+        '</div>';
+    });
+    h += '</div>';
+    return h;
   }
 
   function saveStatusLabel(status) {
@@ -110,7 +193,10 @@
     var h = '';
     h += workspaceSwitcherButtonHtml();
     if (ctx && ctx.isShared) {
+      h += presenceChipHtml();
       h += saveStatusIndicatorHtml();
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openActivity()">Activity</button>';
       h +=
         '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openMembers()">Members</button>';
       h +=
@@ -137,7 +223,7 @@
         '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
     } else {
       h +=
-        '<span class="ws-readonly-pill" title="Commenter and viewer roles are read-only">Read-only</span>';
+        '<span class="ws-readonly-pill" title="Commenter and viewer roles are read-only">Read only</span>';
     }
     return h;
   }
@@ -807,6 +893,10 @@
     }
     banner.hidden = false;
     var t = document.getElementById('ws-remote-banner-text');
+    var reviewBtn = banner.querySelector('[data-ws-review]');
+    var keepBtn = banner.querySelector('[data-ws-keep]');
+    if (reviewBtn) reviewBtn.textContent = info.sameEntity ? 'Review Changes' : 'Review latest';
+    if (keepBtn) keepBtn.textContent = info.sameEntity ? 'Keep Editing' : 'Keep my changes';
     if (t) {
       var change = info.change;
       var label =
@@ -817,7 +907,12 @@
         info.activity_label ||
         '';
       var entity = (change && (change.entityLabel || change.entity_label)) || '';
-      if (info.sameEntity) {
+      if (info.sameEntity && info.reason === 'same_entity_dirty') {
+        t.textContent =
+          'A collaborator updated this production while you have unsaved changes' +
+          (info.revision ? ' (revision ' + info.revision + ')' : '') +
+          '. Your local edits were kept.';
+      } else if (info.sameEntity) {
         t.textContent =
           'Another collaborator changed this production while you were editing it' +
           (info.revision ? ' (revision ' + info.revision + ')' : '') +
@@ -835,6 +930,155 @@
           '. Your local edits were kept.';
       }
     }
+  }
+
+  function openPeople() {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    var body = document.getElementById('ws-people-body');
+    if (!ctx || !ctx.isShared) return;
+    openM('ws-people-modal');
+    var list = ctx.presence || [];
+    var me = global.S && global.S.authUser && global.S.authUser.id;
+    if (!list.length) {
+      if (body) {
+        body.innerHTML =
+          '<div class="pw-section-sub">You’re here. Presence appears when collaborators join this workspace.</div>';
+      }
+      return;
+    }
+    var h = '';
+    list.forEach(function (p) {
+      var self = me && p.userId === me;
+      var where = '';
+      if (p.activeProductionId) {
+        where =
+          (p.editing ? 'Editing' : 'Viewing') +
+          (p.activeSection ? ' · ' + p.activeSection : '');
+      } else if (p.activeProjectId) {
+        where = 'In a project';
+      } else {
+        where = 'In workspace';
+      }
+      if (self && ctx.sharedDirty) where = 'You · Unsaved changes';
+      else if (self) where = 'You · ' + where;
+      h +=
+        '<div class="ws-people-row">' +
+        '<div class="ws-people-main">' +
+        '<div class="ws-people-name">' +
+        esc(p.displayName || 'Collaborator') +
+        (self ? ' (you)' : '') +
+        '</div>' +
+        '<div class="ws-people-meta">' +
+        esc(roleLabel(p.role || (self ? ctx.activeWorkspaceRole : ''))) +
+        ' · ' +
+        esc(where) +
+        '</div></div>' +
+        '<span class="ws-presence-dot" aria-hidden="true"></span></div>';
+    });
+    if (body) body.innerHTML = h;
+  }
+
+  function openActivity(filter) {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    var api = API();
+    if (!ctx || !ctx.isShared || !api) return;
+    var body = document.getElementById('ws-activity-body');
+    var tabs = document.getElementById('ws-activity-filters');
+    openM('ws-activity-modal');
+    if (tabs) {
+      var filters = [
+        ['all', 'All'],
+        ['projects', 'Projects'],
+        ['productions', 'Productions'],
+        ['scripts', 'Scripts'],
+        ['shotlists', 'Shot Lists'],
+        ['assets', 'Assets']
+      ];
+      var active = filter || 'all';
+      tabs.innerHTML = filters
+        .map(function (f) {
+          return (
+            '<button type="button" class="ws-activity-filter' +
+            (f[0] === active ? ' active' : '') +
+            '" onclick="PreShootWorkspaceUI.openActivity(\'' +
+            f[0] +
+            '\')">' +
+            f[1] +
+            '</button>'
+          );
+        })
+        .join('');
+    }
+    if (body) body.innerHTML = '<div class="pw-section-sub">Loading…</div>';
+    var load = Ctx().refreshActivity
+      ? Ctx().refreshActivity(ctx.activeWorkspaceId)
+      : api.listVersions(ctx.activeWorkspaceId);
+    load.then(function (res) {
+      var versions =
+        (Ctx().getContext && Ctx().getContext().recentActivity) ||
+        (res && res.versions) ||
+        [];
+      renderActivityList(body, versions, filter || 'all');
+    });
+  }
+
+  function activityMatchesFilter(v, filter) {
+    if (!filter || filter === 'all') return true;
+    var type = (v.change && v.change.type) || v.change_type || '';
+    if (filter === 'projects') return type.indexOf('project.') === 0;
+    if (filter === 'productions') return type.indexOf('production.') === 0;
+    if (filter === 'scripts') return type === 'script.updated';
+    if (filter === 'shotlists') return type === 'shotlist.updated';
+    if (filter === 'assets') return type === 'assets.updated' || type === 'references.updated';
+    return true;
+  }
+
+  function renderActivityList(body, versions, filter) {
+    if (!body) return;
+    var rows = (versions || []).filter(function (v) {
+      return activityMatchesFilter(v, filter);
+    });
+    if (!rows.length) {
+      body.innerHTML = '<div class="pw-section-sub">No activity yet for this filter.</div>';
+      return;
+    }
+    var h = '';
+    rows.forEach(function (v) {
+      var who = v.name || 'Collaborator';
+      var type =
+        v.type_label ||
+        (v.change &&
+          global.PreShootWorkspaceChanges &&
+          PreShootWorkspaceChanges.changeTypeLabel &&
+          PreShootWorkspaceChanges.changeTypeLabel(v.change.type)) ||
+        (v.reason === 'restore' ? 'Version restored' : 'Workspace updated');
+      var entity = v.entity_label || (v.change && v.change.entityLabel) || '';
+      h +=
+        '<div class="ws-activity-row">' +
+        '<span class="ws-presence-dot" aria-hidden="true"></span>' +
+        '<div class="ws-activity-main">' +
+        '<div class="ws-activity-text">' +
+        esc(who) +
+        ' · ' +
+        esc(type) +
+        (entity ? ' · "' + esc(entity) + '"' : '') +
+        '</div>' +
+        '<div class="ws-activity-time">' +
+        esc(relativeTime(v.created_at) || '') +
+        '</div></div></div>';
+    });
+    body.innerHTML = h;
+  }
+
+  function refreshPresence() {
+    refreshChrome();
+    if (global.S && global.S.tab === 'studio' && global.PreShootStudioUI && PreShootStudioUI.renderStudio) {
+      /* Presence chip is in header — chrome refresh is enough for most views */
+    }
+  }
+
+  function onPresenceChanged() {
+    refreshPresence();
   }
 
   function hideRemoteBanner() {
@@ -902,13 +1146,20 @@
     workspaceSwitcherButtonHtml: workspaceSwitcherButtonHtml,
     studioHeaderActionsHtml: studioHeaderActionsHtml,
     saveStatusIndicatorHtml: saveStatusIndicatorHtml,
+    presenceChipHtml: presenceChipHtml,
+    productionPresenceHtml: productionPresenceHtml,
+    productionActivityHtml: productionActivityHtml,
     refreshChrome: refreshChrome,
+    refreshPresence: refreshPresence,
+    onPresenceChanged: onPresenceChanged,
     openSwitcher: openSwitcher,
     choosePersonal: choosePersonal,
     chooseShared: chooseShared,
     openCreate: openCreate,
     submitCreate: submitCreate,
     openMembers: openMembers,
+    openPeople: openPeople,
+    openActivity: openActivity,
     openHistory: openHistory,
     viewHistoryVersion: viewHistoryVersion,
     restoreHistoryVersion: restoreHistoryVersion,
