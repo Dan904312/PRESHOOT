@@ -51,13 +51,14 @@
 <script src="/js/creative-research.js?v=302"></script>
 <script src="/js/studio.js?v=310"></script>
 <script src="/js/studio-sync.js?v=320"></script>
-<script src="/js/workspace-sync.js?v=310"></script>
-<script src="/js/workspace-changes.js?v=350"></script>
-<script src="/js/workspace-context.js?v=350"></script>
-<script src="/js/workspace-ui.js?v=350"></script>
-<script src="/js/workspace-realtime.js?v=350"></script>
+<script src="/js/workspace-sync.js?v=360"></script>
+<script src="/js/workspace-changes.js?v=360"></script>
+<script src="/js/workspace-context.js?v=360"></script>
+<script src="/js/workspace-ui.js?v=360"></script>
+<script src="/js/workspace-realtime.js?v=360"></script>
+<script src="/js/workspace-comments.js?v=360"></script>
 <script src="/js/director-voice.js?v=302"></script>
-<script src="/js/studio-ui.js?v=350"></script>
+<script src="/js/studio-ui.js?v=360"></script>
 <script src="/js/studio-keyboard.js?v=302"></script>
 <script src="/js/director-os.js?v=302"></script>
 <script src="/js/onboard.js"></script>
@@ -1035,6 +1036,28 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .ws-activity-filter.active{background:var(--s2);color:var(--text);border-color:var(--text3)}
 .ws-prod-presence{margin:6px 0 2px;font-size:12px;color:var(--text2);line-height:1.4}
 .ws-prod-presence-line{margin-top:2px}
+.ws-comment-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--fb)}
+.ws-comment-inline{margin-top:10px}
+.ws-review-card .ws-review-stats{font-size:13px;color:var(--text2);margin:4px 0 10px}
+.ws-review-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.ws-review-select{max-width:180px;padding:8px 10px;font-size:13px}
+.ws-review-unresolved{margin-top:8px}
+.ws-review-item{display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;padding:8px 0;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-size:13px;cursor:pointer;font-family:var(--fd)}
+.ws-review-dot{width:8px;height:8px;border-radius:50%;background:#c45c26;flex-shrink:0;margin-top:5px}
+.ws-comment-block{padding:12px 0;border-bottom:1px solid var(--border)}
+.ws-comment-block.resolved{opacity:.72}
+.ws-comment-hd{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:4px}
+.ws-comment-resolved{font-size:11px;color:#3d9a5f;font-weight:600}
+.ws-comment-body{font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap}
+.ws-comment-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ws-comment-reply{margin:10px 0 0 14px;padding:8px 0 0;border-top:1px dashed var(--border)}
+.ws-comment-compose{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+.ws-mention-suggest{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--s2)}
+.ws-mention-opt{text-align:left;border:0;background:transparent;padding:8px;border-radius:8px;color:var(--text);font-size:13px;cursor:pointer;font-family:var(--fd)}
+.ws-notif-row{display:block;width:100%;text-align:left;padding:12px 0;border:0;border-bottom:1px solid var(--border);background:transparent;cursor:pointer}
+.ws-notif-row.unread .ws-notif-title{font-weight:700}
+.ws-notif-title{font-size:14px;color:var(--text);font-family:var(--fd)}
+.ws-notif-body{font-size:12px;color:var(--text3);margin-top:3px;line-height:1.4}
 .ws-prod-activity{margin:0 20px 12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--s2)}
 .ws-prod-activity-hd{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;font-family:var(--fb)}
 .ws-prod-activity-row{font-size:12px;color:var(--text2);padding:3px 0}
@@ -2245,7 +2268,7 @@ if(window.PreShootStudio){
   }catch(e){}
 }
 
-/* Phase 5B: shared workspace collaboration context only (never personal data) */
+/* Phase 5B/5C: shared workspace collaboration context only (never personal data) */
 if(window.PreShootWorkspace && PreShootWorkspace.isShared && PreShootWorkspace.isShared()){
   try{
     var wctx = PreShootWorkspace.getContext();
@@ -2267,7 +2290,18 @@ if(window.PreShootWorkspace && PreShootWorkspace.isShared && PreShootWorkspace.i
         lines.push('- '+who+': '+typ+(ent?' "'+ent+'"':''));
       });
     }
-    lines.push('COLLAB RULE: Describe known activity only. Never invent edits. If a save fails due to revision conflict, say another collaborator updated the workspace.');
+    var feedback = (wctx.commentFeedback||[]).slice(0,8);
+    if(feedback.length){
+      lines.push('Unresolved collaborative feedback (workspace comments only):');
+      feedback.forEach(function(f){
+        lines.push('- '+(f.author_name||'Collaborator')+' on '+(f.target_type||'item')+': '+(f.body||'').slice(0,120));
+      });
+    }
+    lines.push('COLLAB RULE: Describe known activity and authorized workspace comments only. Never invent edits. Never use private personal Director history from other users.');
+    lines.push('MUTATION RULE: Only owner/editor may mutate Studio. Commenter/viewer may summarize feedback and suggest changes but must not claim Studio was updated.');
+    if(wctx.activeWorkspaceRole==='commenter'||wctx.activeWorkspaceRole==='viewer'){
+      lines.push('CURRENT ROLE IS READ-ONLY FOR MUTATIONS: Do not emit Studio mutation tools. Summarize and suggest only.');
+    }
   }catch(e){}
 }
 
@@ -2561,6 +2595,20 @@ function initHomeKinetic() { var el = document.getElementById('home-kinetic'); i
       <div id="ws-activity-filters" class="ws-activity-filters"></div>
       <div id="ws-activity-body"></div>
     </div>
+  </div>
+</div>
+<div class="modal-ov" id="ws-comments-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-hd"><div class="modal-ttl" id="ws-comments-ttl">Comments</div><div class="modal-x" onclick="closeM('ws-comments-modal')" aria-label="Close">×</div></div>
+    <div class="modal-body" id="ws-comments-body" style="overflow-y:auto;max-height:70vh"></div>
+  </div>
+</div>
+<div class="modal-ov" id="ws-notifications-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-hd"><div class="modal-ttl">Notifications</div><div class="modal-x" onclick="closeM('ws-notifications-modal')" aria-label="Close">×</div></div>
+    <div class="modal-body" id="ws-notifications-body" style="overflow-y:auto;max-height:70vh"></div>
   </div>
 </div>
 <div class="modal-ov" id="ws-version-preview-modal">
