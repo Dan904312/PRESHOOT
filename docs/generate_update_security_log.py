@@ -30,7 +30,7 @@ from reportlab.platypus import (
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_PDF = os.path.join(ROOT, "PreShoot_Update_Security_Log.pdf")
 
-CURRENT_VERSION = "v2.12.0"
+CURRENT_VERSION = "v2.13.0"
 LAST_UPDATED = "2026-08-10"
 PROJECT = "PreShoot"
 DOC_TITLE = "Update & Security Log"
@@ -40,6 +40,52 @@ DOC_TITLE = "Update & Security Log"
 # Pre-git product history is recorded as unavailable.
 
 UPDATES = [
+    {
+        "id": "UPDATE-0027",
+        "version": "v2.13.0",
+        "date": "2026-08-10",
+        "categories": ["Feature", "Realtime", "Backend", "Frontend"],
+        "title": "Collaborative Workspaces Phase 5A — granular change awareness",
+        "what_changed": (
+            "Application-layer change detection for shared Studio saves (project/production/"
+            "script/shotlist/references/assets). Realtime + version history carry compact "
+            "change metadata; same-entity dirty awareness; smarter 409 context. Full "
+            "workspace_data.document remains authoritative. No CRDT/OT/presence/relational rewrite."
+        ),
+        "files": [
+            "supabase_workspaces_phase5a_changes.sql",
+            "supabase_setup.sql",
+            "lib/workspace-changes.js",
+            "lib/workspaces.js",
+            "api/workspaces.js",
+            "js/workspace-changes.js",
+            "js/workspace-sync.js",
+            "js/workspace-context.js",
+            "js/workspace-ui.js",
+            "js/studio-ui.js",
+            "app.html",
+            "tests/workspaces-phase5a.test.mjs",
+            "package.json",
+            "docs/generate_update_security_log.py",
+            "PreShoot_Update_Security_Log.pdf",
+            "CHANGE_LOG_RULES.md",
+        ],
+        "issue_found": (
+            "Collaborators only saw opaque workspace.updated events with no entity context; "
+            "version history lacked meaningful change labels."
+        ),
+        "risk_level": "Medium",
+        "risk_description": (
+            "Incorrect change metadata could mislead conflict UX; client hints must be server-verified."
+        ),
+        "fix_applied": (
+            "Server diffs before/after documents on successful save; reconciles optional client "
+            "hints against the saved document; stores compact metadata on versions; broadcasts "
+            "metadata-only change fields."
+        ),
+        "testing": "npm test (Phase 1–5A + Hobby budget=12).",
+        "git": None,
+    },
     {
         "id": "UPDATE-0026",
         "version": "v2.12.0",
@@ -1418,6 +1464,15 @@ UI_DESIGN_HISTORY = [
 ]
 
 RELEASES = [
+    {
+        "version": "v2.13.0",
+        "date": "2026-08-10",
+        "label": "Collaborative Workspaces Phase 5A (granular change awareness)",
+        "changes": [
+            "Entity-level change metadata on shared saves, realtime, and version history (UPDATE-0027)",
+            "Same-entity dirty awareness without CRDT/OT or relational Studio rewrite",
+        ],
+    },
     {
         "version": "v2.12.0",
         "date": "2026-08-10",
