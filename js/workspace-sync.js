@@ -51,20 +51,22 @@
    * @param {number} revision
    * @returns {Promise<object>} On conflict: conflict=true, localDraft=document, document=server latest
    */
-  function saveSharedWorkspace(workspaceId, document, revision) {
+  function saveSharedWorkspace(workspaceId, document, revision, changeHint) {
     if (!workspaceId) {
       return Promise.resolve({ ok: false, error: 'workspace_id_required' });
     }
     var localDraft = document;
+    var body = {
+      action: 'save',
+      workspace_id: workspaceId,
+      document: document,
+      revision: revision
+    };
+    if (changeHint && typeof changeHint === 'object') body.change = changeHint;
     return apiFetch('/api/workspace-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'save',
-        workspace_id: workspaceId,
-        document: document,
-        revision: revision
-      })
+      body: JSON.stringify(body)
     })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -89,8 +91,12 @@
             localDraft: conflict || !res.ok ? localDraft : null,
             document: data && data.document,
             revision: data && data.revision,
+            client_revision: data && data.client_revision,
             updated_at: data && data.updated_at,
             updated_by: data && data.updated_by,
+            change: data && data.change,
+            changes: data && data.changes,
+            activity_label: data && data.activity_label,
             error: error,
             message:
               (data && data.message) ||

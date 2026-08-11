@@ -491,7 +491,9 @@
     var msg = document.getElementById('ws-conflict-msg');
     var meta = document.getElementById('ws-conflict-meta');
     var cmp = document.getElementById('ws-conflict-compare');
+    var change = conflict && conflict.change;
     var who =
+      (change && change.name) ||
       (conflict && (conflict.name || conflict.updated_by)) ||
       null;
     var when = conflict && conflict.updated_at ? relativeTime(conflict.updated_at) : '';
@@ -501,12 +503,35 @@
         'This workspace changed while you were editing. Your local edits were kept.';
     }
     if (meta) {
+      var entityLine = '';
+      if (change) {
+        var typeLabel =
+          change.type_label ||
+          (global.PreShootWorkspaceChanges &&
+            PreShootWorkspaceChanges.changeTypeLabel &&
+            PreShootWorkspaceChanges.changeTypeLabel(change.type)) ||
+          change.type ||
+          '';
+        entityLine =
+          '<br>Changed: <strong style="color:var(--text2)">' +
+          esc(typeLabel) +
+          (change.entityLabel || change.entity_label
+            ? ' — ' + esc(change.entityLabel || change.entity_label)
+            : '') +
+          '</strong>';
+      }
       meta.innerHTML =
         '<div style="font-size:12px;color:var(--text3);line-height:1.5;margin:0 0 12px">' +
-        'Latest server revision: <strong style="color:var(--text2)">' +
+        'Your revision: <strong style="color:var(--text2)">' +
+        esc(
+          conflict && conflict.client_revision != null ? conflict.client_revision : '—'
+        ) +
+        '</strong><br>' +
+        'Latest revision: <strong style="color:var(--text2)">' +
         esc(conflict && conflict.revision != null ? conflict.revision : '—') +
         '</strong>' +
-        (who ? '<br>Last saved by: ' + esc(String(who).slice(0, 48)) : '') +
+        entityLine +
+        (who ? '<br>Changed by: ' + esc(String(who).slice(0, 48)) : '') +
         (when ? '<br>' + esc(when) : '') +
         '</div>';
     }
@@ -604,18 +629,27 @@
       }
       versions.forEach(function (v) {
         var who = v.name || (v.email ? String(v.email).split('@')[0] : null) || 'Collaborator';
-        var reason = v.reason === 'restore' ? ' · restored' : '';
+        var typeLabel =
+          v.type_label ||
+          (v.change &&
+            global.PreShootWorkspaceChanges &&
+            PreShootWorkspaceChanges.changeTypeLabel &&
+            PreShootWorkspaceChanges.changeTypeLabel(v.change.type)) ||
+          (v.reason === 'restore' ? 'Version restored' : '');
+        var entity = v.entity_label || (v.change && v.change.entityLabel) || '';
         h +=
           '<div class="ws-history-row" style="padding:12px 0;border-bottom:1px solid var(--border)">' +
           '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
           '<div style="min-width:0">' +
           '<div style="font-family:var(--fd);font-weight:700;font-size:14px">Revision ' +
           esc(String(v.revision)) +
-          reason +
           '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:3px">' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:3px">' +
           esc(who) +
-          ' — ' +
+          (typeLabel ? ' · ' + esc(typeLabel) : '') +
+          (entity ? ' · "' + esc(entity) + '"' : '') +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">' +
           esc(relativeTime(v.created_at) || '') +
           '</div></div>' +
           '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">' +
@@ -774,10 +808,32 @@
     banner.hidden = false;
     var t = document.getElementById('ws-remote-banner-text');
     if (t) {
-      t.textContent =
-        'This workspace was updated by another collaborator' +
-        (info.revision ? ' (revision ' + info.revision + ')' : '') +
-        '. Your local edits were kept.';
+      var change = info.change;
+      var label =
+        (change &&
+          global.PreShootWorkspaceChanges &&
+          PreShootWorkspaceChanges.changeTypeLabel &&
+          PreShootWorkspaceChanges.changeTypeLabel(change.type)) ||
+        info.activity_label ||
+        '';
+      var entity = (change && (change.entityLabel || change.entity_label)) || '';
+      if (info.sameEntity) {
+        t.textContent =
+          'Another collaborator changed this production while you were editing it' +
+          (info.revision ? ' (revision ' + info.revision + ')' : '') +
+          '. Your local edits were kept.';
+      } else if (label) {
+        t.textContent =
+          label +
+          (entity ? ' — "' + entity + '"' : '') +
+          (info.revision ? ' (revision ' + info.revision + ')' : '') +
+          '. Your local edits were kept.';
+      } else {
+        t.textContent =
+          'This workspace was updated by another collaborator' +
+          (info.revision ? ' (revision ' + info.revision + ')' : '') +
+          '. Your local edits were kept.';
+      }
     }
   }
 

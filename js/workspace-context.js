@@ -28,9 +28,10 @@
     /* Authoritative shared save UX: saved|saving|dirty|conflict|error|offline */
     saveStatus: 'saved',
     saveError: null,
-    lastActivity: null /* { revision, updated_by, updated_at, name } */,
+    lastActivity: null /* { revision, updated_by, updated_at, name, change } */,
     versionPreview: null /* view-only snapshot; does not mutate active doc */,
     pendingRecovery: null /* { workspaceId, document, revision, savedAt } prompt */,
+    pendingChangeHint: null /* optional client hint; server re-validates */,
     list: [],
     listLoadedAt: 0
   };
@@ -241,11 +242,30 @@
     return !!state.sharedDirty;
   }
 
-  function markSharedDirty() {
+  function markSharedDirty(changeHint) {
     if (!canEdit()) return;
     state.sharedDirty = true;
+    if (changeHint && typeof changeHint === 'object') {
+      state.pendingChangeHint = changeHint;
+    }
     if (state.saveStatus !== 'conflict') setSaveStatus('dirty');
     writeRecoveryDraft();
+  }
+
+  function setPendingChangeHint(hint) {
+    state.pendingChangeHint = hint && typeof hint === 'object' ? hint : null;
+  }
+
+  function getEditingContext() {
+    if (global.PreShootWorkspaceChanges && PreShootWorkspaceChanges.editingContextFromStudio) {
+      return PreShootWorkspaceChanges.editingContextFromStudio();
+    }
+    var view = global.S && global.S.studioView;
+    return {
+      activeProjectId: (view && view.projectId) || null,
+      activeProductionId: (view && view.productionId) || null,
+      activeEntity: null
+    };
   }
 
   function clearSharedDirty() {
@@ -272,6 +292,8 @@
       lastActivity: state.lastActivity,
       versionPreview: state.versionPreview,
       pendingRecovery: state.pendingRecovery,
+      pendingChangeHint: state.pendingChangeHint,
+      editingContext: getEditingContext(),
       list: state.list.slice()
     };
   }
@@ -521,17 +543,28 @@
     if (!api) return Promise.resolve({ ok: false, error: 'no_api' });
     var workspaceId = state.activeWorkspaceId;
     var revision = state.activeWorkspaceRevision;
+    var beforeDoc = state.sharedDocument;
     var document = exportSharedDocument();
+    var changeHint = state.pendingChangeHint;
+    if (
+      !changeHint &&
+      global.PreShootWorkspaceChanges &&
+      PreShootWorkspaceChanges.detectDocumentChanges
+    ) {
+      var detected = PreShootWorkspaceChanges.detectDocumentChanges(beforeDoc, document);
+      changeHint = PreShootWorkspaceChanges.primaryChange(detected);
+    }
     state.saving = true;
     setSaveStatus('saving');
     writeRecoveryDraft();
-    return api.saveSharedWorkspace(workspaceId, document, revision).then(function (res) {
+    return api.saveSharedWorkspace(workspaceId, document, revision, changeHint).then(function (res) {
       state.saving = false;
       if (res && res.ok) {
         state.activeWorkspaceRevision = res.revision;
         state.sharedDocument = normalizeDocument(res.document || document);
         state.sharedDirty = false;
         state.conflict = null;
+        state.pendingChangeHint = null;
         clearRemoteUpdateState();
         clearRecoveryDraft(workspaceId);
         state.lastLocalSave = {
@@ -544,7 +577,9 @@
           revision: Number(res.revision) || revision,
           updated_by: res.updated_by || state.lastLocalSave.updated_by,
           updated_at: res.updated_at || new Date().toISOString(),
-          name: (global.S && global.S.profile && global.S.profile.name) || null
+          name: (global.S && global.S.profile && global.S.profile.name) || null,
+          change: res.change || changeHint || null,
+          activity_label: res.activity_label || null
         };
         setSaveStatus('saved');
         if (global.S) {
@@ -561,8 +596,10 @@
           localDraft: res.localDraft || document,
           serverDocument: res.document,
           revision: res.revision,
+          client_revision: res.client_revision != null ? res.client_revision : revision,
           updated_at: res.updated_at,
           updated_by: res.updated_by,
+          change: res.change || null,
           message: res.message
         };
         setSaveStatus('conflict');
@@ -707,6 +744,29 @@
     var current = Number(state.activeWorkspaceRevision) || 0;
     if (!Number.isFinite(incoming) || incoming <= current) return;
 
+    var change =
+      evt.change ||
+      (evt.change_type
+        ? {
+            type: evt.change_type,
+            entityId: evt.entity_id || null,
+            entityLabel: evt.entity_label || null,
+            projectId: evt.project_id || null,
+            productionId: evt.production_id || null
+          }
+        : null);
+    var editing = getEditingContext();
+    var sameEntity = false;
+    if (
+      change &&
+      global.PreShootWorkspaceChanges &&
+      PreShootWorkspaceChanges.isSameEntityConflict
+    ) {
+      sameEntity = PreShootWorkspaceChanges.isSameEntityConflict(editing, change);
+    } else if (change && editing.activeProductionId && change.productionId) {
+      sameEntity = String(editing.activeProductionId) === String(change.productionId);
+    }
+
     /* Already tracking this or newer remote revision while dirty */
     if (
       state.remoteUpdate &&
@@ -716,33 +776,52 @@
       return;
     }
 
-    /* Dirty: never overwrite — mark remote available */
+    /* Dirty: never overwrite — mark remote available with entity context */
     if (state.sharedDirty || state.conflict) {
       state.remoteUpdate = {
         revision: incoming,
         updated_by: evt.updated_by || null,
         updated_at: evt.updated_at || null,
-        reason: 'dirty_protected'
+        reason: sameEntity ? 'same_entity_dirty' : 'dirty_protected',
+        change: change,
+        sameEntity: sameEntity,
+        activity_label: evt.activity_label || null
       };
       syncToS();
       if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.onRemoteUpdateAvailable) {
         global.PreShootWorkspaceUI.onRemoteUpdateAvailable(state.remoteUpdate);
       } else {
-        toast('This workspace was updated by another collaborator.');
+        toast(
+          sameEntity
+            ? 'Another collaborator changed this production while you were editing it.'
+            : 'This workspace was updated by another collaborator.'
+        );
       }
       return;
     }
 
-    /* Clean: fetch authoritative document (gap or +1). Avoid duplicate in-flight fetches. */
+    /* Clean: fetch authoritative document. Metadata tells UI what changed. */
     if (_fetching) {
       state.remoteUpdate = {
         revision: Math.max(incoming, Number((state.remoteUpdate && state.remoteUpdate.revision) || 0)),
         updated_by: evt.updated_by || null,
         updated_at: evt.updated_at || null,
-        reason: 'fetch_coalesced'
+        reason: 'fetch_coalesced',
+        change: change,
+        sameEntity: sameEntity,
+        activity_label: evt.activity_label || null
       };
       return;
     }
+    state.remoteUpdate = {
+      revision: incoming,
+      updated_by: evt.updated_by || null,
+      updated_at: evt.updated_at || null,
+      reason: evt.gap ? 'revision_gap' : 'remote_update',
+      change: change,
+      sameEntity: sameEntity,
+      activity_label: evt.activity_label || null
+    };
     fetchAndApplyRemote(evt.gap ? 'revision_gap' : 'remote_update');
   }
 
@@ -1232,6 +1311,8 @@
     setSharedDocument: setSharedDocument,
     isSharedDirty: isSharedDirty,
     markSharedDirty: markSharedDirty,
+    setPendingChangeHint: setPendingChangeHint,
+    getEditingContext: getEditingContext,
     clearSharedDirty: clearSharedDirty,
     scheduleSave: scheduleSave,
     saveNow: saveNow,

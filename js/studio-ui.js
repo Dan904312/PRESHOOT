@@ -2244,6 +2244,39 @@
         return;
       }
       if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
+      if (PreShootWorkspace.setPendingChangeHint) {
+        var hint = null;
+        if (action === 'update_script' && payload.productionId) {
+          hint = {
+            type: 'script.updated',
+            productionId: payload.productionId,
+            projectId: payload.projectId || null,
+            entityId: payload.productionId,
+            entityLabel: null
+          };
+        } else if (action === 'rebuild_shot_list' && payload.productionId) {
+          hint = {
+            type: 'shotlist.updated',
+            productionId: payload.productionId,
+            projectId: payload.projectId || null,
+            entityId: payload.productionId
+          };
+        } else if (payload.productionId) {
+          hint = {
+            type: 'production.updated',
+            productionId: payload.productionId,
+            projectId: payload.projectId || null,
+            entityId: payload.productionId
+          };
+        } else if (payload.projectId) {
+          hint = {
+            type: 'project.updated',
+            projectId: payload.projectId,
+            entityId: payload.projectId
+          };
+        }
+        PreShootWorkspace.setPendingChangeHint(hint);
+      }
       setDirectorStatus('executing', 'Saving workspace…');
       var savePromise =
         typeof PreShootWorkspace.saveNow === 'function'
@@ -3845,6 +3878,30 @@
         return;
       }
       if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
+      if (PreShootWorkspace.setPendingChangeHint) {
+        var hint2 = null;
+        if (action === 'update_script' && payload.productionId) {
+          hint2 = {
+            type: 'script.updated',
+            productionId: payload.productionId,
+            projectId: payload.projectId || null,
+            entityId: payload.productionId
+          };
+        } else if (action === 'rebuild_shot_list' && payload.productionId) {
+          hint2 = {
+            type: 'shotlist.updated',
+            productionId: payload.productionId,
+            entityId: payload.productionId
+          };
+        } else if (payload.productionId) {
+          hint2 = {
+            type: 'production.updated',
+            productionId: payload.productionId,
+            entityId: payload.productionId
+          };
+        }
+        PreShootWorkspace.setPendingChangeHint(hint2);
+      }
       PreShootWorkspace.saveNow().then(function (saveRes) {
         if (saveRes && (saveRes.ok || saveRes.skipped)) {
           finishModalSuccess();
