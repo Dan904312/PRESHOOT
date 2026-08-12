@@ -84,10 +84,14 @@ async function handleTrack(req, res, auth) {
   const body = req.body || {};
   const name =
     typeof body.name === 'string' ? body.name.slice(0, 120) : auth.user.name;
+  const avatarRaw =
+    typeof body.avatar === 'string' ? body.avatar : auth.user.avatar;
   const avatar =
-    typeof body.avatar === 'string' && body.avatar.length < 500000
-      ? body.avatar
-      : auth.user.avatar;
+    typeof avatarRaw === 'string' &&
+    /^https?:\/\//i.test(avatarRaw) &&
+    avatarRaw.length <= 2048
+      ? avatarRaw
+      : null;
   const provider =
     typeof body.provider === 'string'
       ? body.provider.slice(0, 40)
@@ -100,6 +104,55 @@ async function handleTrack(req, res, auth) {
   const h = serviceHeaders();
 
   try {
+    /* Phase 6 product events — metadata only, no content payloads */
+    if (body.action === 'events' && Array.isArray(body.events)) {
+      const ALLOWED = new Set([
+        'signup',
+        'workspace_created',
+        'workspace_invited',
+        'workspace_joined',
+        'project_created',
+        'production_created',
+        'director_used',
+        'director_action_success',
+        'director_action_failure',
+        'script_created',
+        'shotlist_created',
+        'asset_uploaded',
+        'comment_created',
+        'production_reviewed',
+        'subscription_started'
+      ]);
+      const rows = body.events
+        .slice(0, 20)
+        .map((ev) => {
+          const name = String((ev && ev.event) || '');
+          if (!ALLOWED.has(name)) return null;
+          const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : {};
+          const safe = {};
+          Object.keys(meta).slice(0, 8).forEach((k) => {
+            const v = meta[k];
+            if (typeof v === 'string' && v.length <= 80) safe[k] = v;
+            else if (typeof v === 'number' || typeof v === 'boolean') safe[k] = v;
+          });
+          return {
+            user_id,
+            event: name,
+            meta: safe,
+            created_at: new Date().toISOString()
+          };
+        })
+        .filter(Boolean);
+      if (rows.length) {
+        await fetch(`${SUPA_URL}/rest/v1/product_events`, {
+          method: 'POST',
+          headers: { ...h, Prefer: 'return=minimal' },
+          body: JSON.stringify(rows)
+        }).catch(function () {});
+      }
+      return res.status(200).json({ ok: true, tracked: rows.length });
+    }
+
     const checkR = await fetch(
       `${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(user_id)}&select=user_id&limit=1`,
       { headers: h }
@@ -131,6 +184,19 @@ async function handleTrack(req, res, auth) {
           last_seen: new Date().toISOString()
         })
       });
+      /* Best-effort signup event */
+      await fetch(`${SUPA_URL}/rest/v1/product_events`, {
+        method: 'POST',
+        headers: { ...h, Prefer: 'return=minimal' },
+        body: JSON.stringify([
+          {
+            user_id,
+            event: 'signup',
+            meta: { provider: provider || 'unknown' },
+            created_at: new Date().toISOString()
+          }
+        ])
+      }).catch(function () {});
     }
 
     return res.status(200).json({ ok: true });

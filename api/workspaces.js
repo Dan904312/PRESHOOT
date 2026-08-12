@@ -36,6 +36,18 @@ import {
   restoreWorkspaceVersion,
   summarizeDocumentDiff
 } from '../lib/workspaces.js';
+import {
+  listComments,
+  createComment,
+  updateComment,
+  deleteComment,
+  setCommentResolved,
+  getProductionReviewSummary,
+  setProductionReviewStatus,
+  listNotifications,
+  markNotificationRead,
+  listCommentActivity
+} from '../lib/workspace-comments.js';
 
 function resourceOf(req) {
   const q = req.query || {};
@@ -118,7 +130,8 @@ async function handleSync(req, res, auth) {
       auth.user.id,
       workspaceId,
       body.document,
-      body.revision
+      body.revision,
+      { changeHint: body.change || body.changeHint || null }
     );
     if (!saved.ok) {
       const payload = {
@@ -128,9 +141,11 @@ async function handleSync(req, res, auth) {
       };
       if (saved.status === 409) {
         payload.revision = saved.revision;
+        payload.client_revision = saved.client_revision;
         payload.document = saved.document;
         payload.updated_at = saved.updated_at;
         payload.updated_by = saved.updated_by;
+        payload.change = saved.change || null;
       }
       return res.status(saved.status || 400).json(payload);
     }
@@ -140,7 +155,10 @@ async function handleSync(req, res, auth) {
       document: saved.document,
       revision: saved.revision,
       updated_at: saved.updated_at,
-      updated_by: saved.updated_by
+      updated_by: saved.updated_by,
+      change: saved.change || null,
+      changes: saved.changes || null,
+      activity_label: saved.activity_label || null
     });
   }
 
@@ -335,9 +353,11 @@ async function handleCrud(req, res, auth) {
       };
       if (restored.status === 409) {
         payload.revision = restored.revision;
+        payload.client_revision = restored.client_revision;
         payload.document = restored.document;
         payload.updated_at = restored.updated_at;
         payload.updated_by = restored.updated_by;
+        payload.change = restored.change || null;
       }
       return res.status(restored.status || 400).json(payload);
     }
@@ -358,6 +378,161 @@ async function handleCrud(req, res, auth) {
     if (!m.ok) return sendError(res, m);
     const diff = summarizeDocumentDiff(body.local, body.server);
     return res.status(200).json({ ok: true, diff });
+  }
+
+  /* Phase 5C — comments (separate from Studio JSON) */
+  if (parts[1] === 'comments' && parts.length === 2 && req.method === 'GET') {
+    const listed = await listComments(userId, workspaceId, {
+      productionId: req.query.production_id || req.query.productionId || body.production_id,
+      targetType: req.query.target_type || req.query.targetType || body.target_type,
+      targetId: req.query.target_id || req.query.targetId || body.target_id,
+      unresolvedOnly:
+        String(req.query.unresolved || body.unresolved || '') === '1' ||
+        body.unresolved_only === true,
+      limit: req.query.limit || body.limit
+    });
+    if (!listed.ok) return sendError(res, listed);
+    return res.status(200).json({
+      ok: true,
+      comments: listed.comments,
+      role: listed.role,
+      canComment: listed.canComment,
+      canResolve: listed.canResolve,
+      canModerate: listed.canModerate
+    });
+  }
+
+  if (parts[1] === 'comments' && parts.length === 2 && req.method === 'POST') {
+    const rlComment = await gateRouteRateLimit(req, {
+      route: 'workspace-comments',
+      max: 30,
+      windowMs: 60 * 1000,
+      userId
+    });
+    if (!rlComment.allowed) return sendRateLimitResponse(res, rlComment, 'plain');
+
+    const created = await createComment(userId, workspaceId, body);
+    if (!created.ok) return sendError(res, created);
+    return res.status(201).json({ ok: true, comment: created.comment });
+  }
+
+  if (parts[1] === 'comments' && parts.length === 3 && req.method === 'PATCH') {
+    const updated = await updateComment(userId, workspaceId, parts[2], body);
+    if (!updated.ok) return sendError(res, updated);
+    return res.status(200).json({ ok: true, comment: updated.comment });
+  }
+
+  if (parts[1] === 'comments' && parts.length === 3 && req.method === 'DELETE') {
+    const deleted = await deleteComment(userId, workspaceId, parts[2]);
+    if (!deleted.ok) return sendError(res, deleted);
+    return res.status(200).json({ ok: true });
+  }
+
+  if (
+    parts[1] === 'comments' &&
+    parts.length === 4 &&
+    parts[3] === 'resolve' &&
+    req.method === 'POST'
+  ) {
+    const resolved = await setCommentResolved(userId, workspaceId, parts[2], true);
+    if (!resolved.ok) return sendError(res, resolved);
+    return res.status(200).json({ ok: true, comment: resolved.comment });
+  }
+
+  if (
+    parts[1] === 'comments' &&
+    parts.length === 4 &&
+    parts[3] === 'reopen' &&
+    req.method === 'POST'
+  ) {
+    const reopened = await setCommentResolved(userId, workspaceId, parts[2], false);
+    if (!reopened.ok) return sendError(res, reopened);
+    return res.status(200).json({ ok: true, comment: reopened.comment });
+  }
+
+  /* GET /api/workspaces/:id/comment-activity */
+  if (parts[1] === 'comment-activity' && parts.length === 2 && req.method === 'GET') {
+    const listed = await listCommentActivity(userId, workspaceId, {
+      limit: req.query.limit || body.limit
+    });
+    if (!listed.ok) return sendError(res, listed);
+    return res.status(200).json({ ok: true, activity: listed.activity, role: listed.role });
+  }
+
+  /* Production review summary + review status */
+  if (
+    parts[1] === 'productions' &&
+    parts.length === 4 &&
+    parts[3] === 'review' &&
+    req.method === 'GET'
+  ) {
+    const summary = await getProductionReviewSummary(userId, workspaceId, parts[2]);
+    if (!summary.ok) return sendError(res, summary);
+    return res.status(200).json(summary);
+  }
+
+  if (
+    parts[1] === 'productions' &&
+    parts.length === 4 &&
+    parts[3] === 'review-status' &&
+    req.method === 'POST'
+  ) {
+    const saved = await setProductionReviewStatus(
+      userId,
+      workspaceId,
+      parts[2],
+      body.review_status || body.reviewStatus,
+      body.revision,
+      saveWorkspaceDocument
+    );
+    if (!saved.ok) {
+      const payload = {
+        ok: false,
+        error: saved.error,
+        message: saved.message
+      };
+      if (saved.status === 409) {
+        payload.revision = saved.revision;
+        payload.client_revision = saved.client_revision;
+        payload.document = saved.document;
+        payload.updated_at = saved.updated_at;
+        payload.updated_by = saved.updated_by;
+        payload.change = saved.change || null;
+      }
+      return res.status(saved.status || 400).json(payload);
+    }
+    return res.status(200).json({
+      ok: true,
+      revision: saved.revision,
+      review_status: saved.review_status,
+      document: saved.document,
+      change: saved.change || null
+    });
+  }
+
+  /* Notifications (workspace-scoped for the authenticated user) */
+  if (parts[1] === 'notifications' && parts.length === 2 && req.method === 'GET') {
+    const listed = await listNotifications(userId, {
+      workspaceId,
+      unreadOnly:
+        String(req.query.unread || body.unread || '') === '1' || body.unread_only === true,
+      limit: req.query.limit || body.limit
+    });
+    if (!listed.ok) return sendError(res, listed);
+    return res.status(200).json({ ok: true, notifications: listed.notifications });
+  }
+
+  if (
+    parts[1] === 'notifications' &&
+    parts.length === 4 &&
+    parts[3] === 'read' &&
+    req.method === 'POST'
+  ) {
+    const m = await assertWorkspaceMember(userId, workspaceId);
+    if (!m.ok) return sendError(res, m);
+    const marked = await markNotificationRead(userId, parts[2]);
+    if (!marked.ok) return sendError(res, marked);
+    return res.status(200).json({ ok: true });
   }
 
   return res.status(405).json({ ok: false, error: 'method_not_allowed' });

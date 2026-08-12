@@ -8,6 +8,20 @@ import {
   sendRateLimitResponse
 } from '../lib/security.js';
 
+function portalReturnBase(req) {
+  const allowOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const origin = req.headers.origin || '';
+  const isProd =
+    process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  const localhostOk =
+    !isProd && origin && /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+  if (origin && (allowOrigins.includes(origin) || localhostOk)) return origin;
+  return process.env.APP_ORIGIN || 'https://preshoot.vercel.app';
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return handleOptions(req, res);
@@ -27,27 +41,19 @@ export default async function handler(req, res) {
   const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
   if (!STRIPE_KEY) return res.status(500).json({ error: 'Stripe not configured' });
 
-  const allowOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const origin = req.headers.origin || '';
-  const returnBase =
-    (origin && (allowOrigins.includes(origin) || /localhost|127\.0\.0\.1/.test(origin)))
-      ? origin
-      : 'https://preshoot.vercel.app';
+  const returnBase = portalReturnBase(req);
 
   try {
     const stripe = require('stripe')(STRIPE_KEY);
+    /* Bind only to this user_id — never open another customer's portal via email list */
     const sub = await getSubscription(auth.user.id, auth.user.email);
-    let stripeCustomerId = sub.stripe_customer_id || null;
-
-    if (!stripeCustomerId && auth.user.email) {
-      const customers = await stripe.customers.list({ email: auth.user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        stripeCustomerId = customers.data[0].id;
-      }
-    }
+    const stripeCustomerId = sub.stripe_customer_id || null;
 
     if (!stripeCustomerId) {
-      return res.status(404).json({ error: 'No Stripe customer found for this user' });
+      return res.status(404).json({
+        error: 'No Stripe customer found for this user',
+        message: 'Subscribe first, then manage billing from here.'
+      });
     }
 
     const session = await stripe.billingPortal.sessions.create({

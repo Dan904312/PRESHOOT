@@ -203,7 +203,7 @@ export default async function handler(req, res) {
       const signedGet = await fetch(`${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
         method: 'POST',
         headers: h,
-        body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 })
+        body: JSON.stringify({ expiresIn: 60 * 60 })
       });
       const sg = await signedGet.json().catch(() => ({}));
       const url = sg.signedURL
@@ -227,7 +227,7 @@ export default async function handler(req, res) {
       const signedGet = await fetch(`${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
         method: 'POST',
         headers: h,
-        body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 })
+        body: JSON.stringify({ expiresIn: 60 * 60 })
       });
       const sg = await signedGet.json().catch(() => ({}));
       if (!signedGet.ok) {
@@ -262,7 +262,7 @@ export default async function handler(req, res) {
       const signedGet = await fetch(`${SUPA_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
         method: 'POST',
         headers: h,
-        body: JSON.stringify({ expiresIn: 60 * 60 * 24 })
+        body: JSON.stringify({ expiresIn: 60 * 60 })
       });
       const sg = await signedGet.json().catch(() => ({}));
       if (!signedGet.ok) return res.status(404).json({ error: 'not_found' });
