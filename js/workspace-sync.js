@@ -349,6 +349,287 @@
     return role === 'owner';
   }
 
+  function listComments(workspaceId, opts) {
+    opts = opts || {};
+    var q = [];
+    if (opts.productionId) q.push('production_id=' + encodeURIComponent(opts.productionId));
+    if (opts.targetType) q.push('target_type=' + encodeURIComponent(opts.targetType));
+    if (opts.targetId) q.push('target_id=' + encodeURIComponent(opts.targetId));
+    if (opts.unresolvedOnly) q.push('unresolved=1');
+    if (opts.limit) q.push('limit=' + encodeURIComponent(opts.limit));
+    var qs = q.length ? '?' + q.join('&') : '';
+    return apiFetch(
+      '/api/workspaces/' + encodeURIComponent(workspaceId) + '/comments' + qs,
+      { method: 'GET' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            comments: (data && data.comments) || [],
+            canComment: !!(data && data.canComment),
+            canResolve: !!(data && data.canResolve),
+            canModerate: !!(data && data.canModerate),
+            role: data && data.role,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function createComment(workspaceId, payload) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {})
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            comment: data && data.comment,
+            error: data && data.error,
+            message: data && data.message
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function updateComment(workspaceId, commentId, payload) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/comments/' +
+        encodeURIComponent(commentId),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {})
+      }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            comment: data && data.comment,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function deleteComment(workspaceId, commentId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/comments/' +
+        encodeURIComponent(commentId),
+      { method: 'DELETE' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function resolveComment(workspaceId, commentId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/comments/' +
+        encodeURIComponent(commentId) +
+        '/resolve',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            comment: data && data.comment,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function reopenComment(workspaceId, commentId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/comments/' +
+        encodeURIComponent(commentId) +
+        '/reopen',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            comment: data && data.comment,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function getProductionReview(workspaceId, productionId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/productions/' +
+        encodeURIComponent(productionId) +
+        '/review',
+      { method: 'GET' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return Object.assign(
+            {
+              ok: !!(res.ok && data && data.ok),
+              status: res.status,
+              error: data && data.error
+            },
+            data || {}
+          );
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function setReviewStatus(workspaceId, productionId, reviewStatus, revision) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/productions/' +
+        encodeURIComponent(productionId) +
+        '/review-status',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          review_status: reviewStatus,
+          revision: revision
+        })
+      }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            revision: data && data.revision,
+            review_status: data && data.review_status,
+            document: data && data.document,
+            conflict: res.status === 409,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function listNotifications(workspaceId, opts) {
+    opts = opts || {};
+    var q = [];
+    if (opts.unreadOnly) q.push('unread=1');
+    if (opts.limit) q.push('limit=' + encodeURIComponent(opts.limit));
+    var qs = q.length ? '?' + q.join('&') : '';
+    return apiFetch(
+      '/api/workspaces/' + encodeURIComponent(workspaceId) + '/notifications' + qs,
+      { method: 'GET' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            notifications: (data && data.notifications) || [],
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function markNotificationRead(workspaceId, notificationId) {
+    return apiFetch(
+      '/api/workspaces/' +
+        encodeURIComponent(workspaceId) +
+        '/notifications/' +
+        encodeURIComponent(notificationId) +
+        '/read',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function listCommentActivity(workspaceId, opts) {
+    opts = opts || {};
+    var qs = opts.limit ? '?limit=' + encodeURIComponent(opts.limit) : '';
+    return apiFetch(
+      '/api/workspaces/' + encodeURIComponent(workspaceId) + '/comment-activity' + qs,
+      { method: 'GET' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            activity: (data && data.activity) || [],
+            error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
   function listVersions(workspaceId) {
     return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/versions', {
       method: 'GET'
@@ -538,6 +819,17 @@
     restoreVersion: restoreVersion,
     summarizeDocumentDiff: summarizeDocumentDiff,
     canEditRole: canEditRole,
-    canManageMembersRole: canManageMembersRole
+    canManageMembersRole: canManageMembersRole,
+    listComments: listComments,
+    createComment: createComment,
+    updateComment: updateComment,
+    deleteComment: deleteComment,
+    resolveComment: resolveComment,
+    reopenComment: reopenComment,
+    getProductionReview: getProductionReview,
+    setReviewStatus: setReviewStatus,
+    listNotifications: listNotifications,
+    markNotificationRead: markNotificationRead,
+    listCommentActivity: listCommentActivity
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);

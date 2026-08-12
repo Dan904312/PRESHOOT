@@ -10,6 +10,14 @@
   'use strict';
 
   var EVENT = 'workspace.updated';
+  var COMMENT_EVENTS = [
+    'comment.created',
+    'comment.replied',
+    'comment.updated',
+    'comment.deleted',
+    'comment.resolved',
+    'comment.reopened'
+  ];
   var channel = null;
   var subscribedId = null;
   var status = 'idle'; /* idle | connecting | subscribed | error */
@@ -262,6 +270,12 @@
         handleBroadcast(workspaceId, msg && msg.payload ? msg.payload : msg);
       });
 
+      COMMENT_EVENTS.forEach(function (evName) {
+        ch.on('broadcast', { event: evName }, function (msg) {
+          handleCommentEvent(workspaceId, msg && msg.payload ? msg.payload : msg);
+        });
+      });
+
       ch.on('presence', { event: 'sync' }, function () {
         if (subscribedId !== workspaceId) return;
         applyPresenceSync();
@@ -356,6 +370,29 @@
     }
   }
 
+  function handleCommentEvent(expectedWorkspaceId, payload) {
+    if (!payload || typeof payload !== 'object') return;
+    var ctx = Ctx();
+    if (!ctx || !ctx.isShared || !ctx.isShared()) return;
+    var live = ctx.getContext();
+    if (!live || live.activeWorkspaceId !== expectedWorkspaceId) return;
+    if (payload.workspace_id && payload.workspace_id !== expectedWorkspaceId) return;
+    /* Comment events are metadata-only — never revision-gated */
+    if (ctx.onRemoteCommentEvent) {
+      ctx.onRemoteCommentEvent({
+        type: payload.type || null,
+        workspace_id: expectedWorkspaceId,
+        comment_id: payload.comment_id || null,
+        target_type: payload.target_type || null,
+        target_id: payload.target_id || null,
+        author_id: payload.author_id || null,
+        production_id: payload.production_id || null,
+        project_id: payload.project_id || null,
+        at: payload.at || null
+      });
+    }
+  }
+
   function onAuthChanged() {
     if (!Ctx() || !Ctx().isShared || !Ctx().isShared()) return;
     var id = Ctx().getContext().activeWorkspaceId;
@@ -379,6 +416,7 @@
 
   global.PreShootWorkspaceRealtime = {
     EVENT: EVENT,
+    COMMENT_EVENTS: COMMENT_EVENTS,
     topicFor: topicFor,
     subscribe: subscribe,
     unsubscribe: unsubscribe,

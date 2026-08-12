@@ -377,7 +377,9 @@
     if (typeof global.renderProf === 'function') global.renderProf();
     if (typeof global.scheduleCloudSync === 'function') global.scheduleCloudSync();
     if (typeof global.showToast === 'function') {
-      global.showToast('CapCut connected — template research unlocked');
+      global.showToast(
+        'CapCut preference saved. CapCut has no public login API yet — PreShoot will tailor template suggestions only.'
+      );
     }
   }
 

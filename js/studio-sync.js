@@ -372,6 +372,15 @@
 
     window.addEventListener('focus', function () {
       if (!authUser()) return;
+      try {
+        if (
+          global.PreShootWorkspace &&
+          PreShootWorkspace.isShared &&
+          PreShootWorkspace.isShared()
+        ) {
+          return;
+        }
+      } catch (e) {}
       flush();
     });
   }

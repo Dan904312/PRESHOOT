@@ -34,6 +34,9 @@
     pendingChangeHint: null /* optional client hint; server re-validates */,
     presence: [], /* ephemeral collaborators from realtime presence */
     recentActivity: [], /* last fetched version/activity rows for Director/UI */
+    commentCache: {}, /* productionId → { comments, summary, at, caps } */
+    commentFeedback: [], /* compact unresolved for Director */
+    unreadNotifications: 0,
     notifyQueue: [], /* for grouping rapid remote toasts */
     list: [],
     listLoadedAt: 0
@@ -111,7 +114,7 @@
     return RECOVERY_PREFIX + uid + '_' + workspaceId;
   }
 
-  function writeRecoveryDraft() {
+  function writeRecoveryDraft(documentOverride) {
     if (!isShared() || !canEdit()) return;
     var key = recoveryKey(state.activeWorkspaceId);
     if (!key) return;
@@ -119,7 +122,9 @@
       ss(key, {
         workspaceId: state.activeWorkspaceId,
         revision: state.activeWorkspaceRevision,
-        document: exportSharedDocument(),
+        document: documentOverride
+          ? normalizeDocument(documentOverride)
+          : exportSharedDocument(),
         savedAt: Date.now()
       });
     } catch (e) {}
@@ -240,9 +245,13 @@
     return state.sharedDocument;
   }
 
-  function setSharedDocument(doc) {
+  function setSharedDocument(doc, revision) {
     state.sharedDocument = doc;
+    if (revision != null && Number.isFinite(Number(revision))) {
+      state.activeWorkspaceRevision = Number(revision);
+    }
     if (global.S) global.S.studio = doc;
+    syncToS();
   }
 
   function isSharedDirty() {
@@ -306,6 +315,9 @@
       editingContext: getEditingContext(),
       presence: state.presence.slice(),
       recentActivity: state.recentActivity.slice(),
+      commentCache: state.commentCache,
+      commentFeedback: state.commentFeedback.slice(),
+      unreadNotifications: state.unreadNotifications,
       list: state.list.slice()
     };
   }
@@ -454,6 +466,9 @@
     state.pendingRecovery = null;
     state.presence = [];
     state.recentActivity = [];
+    state.commentCache = {};
+    state.commentFeedback = [];
+    state.unreadNotifications = 0;
     state.notifyQueue = [];
     clearRemoteUpdateState();
     state.lastLocalSave = null;
@@ -490,6 +505,7 @@
     /* Never auto-apply recovery — prompt only */
     checkPendingRecovery(meta.id);
     refreshActivity(meta.id);
+    refreshNotifications();
   }
 
   function onPresenceChanged(list) {
@@ -511,10 +527,115 @@
       state.recentActivity = [];
       return Promise.resolve({ ok: false });
     }
-    return api.listVersions(id).then(function (res) {
+    var versionsP = api.listVersions(id);
+    var commentsP = api.listCommentActivity
+      ? api.listCommentActivity(id, { limit: 20 })
+      : Promise.resolve({ ok: false });
+    return Promise.all([versionsP, commentsP]).then(function (pair) {
       if (!isShared() || state.activeWorkspaceId !== id) return { ok: false, stale: true };
-      if (res && res.ok) {
-        state.recentActivity = (res.versions || []).slice(0, 30);
+      var res = pair[0];
+      var cres = pair[1];
+      var versions = res && res.ok ? (res.versions || []).slice(0, 30) : [];
+      var comments = cres && cres.ok ? cres.activity || [] : [];
+      var merged = versions
+        .concat(comments)
+        .sort(function (a, b) {
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        })
+        .slice(0, 40);
+      state.recentActivity = merged;
+      return { ok: true, versions: merged };
+    });
+  }
+
+  function loadProductionComments(productionId, force) {
+    var api = API();
+    var id = state.activeWorkspaceId;
+    if (!api || !id || !isShared() || !productionId) {
+      return Promise.resolve({ ok: false });
+    }
+    var cached = state.commentCache[productionId];
+    if (!force && cached && Date.now() - (cached.at || 0) < 15000) {
+      return Promise.resolve({ ok: true, cached: true, comments: cached.comments, summary: cached.summary, caps: cached.caps });
+    }
+    return Promise.all([
+      api.listComments(id, { productionId: productionId, limit: 100 }),
+      api.getProductionReview ? api.getProductionReview(id, productionId) : Promise.resolve({ ok: false })
+    ]).then(function (pair) {
+      if (!isShared() || state.activeWorkspaceId !== id) return { ok: false, stale: true };
+      var listed = pair[0];
+      var summary = pair[1];
+      if (!listed || !listed.ok) return listed || { ok: false };
+      var caps = {
+        canComment: !!listed.canComment,
+        canResolve: !!listed.canResolve,
+        canModerate: !!listed.canModerate,
+        role: listed.role
+      };
+      state.commentCache[productionId] = {
+        comments: listed.comments || [],
+        summary: summary && summary.ok ? summary : null,
+        caps: caps,
+        at: Date.now()
+      };
+      state.commentFeedback = ((summary && summary.unresolved) || [])
+        .slice(0, 8)
+        .map(function (c) {
+          return {
+            id: c.id,
+            target_type: c.target_type,
+            body: c.body,
+            author_name: c.author_name
+          };
+        });
+      syncToS();
+      return {
+        ok: true,
+        comments: listed.comments || [],
+        summary: summary && summary.ok ? summary : null,
+        caps: caps
+      };
+    });
+  }
+
+  function invalidateCommentCache(productionId) {
+    if (productionId) delete state.commentCache[productionId];
+    else state.commentCache = {};
+  }
+
+  function onRemoteCommentEvent(evt) {
+    if (!isShared() || !evt) return;
+    if (evt.workspace_id && evt.workspace_id !== state.activeWorkspaceId) return;
+    var pid = evt.production_id;
+    if (pid) invalidateCommentCache(pid);
+    else invalidateCommentCache();
+    refreshActivity(state.activeWorkspaceId);
+    if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.onRemoteEvent) {
+      PreShootWorkspaceComments.onRemoteEvent(evt);
+    }
+    /* Soft toast for others' comments — avoid spam */
+    var me = global.S && global.S.authUser && global.S.authUser.id;
+    if (evt.author_id && me && evt.author_id === me) return;
+    if (evt.type === 'comment.created' || evt.type === 'comment.replied') {
+      toast('New comment in workspace');
+    } else if (evt.type === 'comment.resolved') {
+      toast('A comment was resolved');
+    }
+  }
+
+  function refreshNotifications() {
+    var api = API();
+    var id = state.activeWorkspaceId;
+    if (!api || !id || !isShared() || !api.listNotifications) {
+      state.unreadNotifications = 0;
+      return Promise.resolve({ ok: false });
+    }
+    return api.listNotifications(id, { unreadOnly: true, limit: 20 }).then(function (res) {
+      if (!isShared() || state.activeWorkspaceId !== id) return { ok: false };
+      state.unreadNotifications = res && res.ok ? (res.notifications || []).length : 0;
+      syncToS();
+      if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.refreshChrome) {
+        PreShootWorkspaceUI.refreshChrome();
       }
       return res;
     });
@@ -1062,6 +1183,9 @@
     clearRemoteUpdateState();
     state.presence = [];
     state.recentActivity = [];
+    state.commentCache = {};
+    state.commentFeedback = [];
+    state.unreadNotifications = 0;
     state.notifyQueue = [];
     if (global.S) global.S.workspacePresence = [];
     _fetchToken += 1;
@@ -1086,7 +1210,18 @@
           if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showConflict) {
             global.PreShootWorkspaceUI.showConflict(state.conflict || flushRes);
           }
+          refreshStudioUI();
           return { ok: false, error: 'conflict' };
+        }
+        /* Phase 6: never abandon dirty work on failed flush */
+        if (flushRes && flushRes.ok === false && !flushRes.skipped && !flushRes.already) {
+          state.switching = false;
+          toast(
+            (flushRes && flushRes.message) ||
+              'Could not save before switching. Stay here, then try again.'
+          );
+          refreshStudioUI();
+          return { ok: false, error: 'flush_failed' };
         }
         /* Clear visible document before load to avoid cross-workspace flash */
         clearStudioView();
@@ -1173,6 +1308,12 @@
     var api = API();
     var id = state.activeWorkspaceId;
     var prevView = global.S ? Object.assign({}, global.S.studioView || {}) : null;
+    /* Preserve unsaved local draft before loading server — never destroy user work */
+    if (state.conflict.localDraft) {
+      try {
+        writeRecoveryDraft(state.conflict.localDraft);
+      } catch (e) {}
+    }
     return api.loadSharedWorkspace(id).then(function (loaded) {
       if (!loaded || !loaded.ok) {
         toast('Could not reload workspace');
@@ -1201,7 +1342,7 @@
         global.PreShootWorkspaceUI.closeConflict();
       }
       refreshStudioUI();
-      toast('Loaded latest version');
+      toast('Loaded latest version — your previous edits were kept as a recovery draft if needed');
       return { ok: true };
     });
   }
@@ -1473,9 +1614,13 @@
     applyReadOnlyClass: applyReadOnlyClass,
     shouldIgnoreRealtimeRevision: shouldIgnoreRealtimeRevision,
     onRemoteWorkspaceUpdated: onRemoteWorkspaceUpdated,
+    onRemoteCommentEvent: onRemoteCommentEvent,
     onRealtimeReconnected: onRealtimeReconnected,
     onPresenceChanged: onPresenceChanged,
     refreshActivity: refreshActivity,
+    loadProductionComments: loadProductionComments,
+    invalidateCommentCache: invalidateCommentCache,
+    refreshNotifications: refreshNotifications,
     presenceOnProduction: presenceOnProduction,
     reviewRemoteUpdate: reviewRemoteUpdate,
     keepLocalRemoteUpdate: keepLocalRemoteUpdate,

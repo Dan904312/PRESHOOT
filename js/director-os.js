@@ -1569,7 +1569,9 @@
           message: gen.message || 'Updated.',
           refresh: true,
           section: gen.section || null,
-          verified: true
+          productionId: resolved.productionId || null,
+          /* Persist must be confirmed by UI before Done — not verified yet */
+          needsPersist: true
         };
       }
       return { kind: 'reply', text: 'I couldn’t update that section yet. Try opening the section and asking again.' };

@@ -198,6 +198,12 @@
       h +=
         '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openActivity()">Activity</button>';
       h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceComments.openNotifications()">Notifications' +
+        (ctx.unreadNotifications
+          ? ' · ' + ctx.unreadNotifications
+          : '') +
+        '</button>';
+      h +=
         '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openMembers()">Members</button>';
       h +=
         '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.openHistory()">History</button>';
@@ -349,6 +355,7 @@
     if (!Ctx()) return;
     Ctx().createAndOpen(name).then(function (res) {
       if (res && res.ok) {
+        if (global.PreShootAnalytics) PreShootAnalytics.track('workspace_created');
         if (global.goTab) global.goTab('studio');
         refreshChrome();
       }
@@ -988,6 +995,7 @@
     if (tabs) {
       var filters = [
         ['all', 'All'],
+        ['comments', 'Comments'],
         ['projects', 'Projects'],
         ['productions', 'Productions'],
         ['scripts', 'Scripts'],
@@ -1024,6 +1032,7 @@
 
   function activityMatchesFilter(v, filter) {
     if (!filter || filter === 'all') return true;
+    if (filter === 'comments') return v.kind === 'comment' || v.target_type;
     var type = (v.change && v.change.type) || v.change_type || '';
     if (filter === 'projects') return type.indexOf('project.') === 0;
     if (filter === 'productions') return type.indexOf('production.') === 0;

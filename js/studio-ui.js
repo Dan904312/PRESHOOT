@@ -523,6 +523,21 @@
     h += '<div class="pw-fact"><span class="pw-fact-l">Status</span><span class="pw-fact-v">' + esc(statusLabel) + '</span></div>';
     h += '</div>';
 
+    if (
+      global.PreShootWorkspaceComments &&
+      PreShootWorkspaceComments.commentChipHtml
+    ) {
+      h +=
+        '<div class="ws-comment-inline">' +
+        PreShootWorkspaceComments.commentChipHtml(
+          productionId,
+          'production',
+          productionId,
+          'Production comments'
+        ) +
+        '</div>';
+    }
+
     if (ov.summary || idea.hook || idea.title) {
       h += '<div class="pw-summary-block">';
       h += '<div class="pw-fact-l">Idea summary</div>';
@@ -626,6 +641,10 @@
       '</textarea>';
     h += '</div>';
 
+    if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.reviewCardHtml) {
+      h += PreShootWorkspaceComments.reviewCardHtml(productionId, prod);
+    }
+
     h += '<div class="pw-card">';
     h += '<div class="pw-card-kicker">Production Tools</div>';
     h += '<div class="pw-tools">';
@@ -700,6 +719,14 @@
       h += '<div class="pw-shot-head-main">';
       h += '<div class="pw-shot-purpose">' + esc(shot.purpose || 'Shot') + '</div>';
       h += '<div class="pw-shot-dur">' + esc(dur) + '</div>';
+      if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
+        h += PreShootWorkspaceComments.commentChipHtml(
+          productionId,
+          'shot',
+          shot.id,
+          'Shot comments'
+        );
+      }
       h += '</div>';
       h += '<span class="pw-chev" aria-hidden="true">' + (open ? '▴' : '▾') + '</span>';
       h += '</button>';
@@ -786,7 +813,16 @@
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Script</div>';
-    h += '<div class="pw-section-sub">Each line maps to a shot</div></div>';
+    h += '<div class="pw-section-sub">Each line maps to a shot</div>';
+    if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
+      h += PreShootWorkspaceComments.commentChipHtml(
+        productionId,
+        'script',
+        productionId,
+        'Script comments'
+      );
+    }
+    h += '</div>';
     h += '<div class="pw-section-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
     h +=
       '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openScriptFullscreen(\'' +
@@ -2016,7 +2052,8 @@
       }
       if (action === 'archive_project' && payload.projectId) {
         var ap = Studio().findProject && Studio().findProject(payload.projectId);
-        if (ap && !ap.archived) return { ok: false, message: 'Archive did not apply' };
+        if (!ap) return { ok: false, message: 'Project not found after archive' };
+        if (!ap.archived) return { ok: false, message: 'Archive did not apply' };
         return { ok: true };
       }
       if (action === 'update_status' && payload.productionId) {
@@ -2027,7 +2064,7 @@
         return { ok: true };
       }
       if (action === 'create_project') {
-        if (!payload.name) return { ok: true };
+        if (!payload.name) return { ok: false, message: 'Missing project name' };
         var created = (Studio().listProjects && Studio().listProjects()) || [];
         var wantC = String(payload.name || '').trim().toLowerCase();
         var foundC = created.some(function (x) {
@@ -2122,23 +2159,67 @@
         if (!shotsAfter.length) return { ok: false, message: 'Shot list is empty after rebuild' };
         return { ok: true, label: shotsAfter.length + ' shots' };
       }
-      if (
-        action === 'generate_sections' ||
-        action === 'open_production' ||
-        action === 'archive_production' ||
-        action === 'link_scan' ||
-        action === 'unlink_scan' ||
-        action === 'list_references' ||
-        action === 'find_references' ||
-        action === 'add_asset' ||
-        action === 'remove_asset'
-      ) {
+      if (action === 'open_production' || action === 'list_references' || action === 'find_references') {
+        return { ok: true };
+      }
+      if (action === 'archive_production' && payload.productionId) {
+        var arch = unwrapProduction(
+          Studio().findProduction && Studio().findProduction(payload.productionId)
+        );
+        if (!arch) return { ok: false, message: 'Production not found' };
+        if (arch.status !== 'archived' && !arch.archived) {
+          return { ok: false, message: 'Archive did not apply' };
+        }
+        return { ok: true };
+      }
+      if (action === 'generate_sections' && payload.productionId) {
+        var gs = unwrapProduction(
+          Studio().findProduction && Studio().findProduction(payload.productionId)
+        );
+        if (!gs || !gs.workspace) return { ok: false, message: 'Sections were not generated' };
+        return { ok: true };
+      }
+      if ((action === 'link_scan' || action === 'unlink_scan') && payload.productionId) {
+        var ls = unwrapProduction(
+          Studio().findProduction && Studio().findProduction(payload.productionId)
+        );
+        if (!ls) return { ok: false, message: 'Production not found' };
+        if (action === 'link_scan' && !(ls.scanRef || ls.coverImage)) {
+          return { ok: false, message: 'Scan link did not apply' };
+        }
+        if (action === 'unlink_scan' && ls.scanRef) {
+          return { ok: false, message: 'Scan unlink did not apply' };
+        }
+        return { ok: true };
+      }
+      if (action === 'add_asset' && payload.productionId) {
+        var aa = unwrapProduction(
+          Studio().findProduction && Studio().findProduction(payload.productionId)
+        );
+        var assets = (aa && aa.workspace && aa.workspace.assets) || [];
+        if (payload.assetId) {
+          var hasA = assets.some(function (a) {
+            return a && a.id === payload.assetId;
+          });
+          if (!hasA) return { ok: false, message: 'Asset was not added' };
+        }
+        return { ok: true };
+      }
+      if (action === 'remove_asset' && payload.productionId && payload.assetId) {
+        var ra = unwrapProduction(
+          Studio().findProduction && Studio().findProduction(payload.productionId)
+        );
+        var stillA = ((ra && ra.workspace && ra.workspace.assets) || []).some(function (a) {
+          return a && a.id === payload.assetId;
+        });
+        if (stillA) return { ok: false, message: 'Asset still present' };
         return { ok: true };
       }
     } catch (e) {
       return { ok: false, message: 'Could not verify change' };
     }
-    return { ok: true };
+    /* Fail closed — unknown mutating actions must not claim success */
+    return { ok: false, message: 'Could not verify this change' };
   }
 
   function executeStagedDirectorAction() {
@@ -2250,6 +2331,16 @@
       setDirectorPanel(actionCardHtml(action, payload, msg || 'Save failed', 'error'));
       setDirectorStatus('error', msg || 'Save failed');
       toast(msg || 'Save failed');
+      if (global.PreShootAnalytics && PreShootAnalytics.track) {
+        PreShootAnalytics.track('director_action_failure', { action: action });
+      }
+    }
+
+    function afterPersistOk() {
+      if (global.PreShootAnalytics && PreShootAnalytics.track) {
+        PreShootAnalytics.track('director_action_success', { action: action });
+      }
+      finishDirectorSuccess();
     }
 
     /* Shared workspace: only claim Done after workspace-sync confirms */
@@ -2301,50 +2392,127 @@
         typeof PreShootWorkspace.saveNow === 'function'
           ? PreShootWorkspace.saveNow()
           : Promise.resolve({ ok: false, error: 'no_save' });
-      savePromise.then(function (saveRes) {
-        if (saveRes && (saveRes.ok || saveRes.skipped)) {
-          finishDirectorSuccess();
-          return;
-        }
-        if (saveRes && saveRes.busy) {
-          /* Wait briefly then retry once */
-          return waitMs(200).then(function () {
-            return PreShootWorkspace.saveNow().then(function (retry) {
-              if (retry && (retry.ok || retry.skipped)) finishDirectorSuccess();
-              else if (retry && retry.conflict) {
-                failDirectorPersist(
-                  'Another collaborator changed this workspace. Resolve the conflict, then try again.'
-                );
-              } else {
-                failDirectorPersist((retry && retry.message) || 'Workspace save failed');
-              }
+      savePromise
+        .then(function (saveRes) {
+          if (saveRes && saveRes.ok === true) {
+            afterPersistOk();
+            return;
+          }
+          if (saveRes && saveRes.busy) {
+            return waitMs(200).then(function () {
+              return PreShootWorkspace.saveNow().then(function (retry) {
+                if (retry && retry.ok === true) afterPersistOk();
+                else if (retry && retry.conflict) {
+                  failDirectorPersist(
+                    'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+                  );
+                } else {
+                  failDirectorPersist(
+                    (retry && retry.message) ||
+                      'I couldn’t save this workspace. Your Studio was not updated.'
+                  );
+                }
+              });
             });
-          });
-        }
-        if (saveRes && saveRes.conflict) {
+          }
+          if (saveRes && saveRes.conflict) {
+            failDirectorPersist(
+              'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+            );
+            return;
+          }
           failDirectorPersist(
-            'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+            (saveRes && saveRes.message) ||
+              'I couldn’t save this workspace. Your Studio was not updated.'
           );
-          return;
-        }
-        failDirectorPersist((saveRes && saveRes.message) || 'Workspace save failed');
-      });
+        })
+        .catch(function () {
+          failDirectorPersist('Workspace save failed. Your existing Studio is unchanged.');
+        });
       return;
     }
 
-    /* Personal Studio: existing flush (fire-and-forget) */
-    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.flush === 'function') {
-      global.PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
-    } else if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
-      global.PreShootStudioSync.pushNow().catch(function () {});
-    }
-    finishDirectorSuccess();
+    /* Personal Studio: only claim Done after /api/sync confirms */
+    setDirectorStatus('executing', 'Saving…');
+    var flushP =
+      global.PreShootStudioSync && typeof PreShootStudioSync.flush === 'function'
+        ? PreShootStudioSync.flush({ pushFirst: true })
+        : global.PreShootStudioSync && typeof PreShootStudioSync.pushNow === 'function'
+          ? PreShootStudioSync.pushNow()
+          : Promise.resolve({ ok: true, local_only: true });
+    Promise.resolve(flushP)
+      .then(function (flushRes) {
+        if (flushRes && flushRes.ok === false) {
+          failDirectorPersist(
+            (flushRes && flushRes.message) ||
+              'I couldn’t save your Studio. The change may not have synced.'
+          );
+          return;
+        }
+        afterPersistOk();
+      })
+      .catch(function () {
+        failDirectorPersist('Save failed. Your Studio may be out of sync — try again.');
+      });
   }
 
   function waitMs(ms) {
     return new Promise(function (resolve) {
       setTimeout(resolve, ms);
     });
+  }
+
+  /** Persist a local Director mutation; never claim Done without confirmation. */
+  function persistDirectorLocalMutation(result) {
+    var productionId =
+      (result && result.productionId) ||
+      (global.S && global.S.studioView && global.S.studioView.productionId) ||
+      null;
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared()
+    ) {
+      if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
+        return Promise.resolve({
+          ok: false,
+          message: 'Read-only workspace — changes were not saved'
+        });
+      }
+      if (PreShootWorkspace.markSharedDirty) {
+        PreShootWorkspace.markSharedDirty(
+          productionId
+            ? { type: 'production.updated', productionId: productionId, entityId: productionId }
+            : null
+        );
+      }
+      return PreShootWorkspace.saveNow().then(function (saveRes) {
+        if (saveRes && saveRes.ok === true) return { ok: true };
+        if (saveRes && saveRes.conflict) {
+          return {
+            ok: false,
+            message:
+              'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+          };
+        }
+        return {
+          ok: false,
+          message: (saveRes && saveRes.message) || 'Workspace save failed'
+        };
+      });
+    }
+    if (global.PreShootStudioSync && typeof PreShootStudioSync.flush === 'function') {
+      return PreShootStudioSync.flush({ pushFirst: true }).then(function (flushRes) {
+        if (flushRes && flushRes.ok === false) {
+          return {
+            ok: false,
+            message: (flushRes && flushRes.message) || 'Studio save failed'
+          };
+        }
+        return { ok: true };
+      });
+    }
+    return Promise.resolve({ ok: true, local_only: true });
   }
 
   function submitDirectorCommand(forcedText) {
@@ -2490,30 +2658,56 @@
       return;
     }
     if (result.kind === 'done') {
-      setDirectorGoState('done');
-      setDirectorStatus('done', shortActionMessage(result.message, 'Done'));
-      if (result.section && global.S && global.S.studioView && global.S.studioView.productionId) {
-        global.S.studioView.section = result.section;
-      }
-      if (result.open && result.result && result.result.result && result.result.result.productionId) {
-        openProduction(result.result.result.productionId);
-        return;
-      }
-      if (result.refresh !== false) {
-        renderContinueCard();
-        renderStudio();
-        setTimeout(function () {
-          setDirectorStatus('done', shortActionMessage(result.message, 'Done ✓'));
-          setDirectorGoState('done');
-          setTimeout(function () {
+      setDirectorGoState('executing');
+      setDirectorStatus('executing', 'Saving…');
+      var donePersist = persistDirectorLocalMutation(result);
+      donePersist
+        .then(function (okPack) {
+          if (!okPack || !okPack.ok) {
             setDirectorGoState('idle');
-          }, 1400);
-        }, 30);
-      } else {
-        setTimeout(function () {
+            setDirectorStatus(
+              'error',
+              (okPack && okPack.message) ||
+                'I couldn’t save that change. Your Studio is unchanged.'
+            );
+            toast((okPack && okPack.message) || 'Save failed');
+            return;
+          }
+          setDirectorGoState('done');
+          setDirectorStatus('done', shortActionMessage(result.message, 'Done'));
+          if (result.section && global.S && global.S.studioView && global.S.studioView.productionId) {
+            global.S.studioView.section = result.section;
+          }
+          if (
+            result.open &&
+            result.result &&
+            result.result.result &&
+            result.result.result.productionId
+          ) {
+            openProduction(result.result.result.productionId);
+            return;
+          }
+          if (result.refresh !== false) {
+            renderContinueCard();
+            renderStudio();
+            setTimeout(function () {
+              setDirectorStatus('done', shortActionMessage(result.message, 'Done ✓'));
+              setDirectorGoState('done');
+              setTimeout(function () {
+                setDirectorGoState('idle');
+              }, 1400);
+            }, 30);
+          } else {
+            setTimeout(function () {
+              setDirectorGoState('idle');
+            }, 1400);
+          }
+        })
+        .catch(function () {
           setDirectorGoState('idle');
-        }, 1400);
-      }
+          setDirectorStatus('error', 'Save failed. Your Studio is unchanged.');
+          toast('Save failed');
+        });
       return;
     }
     if (result.kind === 'explain') {
@@ -3024,6 +3218,14 @@
     h += '</div>';
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.productionActivityHtml) {
       h += PreShootWorkspaceUI.productionActivityHtml(productionId);
+    }
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared() &&
+      global.PreShootWorkspaceComments
+    ) {
+      PreShootWorkspaceComments.ensureLoaded(productionId);
     }
 
     h += '<div id="st-production-menu" class="st-overflow-menu" hidden>';
@@ -3903,13 +4105,19 @@
       }, 40);
     }
 
+    function failModalPersist(msg) {
+      toast(msg || 'Save failed — change was not confirmed');
+      setDirectorStatus('error', msg || 'Save failed');
+      setDirectorGoState('idle');
+    }
+
     if (
       global.PreShootWorkspace &&
       PreShootWorkspace.isShared &&
       PreShootWorkspace.isShared()
     ) {
       if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
-        toast('Read-only workspace — changes were not saved');
+        failModalPersist('Read-only workspace — changes were not saved');
         return;
       }
       if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
@@ -3937,24 +4145,46 @@
         }
         PreShootWorkspace.setPendingChangeHint(hint2);
       }
-      PreShootWorkspace.saveNow().then(function (saveRes) {
-        if (saveRes && (saveRes.ok || saveRes.skipped)) {
-          finishModalSuccess();
-          return;
-        }
-        if (saveRes && saveRes.conflict) {
-          toast('Another collaborator changed this workspace. Resolve the conflict, then try again.');
-          return;
-        }
-        toast((saveRes && saveRes.message) || 'Workspace save failed');
-      });
+      PreShootWorkspace.saveNow()
+        .then(function (saveRes) {
+          if (saveRes && saveRes.ok === true) {
+            finishModalSuccess();
+            return;
+          }
+          if (saveRes && saveRes.conflict) {
+            failModalPersist(
+              'Another collaborator changed this workspace. Resolve the conflict, then try again.'
+            );
+            return;
+          }
+          failModalPersist(
+            (saveRes && saveRes.message) ||
+              'Workspace save failed. Your Studio was not updated.'
+          );
+        })
+        .catch(function () {
+          failModalPersist('Workspace save failed. Your Studio was not updated.');
+        });
       return;
     }
 
-    if (global.PreShootStudioSync && typeof global.PreShootStudioSync.flush === 'function') {
-      global.PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
-    }
-    finishModalSuccess();
+    var modalFlush =
+      global.PreShootStudioSync && typeof PreShootStudioSync.flush === 'function'
+        ? PreShootStudioSync.flush({ pushFirst: true })
+        : Promise.resolve({ ok: true, local_only: true });
+    Promise.resolve(modalFlush)
+      .then(function (flushRes) {
+        if (flushRes && flushRes.ok === false) {
+          failModalPersist(
+            (flushRes && flushRes.message) || 'Save failed. Studio may be out of sync.'
+          );
+          return;
+        }
+        finishModalSuccess();
+      })
+      .catch(function () {
+        failModalPersist('Save failed. Studio may be out of sync.');
+      });
   }
 
   function cancelDirectorAction() {

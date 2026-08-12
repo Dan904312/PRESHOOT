@@ -552,9 +552,12 @@
           return;
         }
         state.starting = false;
-        setStatus('Starting…', 'listening');
-        setHint('Speak naturally. Director is listening');
-        startRecognition(SR, opts.lang || 'en-US');
+        failAndClose(
+          hardDeny
+            ? errorMessage(err)
+            : 'Microphone unavailable. Check browser permissions, then try again — or type your request.'
+        );
+        return;
       });
   }
 
