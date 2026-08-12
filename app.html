@@ -57,7 +57,8 @@
 <script src="/js/workspace-ui.js?v=360"></script>
 <script src="/js/workspace-realtime.js?v=360"></script>
 <script src="/js/workspace-comments.js?v=360"></script>
-<script src="/js/director-voice.js?v=302"></script>
+<script src="/js/analytics.js?v=360"></script>
+<script src="/js/director-voice.js?v=360"></script>
 <script src="/js/studio-ui.js?v=360"></script>
 <script src="/js/studio-keyboard.js?v=302"></script>
 <script src="/js/director-os.js?v=302"></script>
@@ -1064,6 +1065,26 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 @media (max-width:720px){
   .ws-presence-chip{max-width:120px}
   .ws-prod-activity{margin:0 12px 10px}
+}
+@media (max-width:430px){
+  .ws-comment-chip{font-size:11px;min-height:32px;padding:6px 10px}
+  .ws-comment-actions .studio-btn{min-height:36px}
+  .ws-review-select{max-width:100%;width:100%}
+  .ws-review-status-row{flex-direction:column;align-items:stretch}
+  .studio-detail-hd{flex-wrap:wrap;gap:8px}
+  .studio-detail-hd .studio-btn,.studio-detail-hd .ws-presence-chip{min-height:36px}
+  #ws-comments-modal .modal-sheet,#ws-notifications-modal .modal-sheet,#ws-activity-modal .modal-sheet{
+    max-height:min(92dvh,920px);
+  }
+  #ws-comment-input{font-size:16px;min-height:96px}
+  .dir-cmd{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .pw-shot-head{min-height:48px}
+}
+@media (max-width:320px){
+  .studio-title{font-size:18px}
+  .pw-tool{min-width:0}
+  .st-tabs{gap:4px}
+  .st-tab{padding:8px 10px;font-size:12px}
 }
 .ws-remote-btn{border-color:var(--accent-dim)!important}
 
@@ -2439,6 +2460,18 @@ function cleanDirectorText(text){
   t=t.replace(/\n{3,}/g,'\n\n');
   return t.trim();
 }
+/** When an ACTION is proposed, scrub past-tense success claims (Phase 6). */
+function scrubDirectorMutationClaims(text){
+  var t=String(text||'');
+  t=t.replace(/^\s*Done\.?\s*/i,'');
+  t=t.replace(/^\s*Completed\.?\s*/i,'');
+  t=t.replace(/\bI('ve| have)? (updated|changed|renamed|deleted|archived|rebuilt|added|created|moved)\b[^.!?\n]*[.!?]?/gi,'');
+  t=t.replace(/\bUpdated (the |your )?[^.!?\n]*[.!?]?/gi,'');
+  t=t.replace(/\n{3,}/g,'\n\n');
+  t=t.trim();
+  if(!t) t='Ready to apply this change. Confirm in Studio to continue.';
+  return t;
+}
 function captureDirContext(){
   var view=(S.studioView||{});
   var ctx={
@@ -2511,13 +2544,14 @@ if (window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply) {
   try {
     var _act = PreShootDirectorOS.parseActionFromReply(fullText);
     if (_act) {
-      _displayFull = PreShootDirectorOS.stripActionMarker(fullText) || fullText;
+      _displayFull = scrubDirectorMutationClaims(PreShootDirectorOS.stripActionMarker(fullText) || fullText);
       if (bub) {
         bub.textContent = '';
         _displayFull.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); });
       }
       setTimeout(function(){ PreShootDirectorOS.proposeToUI(_act); }, 120);
       window.__preshootPendingDirectorIntent = null;
+      if (window.PreShootAnalytics) PreShootAnalytics.track('director_used', { path: 'chat_action' });
     } else if (window.__preshootPendingDirectorIntent) {
       var _pi = window.__preshootPendingDirectorIntent; window.__preshootPendingDirectorIntent = null;
       setTimeout(function(){ PreShootDirectorOS.proposeToUI(_pi); }, 160);

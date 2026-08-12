@@ -560,6 +560,7 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- Phase 5A Change metadata: also run supabase_workspaces_phase5a_changes.sql
 -- Phase 5B Presence: also run supabase_workspaces_phase5b_presence.sql
 -- Phase 5C Comments/Mentions/Notifications: also run supabase_workspaces_phase5c_comments.sql
+-- Phase 6 Hardening (analytics + storage ACL): also run supabase_workspaces_phase6_hardening.sql
 -- (private Broadcast channel RLS on realtime.messages).
 -- ═══════════════════════════════════════════════════════════
 
