@@ -10,8 +10,12 @@ import {
   gateRouteRateLimit,
   sendRateLimitResponse
 } from '../lib/security.js';
+import { trackProductEventServer, estimateAiCostUsd } from '../lib/product-events.js';
 
 const MAX_ITEMS = 5;
+
+/** Request-scoped user id for AI cost logging (set in handler). */
+let _aiLogUserId = null;
 
 function clampStr(s, n) {
   return String(s || '').slice(0, n);
@@ -65,6 +69,7 @@ function extractJson(text) {
 async function callClaude(system, user, maxTokens) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('AI not configured');
+  const model = 'claude-haiku-4-5-20251001';
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -73,7 +78,7 @@ async function callClaude(system, user, maxTokens) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model,
       max_tokens: maxTokens || 900,
       system,
       messages: [{ role: 'user', content: user }]
@@ -81,9 +86,28 @@ async function callClaude(system, user, maxTokens) {
   });
   if (!r.ok) {
     const err = await r.text();
+    if (_aiLogUserId) {
+      trackProductEventServer(_aiLogUserId, 'api_error', {
+        endpoint: 'research',
+        status: r.status,
+        category: 'upstream'
+      }).catch(function () {});
+    }
     throw new Error('AI error: ' + err.slice(0, 120));
   }
   const data = await r.json();
+  if (_aiLogUserId) {
+    const usage = data.usage || {};
+    const inTok = usage.input_tokens || 0;
+    const outTok = usage.output_tokens || 0;
+    trackProductEventServer(_aiLogUserId, 'ai_request', {
+      endpoint: 'research',
+      model,
+      input_tokens: inTok,
+      output_tokens: outTok,
+      cost_usd: estimateAiCostUsd(model, inTok, outTok)
+    }).catch(function () {});
+  }
   const block = (data.content || []).find((b) => b.type === 'text');
   return (block && block.text) || '';
 }
@@ -544,11 +568,14 @@ export default async function handler(req, res) {
   const ctx = sanitizeContext(body.context);
 
   try {
+    _aiLogUserId = auth.user.id;
     const result = await ADAPTERS[platform](ctx);
     return res.status(200).json(result);
   } catch (e) {
     return res.status(500).json({
       error: { message: (e && e.message ? e.message : 'Research failed').slice(0, 160) }
     });
+  } finally {
+    _aiLogUserId = null;
   }
 }

@@ -16,6 +16,26 @@ import {
   detectDirectorMutationIntent,
   roleCanEdit
 } from '../lib/workspaces.js';
+import {
+  trackProductEventServer,
+  estimateAiCostUsd
+} from '../lib/product-events.js';
+
+async function logAiRequest(userId, meta) {
+  try {
+    await trackProductEventServer(userId, 'ai_request', meta);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+async function logApiError(userId, meta) {
+  try {
+    await trackProductEventServer(userId, 'api_error', meta);
+  } catch (e) {
+    /* ignore */
+  }
+}
 
 const DIRECTOR_SYSTEM = `DIRECTOR™ — PRESHOOT CORE SYSTEM
 
@@ -383,6 +403,13 @@ export default async function handler(req, res) {
     });
 
     if (stream) {
+      /* Token usage unavailable on SSE path — count request only */
+      logAiRequest(auth.user.id, {
+        endpoint: 'director',
+        model: anthropicBody.model,
+        stream: true,
+        workspace: workspaceId ? 'shared' : 'personal'
+      });
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('X-Accel-Buffering', 'no');
@@ -404,14 +431,35 @@ export default async function handler(req, res) {
       const msg =
         (data && data.error && (data.error.message || data.error.type)) ||
         'Director upstream error ' + response.status;
+      logApiError(auth.user.id, {
+        endpoint: 'director',
+        status: response.status,
+        category: 'upstream'
+      });
       return res.status(response.status).json({
         error: { message: String(msg).slice(0, 240) },
         content: data && data.content
       });
     }
+    const usage = (data && data.usage) || {};
+    const inTok = usage.input_tokens || 0;
+    const outTok = usage.output_tokens || 0;
+    logAiRequest(auth.user.id, {
+      endpoint: 'director',
+      model: anthropicBody.model,
+      input_tokens: inTok,
+      output_tokens: outTok,
+      cost_usd: estimateAiCostUsd(anthropicBody.model, inTok, outTok),
+      workspace: workspaceId ? 'shared' : 'personal'
+    });
     return res.status(200).json(data);
   } catch (error) {
     console.error('Director API error:', error);
+    logApiError(auth.user && auth.user.id, {
+      endpoint: 'director',
+      status: 500,
+      category: 'exception'
+    });
     const detail =
       process.env.NODE_ENV !== 'production' && error && error.message
         ? String(error.message).slice(0, 180)

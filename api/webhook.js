@@ -201,6 +201,15 @@ export default async function handler(req, res) {
           amount: amountTotal,
           stripe_event_id: event.id
         });
+        if (userId) {
+          try {
+            const { trackProductEventServer } = await import('../lib/product-events.js');
+            await trackProductEventServer(userId, 'subscription_started', {
+              source: 'stripe',
+              amount: amountTotal || 0
+            });
+          } catch (e) {}
+        }
         break;
       }
 
@@ -227,6 +236,14 @@ export default async function handler(req, res) {
           payload: { id: obj.id },
           stripe_event_id: event.id
         });
+        if (row?.user_id && !String(row.user_id).startsWith('email:')) {
+          try {
+            const { trackProductEventServer } = await import('../lib/product-events.js');
+            await trackProductEventServer(row.user_id, 'subscription_cancelled', {
+              source: 'stripe'
+            });
+          } catch (e) {}
+        }
         break;
       }
 

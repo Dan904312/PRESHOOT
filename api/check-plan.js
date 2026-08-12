@@ -13,6 +13,11 @@ import {
   gateRouteRateLimit,
   serviceHeaders
 } from '../lib/security.js';
+import {
+  PRODUCT_EVENT_SET,
+  sanitizeEventMeta,
+  trackProductEventServer
+} from '../lib/product-events.js';
 
 function resourceOf(req) {
   const q = req.query || {};
@@ -104,41 +109,16 @@ async function handleTrack(req, res, auth) {
   const h = serviceHeaders();
 
   try {
-    /* Phase 6 product events — metadata only, no content payloads */
     if (body.action === 'events' && Array.isArray(body.events)) {
-      const ALLOWED = new Set([
-        'signup',
-        'workspace_created',
-        'workspace_invited',
-        'workspace_joined',
-        'project_created',
-        'production_created',
-        'director_used',
-        'director_action_success',
-        'director_action_failure',
-        'script_created',
-        'shotlist_created',
-        'asset_uploaded',
-        'comment_created',
-        'production_reviewed',
-        'subscription_started'
-      ]);
       const rows = body.events
         .slice(0, 20)
         .map((ev) => {
           const name = String((ev && ev.event) || '');
-          if (!ALLOWED.has(name)) return null;
-          const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : {};
-          const safe = {};
-          Object.keys(meta).slice(0, 8).forEach((k) => {
-            const v = meta[k];
-            if (typeof v === 'string' && v.length <= 80) safe[k] = v;
-            else if (typeof v === 'number' || typeof v === 'boolean') safe[k] = v;
-          });
+          if (!PRODUCT_EVENT_SET.has(name)) return null;
           return {
             user_id,
             event: name,
-            meta: safe,
+            meta: sanitizeEventMeta(ev && ev.meta),
             created_at: new Date().toISOString()
           };
         })
@@ -149,6 +129,15 @@ async function handleTrack(req, res, auth) {
           headers: { ...h, Prefer: 'return=minimal' },
           body: JSON.stringify(rows)
         }).catch(function () {});
+      }
+      /* Referral signup attribution (once) */
+      const ref =
+        (typeof body.ref === 'string' && body.ref.slice(0, 40)) ||
+        (rows.find((r) => r.meta && r.meta.ref) &&
+          rows.find((r) => r.meta && r.meta.ref).meta.ref) ||
+        null;
+      if (ref && rows.some((r) => r.event === 'signup' || r.event === 'onboarding_completed')) {
+        await trackProductEventServer(userId, 'referral_signup', { ref }).catch(function () {});
       }
       return res.status(200).json({ ok: true, tracked: rows.length });
     }

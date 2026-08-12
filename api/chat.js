@@ -7,6 +7,10 @@ import {
   sendRateLimitResponse,
   sanitizeImage
 } from '../lib/security.js';
+import {
+  trackProductEventServer,
+  estimateAiCostUsd
+} from '../lib/product-events.js';
 
 const ALLOWED_MODELS = new Set(['claude-sonnet-4-6', 'claude-haiku-4-5-20251001']);
 
@@ -76,7 +80,7 @@ export default async function handler(req, res) {
   if (!access.ok) {
     const msg =
       access.error === 'quota_exceeded'
-        ? 'Daily free scan limit reached. Upgrade to Pro for unlimited scans.'
+        ? 'Daily free scan limit reached. Upgrade to Pro to keep turning scenes into shoot-ready ideas.'
         : access.error || 'Access denied';
     return res.status(access.status || 403).json({ error: { message: msg } });
   }
@@ -100,6 +104,11 @@ export default async function handler(req, res) {
     });
 
     if (safe.stream) {
+      trackProductEventServer(auth.user.id, 'ai_request', {
+        endpoint: 'chat',
+        model: safe.model,
+        stream: true
+      }).catch(function () {});
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('X-Accel-Buffering', 'no');
@@ -117,6 +126,23 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
+    if (response.ok && data && data.usage) {
+      const inTok = data.usage.input_tokens || 0;
+      const outTok = data.usage.output_tokens || 0;
+      trackProductEventServer(auth.user.id, 'ai_request', {
+        endpoint: 'chat',
+        model: safe.model,
+        input_tokens: inTok,
+        output_tokens: outTok,
+        cost_usd: estimateAiCostUsd(safe.model, inTok, outTok)
+      }).catch(function () {});
+    } else if (!response.ok) {
+      trackProductEventServer(auth.user.id, 'api_error', {
+        endpoint: 'chat',
+        status: response.status,
+        category: 'upstream'
+      }).catch(function () {});
+    }
     return res.status(response.status).json(data);
   } catch (error) {
     console.error('Proxy error:', error);

@@ -99,7 +99,7 @@ export default async function handler(req, res) {
         const revoked = subs.filter(d => d.status === 'revoked').length;
         const pastDue = subs.filter(d => d.status === 'past_due').length;
 
-        const mrr = (monthly * 10) + (yearly * (60/12));
+        const mrr = monthly * 9 + yearly * (79 / 12);
         const arr = mrr * 12;
 
         const revenueEvents = Array.isArray(events) ? events.filter(e => (e.event_type === 'checkout.completed' || e.event_type === 'payment.succeeded') && e.amount) : [];
@@ -259,7 +259,7 @@ export default async function handler(req, res) {
           cancelled: data.filter(d => d.status === 'cancelled').length,
           revoked: data.filter(d => d.status === 'revoked').length,
           past_due: data.filter(d => d.status === 'past_due').length,
-          mrr: (monthly * 10) + (yearly * 5)
+          mrr: Math.round((monthly * 9 + yearly * (79 / 12)) * 100) / 100
         });
       }
 
@@ -323,6 +323,127 @@ export default async function handler(req, res) {
           body: JSON.stringify({ notes: String(reason || '').slice(0, 2000), updated_at: new Date().toISOString() })
         });
         return res.status(200).json({ success: true });
+      }
+
+      case 'product_overview': {
+        /* Phase 7 — product health from product_events + users (admin only) */
+        const since = new Date();
+        since.setDate(since.getDate() - 30);
+        const [evR, usersR] = await Promise.all([
+          fetch(
+            `${SUPA_URL}/rest/v1/product_events?select=user_id,event,meta,created_at&created_at=gte.${since.toISOString()}&order=created_at.desc&limit=5000`,
+            { headers: h }
+          ),
+          fetch(`${SUPA_URL}/rest/v1/users?select=user_id,first_seen,last_seen`, { headers: h })
+        ]);
+        const events = await evR.json();
+        const users = await usersR.json();
+        const list = Array.isArray(events) ? events : [];
+        const userList = Array.isArray(users) ? users : [];
+
+        function countEvent(name) {
+          return list.filter((e) => e.event === name).length;
+        }
+        function uniqueUsers(name) {
+          const s = new Set();
+          list.forEach((e) => {
+            if (e.event === name && e.user_id) s.add(e.user_id);
+          });
+          return s.size;
+        }
+
+        const ideaUsers = new Set();
+        const prodUsers = new Set();
+        list.forEach((e) => {
+          if (e.event === 'idea_generated' && e.user_id) ideaUsers.add(e.user_id);
+          if (e.event === 'production_created' && e.user_id) prodUsers.add(e.user_id);
+        });
+        let activated = 0;
+        ideaUsers.forEach((id) => {
+          if (prodUsers.has(id)) activated += 1;
+        });
+
+        const dirOk = countEvent('director_action_success');
+        const dirFail = countEvent('director_action_failure');
+        const dirReq = countEvent('director_action_requested') || dirOk + dirFail;
+        const actionSuccessRate =
+          dirOk + dirFail > 0 ? ((dirOk / (dirOk + dirFail)) * 100).toFixed(1) : null;
+
+        let aiCost = 0;
+        let aiCalls = 0;
+        list.forEach((e) => {
+          if (e.event !== 'ai_request') return;
+          aiCalls += 1;
+          const c = e.meta && e.meta.cost_usd;
+          if (typeof c === 'number') aiCost += c;
+        });
+
+        const now = Date.now();
+        function retention(days) {
+          const cohort = userList.filter((u) => {
+            if (!u.first_seen) return false;
+            const age = (now - new Date(u.first_seen).getTime()) / 86400000;
+            return age >= days;
+          });
+          if (!cohort.length) return null;
+          const returned = cohort.filter((u) => {
+            if (!u.last_seen || !u.first_seen) return false;
+            const gap =
+              (new Date(u.last_seen).getTime() - new Date(u.first_seen).getTime()) / 86400000;
+            return gap >= days;
+          }).length;
+          return {
+            eligible: cohort.length,
+            returned,
+            rate: ((returned / cohort.length) * 100).toFixed(1)
+          };
+        }
+
+        const mobile = list.filter((e) => e.meta && e.meta.surface === 'mobile').length;
+        const desktop = list.filter((e) => e.meta && e.meta.surface === 'desktop').length;
+
+        return res.status(200).json({
+          ok: true,
+          window_days: 30,
+          events_sampled: list.length,
+          funnel: {
+            signups: uniqueUsers('signup') || countEvent('signup'),
+            onboarding_completed: uniqueUsers('onboarding_completed'),
+            scans_completed: countEvent('scan_completed'),
+            ideas: countEvent('idea_generated'),
+            productions: countEvent('production_created'),
+            director_opened: countEvent('director_opened'),
+            checkout_started: countEvent('checkout_started'),
+            subscriptions_started: countEvent('subscription_started')
+          },
+          activation: {
+            definition: 'idea_generated AND production_created',
+            activated_users: activated,
+            idea_users: ideaUsers.size,
+            production_users: prodUsers.size
+          },
+          director: {
+            requested: dirReq,
+            success: dirOk,
+            failure: dirFail,
+            action_success_rate: actionSuccessRate
+          },
+          ai: {
+            requests: aiCalls,
+            estimated_cost_usd: Number(aiCost.toFixed(4))
+          },
+          retention: {
+            d1: retention(1),
+            d7: retention(7),
+            d30: retention(30)
+          },
+          surface: { mobile, desktop },
+          referrals: {
+            clicked: countEvent('referral_clicked'),
+            signups: countEvent('referral_signup'),
+            activations: countEvent('referral_activation')
+          }
+        });
       }
 
       default:
