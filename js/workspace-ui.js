@@ -544,6 +544,9 @@
           '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.copyInviteLink()">Copy link</button>';
       }
       toast('Invite created');
+      if (global.PreShootAnalytics) {
+        PreShootAnalytics.track('workspace_invited', { role: String(role).slice(0, 20) });
+      }
       renderMembersPanel(ctx.activeWorkspaceId, ctx);
     });
   }
@@ -1140,6 +1143,7 @@
       }
       if (!Ctx()) return;
       Ctx().handleInviteToken(token).then(function () {
+        if (global.PreShootAnalytics) PreShootAnalytics.track('workspace_joined');
         try {
           var url = new URL(window.location.href);
           url.searchParams.delete('invite');

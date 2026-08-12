@@ -167,6 +167,23 @@
       if (id && used.indexOf(id) === -1) used.push(id);
     });
     saveUsed(used);
+    if (global.PreShootAnalytics && ids && ids.length) {
+      var unique = [];
+      ids.forEach(function (id) {
+        if (id && unique.indexOf(id) === -1) unique.push(id);
+      });
+      unique.slice(0, 6).forEach(function (id) {
+        PreShootAnalytics.track(
+          'hook_structure_used',
+          {
+            hook_structure: String(id).slice(0, 40),
+            platform: String((global.S && S.niche && S.niche.platform) || '').slice(0, 40),
+            content_type: String((global.S && S.selectedFormat) || '').slice(0, 40)
+          },
+          { dedupeKey: 'hook:' + id }
+        );
+      });
+    }
     return used;
   }
 

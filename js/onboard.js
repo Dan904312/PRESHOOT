@@ -582,6 +582,7 @@
     seedDraftFromState();
     setPhase('flow');
     showPage(0, 1);
+    if (global.PreShootAnalytics) PreShootAnalytics.track('onboarding_started');
   }
 
   function login() {
@@ -629,6 +630,7 @@
     persistToSourceOfTruth();
     ss('ob_done', true);
     ss('ob_oauth_resume', null);
+    if (global.PreShootAnalytics) PreShootAnalytics.track('onboarding_completed');
     if (typeof showMain === 'function') showMain();
   }
 

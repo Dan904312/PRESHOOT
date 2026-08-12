@@ -1401,6 +1401,9 @@
       toast('Could not save reference');
       return;
     }
+    if (global.PreShootAnalytics && !result.duplicate) {
+      PreShootAnalytics.track('reference_added', { platform: String(platform || '').slice(0, 40) });
+    }
     if (global.PreShootStudioSync && PreShootStudioSync.flush) {
       PreShootStudioSync.flush({ pushFirst: true }).catch(function () {});
     } else if (typeof global.scheduleCloudSync === 'function') {
@@ -1495,6 +1498,11 @@
       if (!added) {
         setStatus('Could not save asset.', 'error');
         return;
+      }
+      if (global.PreShootAnalytics) {
+        PreShootAnalytics.track('asset_uploaded', {
+          type: String((meta && meta.type) || '').slice(0, 40)
+        });
       }
       if (
         global.PreShootWorkspace &&
@@ -1682,14 +1690,17 @@
     var perf = (ws && ws.performance) || {};
     var h = '';
     h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Performance Review</div>';
-    h += '<div class="pw-section-sub">Manual metrics or a PDF note — no social APIs yet</div></div></div>';
+    h += '<div class="pw-section-sub">Manual metrics you enter — PreShoot does not scrape social platforms. Architecture ready for future imports.</div></div></div>';
     h += '<div class="pw-card">';
     h += '<div class="pw-perf-grid">';
     [
       ['views', 'Views'],
       ['likes', 'Likes'],
       ['comments', 'Comments'],
+      ['shares', 'Shares'],
+      ['saves', 'Saves'],
       ['watchTime', 'Watch time'],
+      ['retention', 'Retention %'],
       ['ctr', 'CTR']
     ].forEach(function (f) {
       h += '<div><label class="st-label">' + f[1] + '</label>';
@@ -3646,6 +3657,12 @@
     prod.workspace.shotList = list;
     Studio().updateProduction(productionId, { workspace: prod.workspace });
     ensureExpandedMap(productionId)[list[list.length - 1].id] = true;
+    if (global.PreShootAnalytics) {
+      PreShootAnalytics.track('shotlist_created', {
+        mode: 'shot',
+        id: String(productionId).slice(0, 40)
+      });
+    }
     if (global.S) {
       global.S.studioView = { mode: 'production', productionId: productionId, section: 'shots' };
     }
@@ -3674,6 +3691,12 @@
     if (!Array.isArray(prod.workspace.script.lines)) prod.workspace.script.lines = [];
     prod.workspace.script.lines.push(Studio().createScriptLine({ text: '' }));
     Studio().updateProduction(productionId, { workspace: prod.workspace });
+    if (global.PreShootAnalytics) {
+      PreShootAnalytics.track('script_created', {
+        mode: 'line',
+        id: String(productionId).slice(0, 40)
+      });
+    }
     if (global.S) {
       global.S.studioView = { mode: 'production', productionId: productionId, section: 'script' };
     }
@@ -4197,6 +4220,12 @@
     var patch = {};
     patch[field] = value;
     Studio().savePerformance(productionId, patch);
+    if (global.PreShootAnalytics) {
+      PreShootAnalytics.track('production_performance_updated', {
+        field: String(field || '').slice(0, 40),
+        has_value: !!String(value || '').trim()
+      });
+    }
     renderContinueCard();
   }
 
@@ -4462,6 +4491,9 @@
     });
     closeM('studio-project-modal');
     projectDraft = { step: 1, name: '', notes: '', coverImage: null };
+    if (global.PreShootAnalytics) {
+      PreShootAnalytics.track('project_created', { id: String(p.id || '').slice(0, 40) });
+    }
     toast('Project created');
     openProject(p.id);
   }
@@ -4528,6 +4560,13 @@
     if (!result) {
       toast('Could not create production');
       return;
+    }
+    if (global.PreShootAnalytics) {
+      PreShootAnalytics.track('production_created', {
+        id: String(result.production.id || '').slice(0, 40),
+        source: 'blank'
+      });
+      PreShootAnalytics.noteProductionCreated();
     }
     toast('Production created');
     openProduction(result.production.id);
@@ -4629,6 +4668,14 @@
     if (!result) {
       toast('Could not create production');
       return;
+    }
+    if (global.PreShootAnalytics) {
+      if (mode === 'new') PreShootAnalytics.track('project_created', { source: 'send' });
+      PreShootAnalytics.track('production_created', {
+        id: String(result.production.id || '').slice(0, 40),
+        source: 'idea'
+      });
+      PreShootAnalytics.noteProductionCreated();
     }
     toast('Sent to Studio');
     openProduction(result.production.id);

@@ -504,6 +504,11 @@
           Ctx().setSharedDocument(res.document, res.revision);
         }
         toast('Review status updated');
+        if (global.PreShootAnalytics) {
+          PreShootAnalytics.track('production_reviewed', {
+            status: String(status || '').slice(0, 40)
+          });
+        }
         if (global.PreShootStudioUI) PreShootStudioUI.renderStudio();
       });
   }
