@@ -1290,14 +1290,33 @@
 
   function createAndOpen(name) {
     var api = API();
-    if (!api) return Promise.resolve({ ok: false });
+    if (!api) {
+      toast('Workspace system not ready — refresh and try again');
+      return Promise.resolve({ ok: false, error: 'no_api' });
+    }
+    if (!global.S || !global.S.authUser) {
+      toast('Sign in to create a workspace');
+      return Promise.resolve({ ok: false, error: 'auth_required' });
+    }
     return api.createWorkspace(name || 'Untitled Workspace').then(function (res) {
       if (!res || !res.ok || !res.workspace) {
-        toast((res && res.message) || 'Could not create workspace');
-        return res;
+        var msg =
+          (res && (res.message || res.error)) ||
+          'Could not create workspace';
+        if (res && res.status === 401) msg = 'Sign in to create a workspace';
+        toast(String(msg).slice(0, 120));
+        return res || { ok: false };
       }
       state.listLoadedAt = 0;
-      return switchTo(res.workspace.id, { skipConfirm: true }).then(function () {
+      return switchTo(res.workspace.id, { skipConfirm: true }).then(function (sw) {
+        if (!sw || !sw.ok) {
+          toast(
+            (sw && sw.message) ||
+              'Workspace created, but it could not be opened. Open it from the switcher.'
+          );
+          /* Still treat create as success so the list can refresh */
+          return Object.assign({}, res, { opened: false, switchError: sw && sw.error });
+        }
         return res;
       });
     });

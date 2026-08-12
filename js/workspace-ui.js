@@ -352,12 +352,16 @@
     var inp = document.getElementById('ws-create-name');
     var name = (inp && inp.value.trim()) || 'Untitled Workspace';
     closeM('ws-create-modal');
-    if (!Ctx()) return;
+    if (!Ctx()) {
+      toast('Workspace system not ready — refresh and try again');
+      return;
+    }
     Ctx().createAndOpen(name).then(function (res) {
       if (res && res.ok) {
         if (global.PreShootAnalytics) PreShootAnalytics.track('workspace_created');
         if (global.goTab) global.goTab('studio');
         refreshChrome();
+        if (res.opened === false) openSwitcher();
       }
     });
   }
