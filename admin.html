@@ -220,6 +220,17 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="stat-card"><div class="stat-val" id="ov-scans" style="font-size:22px">—</div><div class="stat-lbl">Total Scans</div></div>
         <div class="stat-card"><div class="stat-val" id="ov-avg-scans" style="font-size:22px">—</div><div class="stat-lbl">Avg Scans / User</div></div>
       </div>
+
+      <div class="section-title">Product Health (30d events)</div>
+      <div class="stats-grid six">
+        <div class="stat-card accent"><div class="stat-val" id="ov-activated" style="font-size:22px">—</div><div class="stat-lbl">Activated Users</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-ideas" style="font-size:22px">—</div><div class="stat-lbl">Ideas Generated</div></div>
+        <div class="stat-card"><div class="stat-val" id="ov-productions" style="font-size:22px">—</div><div class="stat-lbl">Productions</div></div>
+        <div class="stat-card green"><div class="stat-val" id="ov-dir-ok" style="font-size:22px">—</div><div class="stat-lbl">Director Success %</div></div>
+        <div class="stat-card amber"><div class="stat-val" id="ov-ai-cost" style="font-size:22px">—</div><div class="stat-lbl">Est. AI Cost</div></div>
+        <div class="stat-card blue"><div class="stat-val" id="ov-d7" style="font-size:22px">—</div><div class="stat-lbl">D7 Retention</div></div>
+      </div>
+      <div class="page-sub" id="ov-product-note" style="margin-top:8px">Activation = idea_generated + production_created</div>
     </div>
 
     <!-- ALL USERS -->
@@ -422,6 +433,15 @@ function loadOverviewStats() {
     set('ov-revoked', d.revoked||0);
     set('ov-scans', d.totalScansAllUsers||0);
     set('ov-avg-scans', d.avgScansPerUser||0);
+  });
+  api('product_overview', {}).then(function(d) {
+    if (!d || d.error || !d.ok) return;
+    set('ov-activated', (d.activation && d.activation.activated_users) || 0);
+    set('ov-ideas', (d.funnel && d.funnel.ideas) || 0);
+    set('ov-productions', (d.funnel && d.funnel.productions) || 0);
+    set('ov-dir-ok', (d.director && d.director.action_success_rate != null) ? d.director.action_success_rate + '%' : '—');
+    set('ov-ai-cost', money((d.ai && d.ai.estimated_cost_usd) || 0));
+    set('ov-d7', (d.retention && d.retention.d7 && d.retention.d7.rate != null) ? d.retention.d7.rate + '%' : '—');
   });
 }
 
