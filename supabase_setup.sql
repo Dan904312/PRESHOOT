@@ -551,7 +551,8 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- ═══════════════════════════════════════════════════════════
 -- Collaborative Workspaces Phase 1
 -- Run supabase_workspaces_phase1.sql in the Supabase SQL Editor
--- (tables, RLS, helpers, personal metadata backfill).
+-- If shared workspace creation fails with create_failed / document_create_failed,
+-- also run supabase_workspaces_phase1_service_grants.sql (service_role table grants).
 -- Personal Studio remains in user_data.prefs.studio — do not copy.
 -- Shared Studio lives in workspace_data.document.
 --
