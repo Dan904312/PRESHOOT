@@ -179,10 +179,12 @@ function fakeFetch(url, opts = {}) {
       const id = parseEq(qs, 'id');
       const owner = parseEq(qs, 'owner_id');
       const kind = parseEq(qs, 'kind');
+      const name = parseEq(qs, 'name');
       let rows = Object.values(db.workspaces);
       if (id) rows = rows.filter((w) => w.id === id);
       if (owner) rows = rows.filter((w) => w.owner_id === owner);
       if (kind) rows = rows.filter((w) => w.kind === kind);
+      if (name) rows = rows.filter((w) => w.name === name);
       if (qs.includes('id=in.(')) {
         const inn = qs.match(/id=in\.\(([^)]+)\)/);
         const ids = inn ? inn[1].split(',').map(decodeURIComponent) : [];
@@ -684,6 +686,42 @@ await test('create shared workspace seeds workspace_data only', async () => {
   assert.ok(db.data[created.workspace.id]);
   assert.strictEqual(db.data[created.workspace.id].revision, 1);
   assert.ok(!db.data[WS_PERSONAL]);
+});
+
+await test('create shared workspace has empty-representation fallback', () => {
+  const src = fs.readFileSync(path.join(root, 'lib/workspaces.js'), 'utf8');
+  assert.ok(src.includes("prefer: 'return=minimal'"));
+  assert.ok(src.includes('resolution=ignore-duplicates,return=minimal'));
+  assert.ok(src.includes('Workspace insert did not return an id') || src.includes('name=eq.'));
+  assert.ok(src.includes('postgrestMessage') || src.includes('permission denied'));
+});
+
+await test('create shared workspace surfaces PostgREST errors', async () => {
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async function (url, opts = {}) {
+    const method = (opts.method || 'GET').toUpperCase();
+    const path = String(url).replace(/^https?:\/\/[^/]+\/rest\/v1\//, '');
+    const table = path.split('?')[0];
+    if (method === 'POST' && table === 'workspaces') {
+      return {
+        ok: false,
+        status: 401,
+        headers: { get: () => null },
+        json: async () => ({ code: '42501', message: 'permission denied for table workspaces' }),
+        text: async () =>
+          JSON.stringify({ code: '42501', message: 'permission denied for table workspaces' })
+      };
+    }
+    return prevFetch(url, opts);
+  };
+  try {
+    const created = await ws.createSharedWorkspace(USER_OWNER, { name: 'Denied' });
+    assert.strictEqual(created.ok, false);
+    assert.strictEqual(created.error, 'create_failed');
+    assert.ok(String(created.message || '').includes('permission denied'));
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
 });
 
 console.log('\n== Director authorization helpers ==');
