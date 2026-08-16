@@ -1304,6 +1304,9 @@
           (res && (res.message || res.error)) ||
           'Could not create workspace';
         if (res && res.status === 401) msg = 'Sign in to create a workspace';
+        if (res && res.error === 'server_misconfigured') {
+          msg = 'Could not create workspace (server configuration). Try again, or contact support.';
+        }
         toast(String(msg).slice(0, 120));
         return res || { ok: false };
       }
