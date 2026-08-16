@@ -13,7 +13,8 @@ import {
   handleOptions,
   requireUser,
   gateRouteRateLimit,
-  sendRateLimitResponse
+  sendRateLimitResponse,
+  logSupabaseConfigPresence
 } from '../lib/security.js';
 import {
   isUuid,
@@ -543,7 +544,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(req, res);
 
   const auth = await requireUser(req);
-  if (auth.error) return res.status(auth.status).json({ error: auth.error });
+  if (auth.error) {
+    if (auth.error === 'server_misconfigured') {
+      logSupabaseConfigPresence('workspace_create_config_missing');
+    }
+    return res.status(auth.status).json({ ok: false, error: auth.error });
+  }
 
   const resource = resourceOf(req);
   try {
