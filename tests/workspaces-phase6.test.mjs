@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { detectDirectorMutationIntent } from '../lib/workspaces.js';
+import { supabaseAuthApiKey } from '../lib/security.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0;
@@ -95,10 +96,13 @@ test('subscription no email Pro grant when userId present; portal locked', () =>
   assert.ok(portal.includes('stripe_customer_id'));
 });
 
-test('requireUser fails closed without anon key', () => {
+test('requireUser fails closed without URL or any server API key', () => {
   const sec = fs.readFileSync(path.join(root, 'lib/security.js'), 'utf8');
-  assert.ok(sec.includes('if (!anon) return { error: \'server_misconfigured\''));
-  assert.ok(!sec.includes('const apikey = anon || process.env.SUPABASE_SERVICE_KEY'));
+  assert.ok(sec.includes("error: 'server_misconfigured'"));
+  assert.ok(sec.includes('function supabaseAuthApiKey'));
+  assert.ok(sec.includes('logSupabaseConfigPresence'));
+  assert.ok(sec.includes('SUPABASE_ANON_KEY'));
+  assert.ok(sec.includes('SUPABASE_SERVICE_KEY'));
 });
 
 test('upload signed URLs are short-lived', () => {
@@ -143,6 +147,29 @@ test('personal sync untouched by Phase 6 analytics routes', () => {
   const sync = fs.readFileSync(path.join(root, 'api/sync.js'), 'utf8');
   assert.ok(!sync.includes('product_events'));
   assert.ok(!sync.includes('director_action'));
+});
+
+test('Auth apikey prefers anon then service key (names only)', () => {
+  const prev = {
+    anon: process.env.SUPABASE_ANON_KEY,
+    pub: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    svc: process.env.SUPABASE_SERVICE_KEY
+  };
+  try {
+    delete process.env.SUPABASE_ANON_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.SUPABASE_SERVICE_KEY = 'test-service-placeholder';
+    assert.strictEqual(supabaseAuthApiKey(), 'test-service-placeholder');
+    process.env.SUPABASE_ANON_KEY = 'test-anon-placeholder';
+    assert.strictEqual(supabaseAuthApiKey(), 'test-anon-placeholder');
+  } finally {
+    if (prev.anon == null) delete process.env.SUPABASE_ANON_KEY;
+    else process.env.SUPABASE_ANON_KEY = prev.anon;
+    if (prev.pub == null) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = prev.pub;
+    if (prev.svc == null) delete process.env.SUPABASE_SERVICE_KEY;
+    else process.env.SUPABASE_SERVICE_KEY = prev.svc;
+  }
 });
 
 console.log(`\nPhase 6: ${passed} passed, ${failed} failed`);
