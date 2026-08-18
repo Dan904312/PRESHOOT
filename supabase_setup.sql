@@ -563,6 +563,7 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- Phase 5C Comments/Mentions/Notifications: also run supabase_workspaces_phase5c_comments.sql
 -- Phase 6 Hardening (analytics + storage ACL): also run supabase_workspaces_phase6_hardening.sql
 -- Phase 7 Growth (content_performance boundary): also run supabase_workspaces_phase7_growth.sql
+-- Phase 8 Join codes: also run supabase_workspaces_phase8_join_codes.sql
 -- (private Broadcast channel RLS on realtime.messages).
 -- ═══════════════════════════════════════════════════════════
 

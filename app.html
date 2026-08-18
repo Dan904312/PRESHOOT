@@ -71,12 +71,15 @@
   --bg:#000000;--s1:#111111;--s2:#1a1a1a;--s3:#242424;
   --card:#141414;
   --bg-elevated:rgba(255,255,255,.04);--bg-elevated-2:rgba(255,255,255,.07);
-  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);--border-hover:var(--accent);
+  --border:rgba(255,255,255,.12);--border2:rgba(255,255,255,.22);--border-hover:var(--accent);
   --glass:rgba(0,0,0,.86);--glass-strong:rgba(0,0,0,.94);
   --text:#ffffff;--text2:rgba(255,255,255,.55);--text3:rgba(255,255,255,.32);
-  /* Theme accent — default blue; driven by syncAccentTokens() */
-  --accent:#4A9EFF;--accent2:#4A9EFF;--accent-dim:var(--accent-soft);--accent-soft:var(--accent-soft);
-  --on-accent:#000000;
+  /* Theme accent — user's colour is source of truth via syncAccentTokens() */
+  --accent:#4A9EFF;--accent2:#4A9EFF;
+  --accent-hover:#3b8eef;--accent-soft:rgba(74,158,255,.12);
+  --accent-border:rgba(74,158,255,.45);--accent-glow:rgba(74,158,255,.28);
+  --accent-contrast:#000000;--accent-dim:var(--accent-soft);
+  --on-accent:var(--accent-contrast);
   /* Semantic neutrals (no decorative colour) */
   --danger:#ffffff;--ok:#ffffff;--warn:#ffffff;
   --r:10px;--rlg:16px;--r-card:16px;--r-pill:999px;--r-btn:10px;--r-icon:50%;
@@ -885,10 +888,11 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .studio-hd-text{flex:1;min-width:0}
 .studio-title{font-family:var(--fd);font-size:30px;font-weight:700;color:var(--text);letter-spacing:-.02em}
 .studio-sub{font-size:13px;color:var(--text2);margin-top:4px;line-height:1.45}
-.studio-btn{appearance:none;border:none;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;font-family:var(--fd);cursor:pointer;transition:transform .15s ease,opacity .15s ease,background .15s ease}
-.studio-btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
-.studio-btn.ghost{background:var(--s2);color:var(--text)}
-.studio-btn.danger,.studio-btn.ghost.danger{color:#ff7b7b}
+.studio-btn{appearance:none;border:none;background:var(--s2);color:var(--text);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;font-family:var(--fd);cursor:pointer;transition:transform .15s ease,opacity .15s ease,background .15s ease}
+.studio-btn.primary{background:var(--accent);color:var(--accent-contrast);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-border)}
+.studio-btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.studio-btn.secondary,.studio-btn.ghost{background:var(--s2);color:var(--text);border-color:var(--border2)}
+.studio-btn.danger,.studio-btn.ghost.danger{background:transparent;color:#e5484d;border-color:rgba(229,72,77,.5)}
 .studio-btn.sm{padding:7px 10px;font-size:12px;border-radius:10px}
 .studio-btn.block{width:100%;margin-top:8px}
 .studio-btn:active{transform:scale(.97)}
@@ -1015,6 +1019,28 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .ws-invite-hint{font-size:12px;color:var(--text3);line-height:1.5}
 .ws-invite-link-box{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--border);border-radius:var(--r);background:var(--s1)}
 .ws-invite-link-label{font-size:12px;font-weight:700;color:var(--text2)}
+.ws-join-form{display:flex;gap:8px;align-items:center}
+.ws-join-form .field-inp{flex:1}
+.ws-join-card{padding:14px;border:1px solid var(--accent-border);background:var(--accent-soft);border-radius:var(--r);display:flex;flex-direction:column;gap:10px}
+.ws-join-card-title{font-size:13px;font-weight:700;font-family:var(--fd)}
+.ws-join-code{font-family:var(--fd);font-size:28px;font-weight:800;letter-spacing:.18em;color:var(--accent)}
+.ws-join-code.muted{font-size:13px;letter-spacing:0;font-weight:600;color:var(--text2)}
+.ws-join-actions{display:flex;gap:8px;align-items:center}
+.ws-switch-overlay{position:relative;flex:1;min-height:calc(100vh - 140px);padding:24px 20px 40px;display:flex;align-items:flex-start;justify-content:center}
+.ws-switch-overlay[hidden]{display:none!important}
+#studio-root.is-ws-switching{display:none!important}
+.ws-switch-card{width:100%;max-width:420px;margin-top:24px;padding:22px 18px 20px;border:1px solid var(--accent-border);background:var(--s1);border-radius:18px;box-shadow:0 12px 40px var(--accent-glow)}
+.ws-switch-icon{width:48px;height:48px;border-radius:14px;background:var(--accent);color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:800;font-size:20px;margin-bottom:12px}
+.ws-switch-kicker{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);font-family:var(--fb)}
+.ws-switch-title{font-family:var(--fd);font-size:22px;font-weight:800;color:var(--text);margin:4px 0 14px}
+.ws-switch-status{margin-top:14px;font-size:13px;color:var(--text2)}
+.ws-switch-msg{font-size:14px;color:var(--text2);line-height:1.5;margin:0 0 16px}
+.ws-switch-skel{display:flex;flex-direction:column;gap:10px}
+.ws-skel-line{height:12px;border-radius:8px;background:linear-gradient(90deg,var(--s2),var(--accent-soft),var(--s2));background-size:200% 100%;animation:wsSkel 1.2s ease-in-out infinite}
+.ws-skel-line.w80{width:80%}.ws-skel-line.w60{width:60%}
+.ws-skel-row{display:flex;gap:10px;margin-top:6px}
+.ws-skel-card{flex:1;height:72px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(90deg,var(--s2),var(--accent-soft),var(--s2));background-size:200% 100%;animation:wsSkel 1.2s ease-in-out infinite}
+@keyframes wsSkel{0%{background-position:100% 0}100%{background-position:-100% 0}}
 .ws-remote-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 20px 12px;padding:10px 12px;border:1px solid var(--accent-dim);background:var(--accent-soft);border-radius:var(--r)}
 .ws-remote-banner[hidden]{display:none!important}
 .ws-remote-banner-text{flex:1;min-width:160px;font-size:13px;color:var(--text);line-height:1.45}
@@ -1721,7 +1747,7 @@ html.dir-voice-active{overflow:hidden}
 </div> <!-- ═══ LIBRARY ═══ -->
 <div class="screen" id="screen-library"> <div class="lib-hd"><div class="lib-title">Library</div><div class="lib-count" id="lib-count">0</div></div> <div class="lib-tabs"><button class="lib-tab active" onclick="libTab('history',this)">History</button> <button class="lib-tab" onclick="libTab('saved',this)">Saved</button> <button class="lib-tab" onclick="libTab('trending',this)">Trending</button> </div> <div class="sb"><div class="lib-grid" id="lib-grid"></div></div>
 </div> <!-- ═══ STUDIO ═══ -->
-<div class="screen" id="screen-studio"><div id="ws-recovery-banner" class="ws-recovery-banner" hidden><div class="ws-remote-banner-text" id="ws-recovery-banner-text">Unsaved changes from your previous session were found.</div><button type="button" class="studio-btn primary sm" onclick="PreShootWorkspaceUI.recoverSessionDraft()">Recover</button><button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.discardSessionDraft()">Discard</button></div><div id="ws-remote-banner" class="ws-remote-banner" hidden><div class="ws-remote-banner-text" id="ws-remote-banner-text">This workspace was updated by another collaborator.</div><button type="button" class="studio-btn primary sm" data-ws-review onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review latest</button><button type="button" class="studio-btn ghost sm" data-ws-keep onclick="PreShootWorkspaceUI.keepLocalChanges()">Keep my changes</button></div><div class="sb" id="studio-root">
+<div class="screen" id="screen-studio"><div id="ws-recovery-banner" class="ws-recovery-banner" hidden><div class="ws-remote-banner-text" id="ws-recovery-banner-text">Unsaved changes from your previous session were found.</div><button type="button" class="studio-btn primary sm" onclick="PreShootWorkspaceUI.recoverSessionDraft()">Recover</button><button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.discardSessionDraft()">Discard</button></div><div id="ws-remote-banner" class="ws-remote-banner" hidden><div class="ws-remote-banner-text" id="ws-remote-banner-text">This workspace was updated by another collaborator.</div><button type="button" class="studio-btn primary sm" data-ws-review onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review latest</button><button type="button" class="studio-btn ghost sm" data-ws-keep onclick="PreShootWorkspaceUI.keepLocalChanges()">Keep my changes</button></div><div id="ws-switch-overlay" class="ws-switch-overlay" hidden></div><div class="sb" id="studio-root">
 <div class="studio-hd"><div><div class="studio-title">Studio</div><div class="studio-sub">Your creative workspace</div></div>
 <button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProject()">New Project</button></div>
 <div class="studio-empty"><div class="studio-empty-t">Loading Studio…</div></div>
@@ -2003,8 +2029,8 @@ function applyTheme(){
     r.style.setProperty('--card','#FFFFFF');
     r.style.setProperty('--bg-elevated','rgba(0,0,0,.03)');
     r.style.setProperty('--bg-elevated-2','rgba(0,0,0,.05)');
-    r.style.setProperty('--border','rgba(0,0,0,.08)');
-    r.style.setProperty('--border2','rgba(0,0,0,.14)');
+    r.style.setProperty('--border','rgba(0,0,0,.14)');
+    r.style.setProperty('--border2','rgba(0,0,0,.26)');
     r.style.setProperty('--border-hover','var(--accent)');
     r.style.setProperty('--text','#000000');
     r.style.setProperty('--text2','rgba(0,0,0,.55)');
@@ -2020,8 +2046,8 @@ function applyTheme(){
     r.style.setProperty('--card','#141414');
     r.style.setProperty('--bg-elevated','rgba(255,255,255,.04)');
     r.style.setProperty('--bg-elevated-2','rgba(255,255,255,.07)');
-    r.style.setProperty('--border','rgba(255,255,255,.08)');
-    r.style.setProperty('--border2','rgba(255,255,255,.14)');
+    r.style.setProperty('--border','rgba(255,255,255,.12)');
+    r.style.setProperty('--border2','rgba(255,255,255,.22)');
     r.style.setProperty('--border-hover','var(--accent)');
     r.style.setProperty('--text','#ffffff');
     r.style.setProperty('--text2','rgba(255,255,255,.55)');
@@ -2039,14 +2065,23 @@ function applyTheme(){
 }
 function syncAccentTokens(c){
   var r=document.documentElement;
-  var hex=(c&&c.charAt(0)==='#'&&c.length===7)?c:'#4A9EFF';
+  var hex=(c&&c.charAt(0)==='#'&&(c.length===7||c.length===4))?c:'#4A9EFF';
+  if(hex.length===4) hex='#'+hex.charAt(1)+hex.charAt(1)+hex.charAt(2)+hex.charAt(2)+hex.charAt(3)+hex.charAt(3);
   var rr=parseInt(hex.slice(1,3),16), gg=parseInt(hex.slice(3,5),16), bb=parseInt(hex.slice(5,7),16);
+  var hoverR=Math.max(0,Math.round(rr*0.86)), hoverG=Math.max(0,Math.round(gg*0.86)), hoverB=Math.max(0,Math.round(bb*0.86));
+  var hover='#'+[hoverR,hoverG,hoverB].map(function(n){var s=n.toString(16);return s.length===1?'0'+s:s;}).join('');
+  var y=(rr*299+gg*587+bb*114)/1000;
+  var contrast=y>=160?'#000000':'#ffffff';
   r.style.setProperty('--accent',hex);
   r.style.setProperty('--accent2',hex);
-  r.style.setProperty('--accent-dim','rgba('+rr+','+gg+','+bb+',.14)');
-  r.style.setProperty('--accent-soft','rgba('+rr+','+gg+','+bb+',.1)');
+  r.style.setProperty('--accent-hover',hover);
+  r.style.setProperty('--accent-soft','rgba('+rr+','+gg+','+bb+',.12)');
+  r.style.setProperty('--accent-dim','rgba('+rr+','+gg+','+bb+',.18)');
+  r.style.setProperty('--accent-border','rgba('+rr+','+gg+','+bb+',.45)');
+  r.style.setProperty('--accent-glow','rgba('+rr+','+gg+','+bb+',.28)');
+  r.style.setProperty('--accent-contrast',contrast);
   r.style.setProperty('--border-hover',hex);
-  r.style.setProperty('--on-accent','#000000');
+  r.style.setProperty('--on-accent',contrast);
   if(window.PreShootOrb&&PreShootOrb.setAccent)PreShootOrb.setAccent(hex);
 }
 function setAccent(c){S.accent=c;ss('accent',c);syncAccentTokens(c);renderAppear(); if(_accentPicker) _accentPicker.setHex(c,true);} /* ── PAYWALL ── */
