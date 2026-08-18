@@ -30,6 +30,9 @@ import {
   createInvite,
   acceptInvite,
   revokeInvite,
+  getJoinCodeStatus,
+  regenerateJoinCode,
+  joinWorkspaceByCode,
   loadWorkspaceDocument,
   saveWorkspaceDocument,
   listWorkspaceVersions,
@@ -207,6 +210,25 @@ async function handleCrud(req, res, auth) {
   const parts = parsePath(req);
   const body = req.body || {};
 
+  if (parts[0] === 'join' && req.method === 'POST') {
+    const joinRl = await gateRouteRateLimit(req, {
+      route: 'workspace-join',
+      max: 8,
+      windowMs: 15 * 60 * 1000,
+      userId: auth.user.id
+    });
+    if (!joinRl.allowed) return sendRateLimitResponse(res, joinRl, 'plain');
+    const joined = await joinWorkspaceByCode(userId, body.code || body.join_code);
+    if (!joined.ok) return sendError(res, joined);
+    return res.status(joined.already_member ? 200 : 201).json({
+      ok: true,
+      already_member: !!joined.already_member,
+      workspace_id: joined.workspace_id,
+      role: joined.role,
+      workspace: joined.workspace
+    });
+  }
+
   if (parts.length === 0 && req.method === 'GET') {
     const listed = await listUserWorkspaces(userId);
     if (!listed.ok) return sendError(res, listed);
@@ -272,6 +294,24 @@ async function handleCrud(req, res, auth) {
       if (!removed.ok) return sendError(res, removed);
       return res.status(200).json({ ok: true });
     }
+  }
+
+  if (parts[1] === 'join-code' && parts.length === 2 && req.method === 'GET') {
+    const status = await getJoinCodeStatus(userId, workspaceId);
+    if (!status.ok) return sendError(res, status);
+    return res.status(200).json({ ok: true, join_code: status.join_code });
+  }
+
+  if (parts[1] === 'join-code' && parts.length === 2 && req.method === 'POST') {
+    const rotated = await regenerateJoinCode(userId, workspaceId, {
+      role: body.role
+    });
+    if (!rotated.ok) return sendError(res, rotated);
+    return res.status(200).json({
+      ok: true,
+      code: rotated.code,
+      join_code: rotated.join_code
+    });
   }
 
   /* GET /api/workspaces/:id/invites — pending/history (no token_hash) */
