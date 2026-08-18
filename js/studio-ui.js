@@ -103,6 +103,10 @@
   function renderStudio() {
     var root = document.getElementById('studio-root');
     if (!root || !Studio()) return;
+    var ctx = global.PreShootWorkspace && PreShootWorkspace.getContext
+      ? PreShootWorkspace.getContext()
+      : null;
+    if (ctx && ctx.switching) return;
 
     var view = (global.S && global.S.studioView) || { mode: 'list' };
     if (view.mode === 'project' && view.projectId) {

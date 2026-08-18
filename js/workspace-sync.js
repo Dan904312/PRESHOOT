@@ -14,14 +14,16 @@
     return fetch(url, opts || {});
   }
 
-  function loadSharedWorkspace(workspaceId) {
+  function loadSharedWorkspace(workspaceId, opts) {
     if (!workspaceId) {
       return Promise.resolve({ ok: false, error: 'workspace_id_required' });
     }
+    opts = opts || {};
     return apiFetch('/api/workspace-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load', workspace_id: workspaceId })
+      body: JSON.stringify({ action: 'load', workspace_id: workspaceId }),
+      signal: opts.signal
     })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -41,6 +43,9 @@
         });
       })
       .catch(function (err) {
+        if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) {
+          return { ok: false, error: 'aborted' };
+        }
         return { ok: false, error: 'network_error', message: String(err && err.message) };
       });
   }
@@ -223,6 +228,74 @@
             ok: !!(res.ok && data && data.ok),
             status: res.status,
             error: data && data.error
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function joinByCode(code) {
+    return apiFetch('/api/workspaces/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            already_member: !!(data && data.already_member),
+            workspace_id: data && data.workspace_id,
+            role: data && data.role,
+            workspace: data && data.workspace,
+            error: data && data.error,
+            message: data && data.message
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function getJoinCode(workspaceId) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/join-code', {
+      method: 'GET'
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            join_code: data && data.join_code,
+            error: data && data.error,
+            message: data && data.message
+          };
+        });
+      })
+      .catch(function (err) {
+        return { ok: false, error: 'network_error', message: String(err && err.message) };
+      });
+  }
+
+  function regenerateJoinCode(workspaceId, role) {
+    return apiFetch('/api/workspaces/' + encodeURIComponent(workspaceId) + '/join-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: role || 'editor' })
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return {
+            ok: !!(res.ok && data && data.ok),
+            status: res.status,
+            code: data && data.code,
+            join_code: data && data.join_code,
+            error: data && data.error,
+            message: data && data.message
           };
         });
       })
@@ -807,6 +880,9 @@
     listWorkspaces: listWorkspaces,
     createWorkspace: createWorkspace,
     inviteMember: inviteMember,
+    joinByCode: joinByCode,
+    getJoinCode: getJoinCode,
+    regenerateJoinCode: regenerateJoinCode,
     acceptInvite: acceptInvite,
     revokeInvite: revokeInvite,
     listMembers: listMembers,

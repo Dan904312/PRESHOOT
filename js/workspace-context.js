@@ -22,6 +22,8 @@
     sharedDirty: false,
     saving: false,
     switching: false,
+    switchTarget: null,
+    switchError: null,
     conflict: null,
     remoteUpdate: null /* { revision, updated_by, updated_at } when dirty */,
     lastLocalSave: null /* { workspaceId, revision, at } for loop prevention */,
@@ -50,6 +52,8 @@
   var _switchToken = 0;
   var _fetchToken = 0;
   var _fetching = false;
+  var _saveEpoch = 0;
+  var _loadAbort = null;
 
   function API() {
     return global.PreShootWorkspaces;
@@ -304,6 +308,8 @@
       isShared: isShared(),
       sharedDirty: state.sharedDirty,
       switching: state.switching,
+      switchTarget: state.switchTarget,
+      switchError: state.switchError,
       conflict: state.conflict,
       remoteUpdate: state.remoteUpdate,
       saveStatus: state.saveStatus,
@@ -795,6 +801,7 @@
     }
     var api = API();
     if (!api) return Promise.resolve({ ok: false, error: 'no_api' });
+    var epoch = _saveEpoch;
     var workspaceId = state.activeWorkspaceId;
     var revision = state.activeWorkspaceRevision;
     var beforeDoc = state.sharedDocument;
@@ -812,6 +819,9 @@
     setSaveStatus('saving');
     writeRecoveryDraft();
     return api.saveSharedWorkspace(workspaceId, document, revision, changeHint).then(function (res) {
+      if (epoch !== _saveEpoch || workspaceId !== state.activeWorkspaceId) {
+        return { ok: false, error: 'stale_save' };
+      }
       state.saving = false;
       if (res && res.ok) {
         state.activeWorkspaceRevision = res.revision;
@@ -942,6 +952,7 @@
   }
 
   function fetchAndApplyRemote(reason) {
+    if (state.switching) return Promise.resolve({ ok: false, error: 'switching' });
     if (!isShared()) return Promise.resolve({ ok: false });
     var api = API();
     var id = state.activeWorkspaceId;
@@ -995,6 +1006,7 @@
   }
 
   function onRemoteWorkspaceUpdated(evt) {
+    if (state.switching) return;
     if (!isShared() || !evt) return;
     if (evt.workspace_id && evt.workspace_id !== state.activeWorkspaceId) return;
 
@@ -1136,46 +1148,84 @@
     return st && st.isDirty ? st.isDirty() : false;
   }
 
-  /**
-   * Switch to personal or a shared workspace id.
-   * @param {'personal'|string} target - 'personal' or shared workspace UUID
-   */
-  function switchTo(target, opts) {
-    opts = opts || {};
-    if (state.switching) return Promise.resolve({ ok: false, error: 'busy' });
-    if (!global.S || !global.S.authUser) {
-      toast('Sign in to switch workspaces');
-      return Promise.resolve({ ok: false, error: 'auth_required' });
+  function lookupSwitchTarget(target, goingPersonal) {
+    if (goingPersonal) {
+      return { id: 'personal', name: 'Personal', kind: 'personal' };
     }
-
-    var goingPersonal = target === 'personal' || target === state.personalWorkspaceId;
-    if (goingPersonal && !isShared()) {
-      return Promise.resolve({ ok: true, already: true });
-    }
-    if (!goingPersonal && isShared() && target === state.activeWorkspaceId) {
-      return Promise.resolve({ ok: true, already: true });
-    }
-
-    if (state.conflict && !opts.force) {
-      toast('Resolve the save conflict before switching');
-      if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showConflict) {
-        global.PreShootWorkspaceUI.showConflict(state.conflict);
+    var row = null;
+    for (var i = 0; i < state.list.length; i++) {
+      if (state.list[i] && state.list[i].id === target) {
+        row = state.list[i];
+        break;
       }
-      return Promise.resolve({ ok: false, error: 'conflict_pending' });
     }
+    return {
+      id: target,
+      name: (row && row.name) || 'Workspace',
+      kind: 'shared',
+      role: row && row.role
+    };
+  }
 
-    if (isDirtyForSwitch() && !opts.force) {
-      var proceed = true;
-      if (!opts.skipConfirm) {
-        proceed = confirm(
-          'You have unsaved Studio changes. Save before switching?\n\nOK = Save & switch\nCancel = Stay'
-        );
-      }
-      if (!proceed) return Promise.resolve({ ok: false, error: 'cancelled' });
+  function classifySwitchError(res) {
+    var status = Number(res && res.status) || 0;
+    var error = (res && res.error) || '';
+    if (status === 401 || error === 'auth_required' || error === 'unauthorized') {
+      return {
+        status: 401,
+        error: error || 'auth_required',
+        title: 'Sign in required',
+        message: 'Sign in again, then try opening this workspace.'
+      };
     }
+    if (status === 403 || error === 'forbidden' || error === 'not_a_member' || error === 'insufficient_role') {
+      return {
+        status: 403,
+        error: error || 'forbidden',
+        title: 'No access',
+        message: 'You don’t have access to this workspace.'
+      };
+    }
+    if (status === 404 || error === 'workspace_not_found' || error === 'join_code_invalid') {
+      return {
+        status: 404,
+        error: error || 'not_found',
+        title: 'Workspace not found',
+        message: (res && res.message) || 'This workspace is missing or the link is no longer valid.'
+      };
+    }
+    if (status === 409 || error === 'conflict' || error === 'revision_conflict' || error === 'workspace_archived') {
+      return {
+        status: 409,
+        error: error || 'conflict',
+        title: 'Could not switch',
+        message: (res && res.message) || 'Resolve the save conflict, then try again.'
+      };
+    }
+    if (error === 'flush_failed' || error === 'save_busy') {
+      return {
+        status: status || 500,
+        error: 'flush_failed',
+        title: 'Could not save before switching',
+        message:
+          (res && res.message) ||
+          'Could not save before switching. Stay here, then try again.'
+      };
+    }
+    return {
+      status: status || 500,
+      error: error || 'load_failed',
+      title: 'Could not open workspace',
+      message: (res && res.message) || 'Something went wrong. Try again.'
+    };
+  }
 
-    var token = ++_switchToken;
+  function beginSwitchTransition(meta) {
     state.switching = true;
+    state.switchTarget = meta;
+    state.switchError = null;
+    _saveEpoch += 1;
+    state.saving = false;
     /* Unsubscribe immediately so Workspace A events cannot touch B */
     stopRealtime();
     clearTimeout(_saveTimer);
@@ -1187,17 +1237,109 @@
     state.commentFeedback = [];
     state.unreadNotifications = 0;
     state.notifyQueue = [];
-    if (global.S) global.S.workspacePresence = [];
+    if (global.S) {
+      global.S.workspacePresence = [];
+      global.__preshootDirectorProduction = null;
+    }
     _fetchToken += 1;
     _fetching = false;
-    syncToS();
-    refreshStudioUI();
-
-    var blankRoot = document.getElementById('studio-root');
-    if (blankRoot) {
-      blankRoot.innerHTML =
-        '<div class="studio-empty"><div class="studio-empty-t">Switching workspace…</div></div>';
+    if (_loadAbort && typeof _loadAbort.abort === 'function') {
+      try {
+        _loadAbort.abort();
+      } catch (e) {}
     }
+    _loadAbort =
+      typeof AbortController !== 'undefined' ? new AbortController() : null;
+    clearStudioView();
+    syncToS();
+    /* Do not refreshStudioUI — that re-renders old Studio during the transition */
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showSwitchOverlay) {
+      global.PreShootWorkspaceUI.showSwitchOverlay(meta);
+    }
+  }
+
+  function completeSwitch(token) {
+    if (token !== _switchToken) return false;
+    state.switching = false;
+    state.switchError = null;
+    state.switchTarget = null;
+    syncToS();
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.hideSwitchOverlay) {
+      global.PreShootWorkspaceUI.hideSwitchOverlay();
+    }
+    refreshStudioUI();
+    return true;
+  }
+
+  function failSwitch(token, res) {
+    if (token !== _switchToken) return { ok: false, error: 'stale' };
+    var classified = classifySwitchError(res || {});
+    state.switching = true;
+    state.switchError = classified;
+    syncToS();
+    if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showSwitchError) {
+      global.PreShootWorkspaceUI.showSwitchError(classified, state.switchTarget);
+    }
+    return {
+      ok: false,
+      error: classified.error,
+      status: classified.status,
+      message: classified.message
+    };
+  }
+
+  /**
+   * Switch to personal or a shared workspace id.
+   * Later selections win; in-flight A responses are ignored after switch to B.
+   * @param {'personal'|string} target - 'personal' or shared workspace UUID
+   */
+  function switchTo(target, opts) {
+    opts = opts || {};
+    if (!global.S || !global.S.authUser) {
+      toast('Sign in to switch workspaces');
+      return Promise.resolve({ ok: false, error: 'auth_required' });
+    }
+
+    var goingPersonal = target === 'personal' || target === state.personalWorkspaceId;
+    if (
+      goingPersonal &&
+      !isShared() &&
+      !state.switching &&
+      !state.switchError
+    ) {
+      return Promise.resolve({ ok: true, already: true });
+    }
+    if (
+      !goingPersonal &&
+      isShared() &&
+      target === state.activeWorkspaceId &&
+      !state.switching &&
+      !state.switchError
+    ) {
+      return Promise.resolve({ ok: true, already: true });
+    }
+
+    if (state.conflict && !opts.force) {
+      toast('Resolve the save conflict before switching');
+      if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showConflict) {
+        global.PreShootWorkspaceUI.showConflict(state.conflict);
+      }
+      return Promise.resolve({ ok: false, error: 'conflict_pending' });
+    }
+
+    if (!state.switching && isDirtyForSwitch() && !opts.force) {
+      var proceed = true;
+      if (!opts.skipConfirm) {
+        proceed = confirm(
+          'You have unsaved Studio changes. Save before switching?\n\nOK = Save & switch\nCancel = Stay'
+        );
+      }
+      if (!proceed) return Promise.resolve({ ok: false, error: 'cancelled' });
+    }
+
+    var meta = lookupSwitchTarget(target, goingPersonal);
+    var token = ++_switchToken;
+    beginSwitchTransition(meta);
 
     return flushBeforeSwitch()
       .catch(function () {
@@ -1206,62 +1348,50 @@
       .then(function (flushRes) {
         if (token !== _switchToken) return { ok: false, error: 'stale' };
         if (flushRes && flushRes.conflict) {
-          state.switching = false;
           if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.showConflict) {
             global.PreShootWorkspaceUI.showConflict(state.conflict || flushRes);
           }
-          refreshStudioUI();
-          return { ok: false, error: 'conflict' };
+          return failSwitch(token, {
+            error: 'conflict',
+            status: 409,
+            message: 'Resolve the save conflict before switching'
+          });
         }
         /* Phase 6: never abandon dirty work on failed flush */
         if (flushRes && flushRes.ok === false && !flushRes.skipped && !flushRes.already) {
-          state.switching = false;
-          toast(
-            (flushRes && flushRes.message) ||
+          return failSwitch(token, {
+            error: 'flush_failed',
+            message:
+              (flushRes && flushRes.message) ||
               'Could not save before switching. Stay here, then try again.'
-          );
-          refreshStudioUI();
-          return { ok: false, error: 'flush_failed' };
-        }
-        /* Clear visible document before load to avoid cross-workspace flash */
-        clearStudioView();
-        if (global.S) global.S.studio = { version: 3, projects: [], continueProductionId: null };
-
-        if (goingPersonal) {
-          return refreshList(true).then(function () {
-            if (token !== _switchToken) return { ok: false, error: 'stale' };
-            var personal = state.list.filter(function (w) {
-              return w.kind === 'personal';
-            })[0];
-            setPersonalMode(personal || { id: state.personalWorkspaceId, name: 'Personal' });
-            loadPersonalIntoStudio();
-            state.switching = false;
-            syncToS();
-            refreshStudioUI();
-            toast('Personal Studio');
-            return { ok: true, kind: 'personal' };
           });
         }
 
+        if (goingPersonal) {
+          var personal = state.list.filter(function (w) {
+            return w.kind === 'personal';
+          })[0];
+          setPersonalMode(personal || { id: state.personalWorkspaceId, name: 'Personal' });
+          loadPersonalIntoStudio();
+          if (!completeSwitch(token)) return { ok: false, error: 'stale' };
+          toast('Personal Studio');
+          return { ok: true, kind: 'personal' };
+        }
+
         var api = API();
-        return api.loadSharedWorkspace(target).then(function (loaded) {
+        if (!api) {
+          return failSwitch(token, { error: 'no_api', message: 'Workspace system not ready' });
+        }
+        var loadOpts = _loadAbort ? { signal: _loadAbort.signal } : {};
+        return api.loadSharedWorkspace(target, loadOpts).then(function (loaded) {
           if (token !== _switchToken) return { ok: false, error: 'stale' };
           if (!loaded || !loaded.ok) {
-            state.switching = false;
-            setPersonalMode(
-              state.list.filter(function (w) {
-                return w.kind === 'personal';
-              })[0]
-            );
-            loadPersonalIntoStudio();
-            refreshStudioUI();
-            toast((loaded && loaded.message) || 'Could not open workspace');
-            return { ok: false, error: (loaded && loaded.error) || 'load_failed' };
+            return failSwitch(token, loaded || { error: 'load_failed' });
           }
           setSharedMode(
             {
               id: target,
-              name: (loaded.workspace && loaded.workspace.name) || 'Workspace',
+              name: (loaded.workspace && loaded.workspace.name) || meta.name || 'Workspace',
               role: loaded.role
             },
             loaded.document,
@@ -1274,18 +1404,50 @@
             }
           );
           clearStudioView();
-          state.switching = false;
-          syncToS();
-          refreshStudioUI();
+          if (!completeSwitch(token)) return { ok: false, error: 'stale' };
           toast(state.activeWorkspaceName);
           return { ok: true, kind: 'shared', role: loaded.role };
         });
       })
       .catch(function (err) {
-        state.switching = false;
-        refreshStudioUI();
-        return { ok: false, error: 'network_error', message: String(err && err.message) };
+        return failSwitch(token, {
+          error: 'network_error',
+          message: String(err && err.message)
+        });
       });
+  }
+
+  function retryLastSwitch() {
+    var t = state.switchTarget;
+    if (!t) return Promise.resolve({ ok: false, error: 'no_target' });
+    return switchTo(t.kind === 'personal' ? 'personal' : t.id, {
+      skipConfirm: true,
+      force: true
+    });
+  }
+
+  function handleJoinCode(code) {
+    var api = API();
+    if (!api) return Promise.resolve({ ok: false, error: 'no_api' });
+    if (!global.S || !global.S.authUser) {
+      toast('Sign in to join a workspace');
+      return Promise.resolve({ ok: false, error: 'auth_required' });
+    }
+    return api.joinByCode(code).then(function (res) {
+      if (!res || !res.ok) {
+        toast((res && res.message) || 'Could not join workspace');
+        return res || { ok: false, error: 'join_failed' };
+      }
+      state.listLoadedAt = 0;
+      if (res.already_member) toast('You’re already a member');
+      else toast('Joined workspace');
+      if (res.workspace_id) {
+        return switchTo(res.workspace_id, { skipConfirm: true }).then(function (sw) {
+          return Object.assign({}, res, sw || {});
+        });
+      }
+      return res;
+    });
   }
 
   function createAndOpen(name) {
@@ -1619,6 +1781,8 @@
     scheduleSave: scheduleSave,
     saveNow: saveNow,
     switchTo: switchTo,
+    retryLastSwitch: retryLastSwitch,
+    handleJoinCode: handleJoinCode,
     createAndOpen: createAndOpen,
     refreshList: refreshList,
     bootstrap: bootstrap,

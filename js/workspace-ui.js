@@ -38,11 +38,92 @@
     return map[role] || role || 'Member';
   }
 
+  var _lastJoinCode = null;
+
+  function workspaceInitial(name) {
+    var n = String(name || 'W').trim();
+    return (n.charAt(0) || 'W').toUpperCase();
+  }
+
+  function showSwitchOverlay(meta) {
+    var overlay = document.getElementById('ws-switch-overlay');
+    var root = document.getElementById('studio-root');
+    var name = (meta && meta.name) || 'Workspace';
+    var kind = (meta && meta.kind) || 'shared';
+    if (root) root.classList.add('is-ws-switching');
+    if (!overlay) return;
+    overlay.hidden = false;
+    overlay.innerHTML =
+      '<div class="ws-switch-card">' +
+      '<div class="ws-switch-icon" aria-hidden="true">' +
+      esc(workspaceInitial(name)) +
+      '</div>' +
+      '<div class="ws-switch-kicker">' +
+      (kind === 'personal' ? 'Personal Studio' : 'Shared workspace') +
+      '</div>' +
+      '<div class="ws-switch-title">' +
+      esc(name) +
+      '</div>' +
+      '<div class="ws-switch-skel" aria-hidden="true">' +
+      '<div class="ws-skel-line w80"></div>' +
+      '<div class="ws-skel-line w60"></div>' +
+      '<div class="ws-skel-row">' +
+      '<div class="ws-skel-card"></div>' +
+      '<div class="ws-skel-card"></div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="ws-switch-status">Loading Studio…</div>' +
+      '</div>';
+  }
+
+  function hideSwitchOverlay() {
+    var overlay = document.getElementById('ws-switch-overlay');
+    var root = document.getElementById('studio-root');
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.innerHTML = '';
+    }
+    if (root) root.classList.remove('is-ws-switching');
+  }
+
+  function showSwitchError(err, meta) {
+    var overlay = document.getElementById('ws-switch-overlay');
+    var root = document.getElementById('studio-root');
+    if (root) root.classList.add('is-ws-switching');
+    if (!overlay) return;
+    overlay.hidden = false;
+    var title = (err && err.title) || 'Could not open workspace';
+    var message = (err && err.message) || 'Try again.';
+    overlay.innerHTML =
+      '<div class="ws-switch-card">' +
+      '<div class="ws-switch-icon" aria-hidden="true">' +
+      esc(workspaceInitial((meta && meta.name) || 'W')) +
+      '</div>' +
+      '<div class="ws-switch-title">' +
+      esc(title) +
+      '</div>' +
+      '<div class="ws-switch-msg">' +
+      esc(message) +
+      '</div>' +
+      '<button type="button" class="studio-btn primary" onclick="PreShootWorkspaceUI.retrySwitch()">Try again</button>' +
+      '</div>';
+  }
+
+  function retrySwitch() {
+    if (!Ctx() || !Ctx().retryLastSwitch) return;
+    Ctx().retryLastSwitch();
+  }
+
   function workspaceSwitcherButtonHtml() {
     var ctx = Ctx() ? Ctx().getContext() : null;
     var name = (ctx && ctx.activeWorkspaceName) || 'Personal';
     var kind = (ctx && ctx.activeWorkspaceKind) || 'personal';
     var role = ctx && ctx.isShared ? roleLabel(ctx.activeWorkspaceRole) : '';
+    if (ctx && ctx.switching && ctx.switchTarget) {
+      name = ctx.switchTarget.name || name;
+      kind = ctx.switchTarget.kind || kind;
+      role = '';
+    }
     var statusLabel = '';
     var peopleLabel = '';
     if (ctx && ctx.isShared) {
@@ -238,7 +319,10 @@
     var btn = document.getElementById('ws-menu-summary');
     if (btn) {
       var ctx = Ctx() ? Ctx().getContext() : null;
-      btn.textContent = (ctx && ctx.activeWorkspaceName) || 'Personal';
+      btn.textContent =
+        (ctx && ctx.switching && ctx.switchTarget && ctx.switchTarget.name) ||
+        (ctx && ctx.activeWorkspaceName) ||
+        'Personal';
     }
     applyReadonly();
   }
@@ -312,6 +396,13 @@
 
     h +=
       '<button type="button" class="studio-btn primary" style="width:100%;margin-top:14px" onclick="PreShootWorkspaceUI.openCreate()">Create Workspace</button>';
+    h +=
+      '<div class="ws-sec-label" style="margin-top:18px">Have a join code?</div>' +
+      '<div class="ws-join-form">' +
+      '<input class="field-inp" id="ws-switcher-join-code" inputmode="numeric" maxlength="7" placeholder="6-digit code" autocomplete="off">' +
+      '<button type="button" class="studio-btn secondary" onclick="PreShootWorkspaceUI.submitJoinCode()">Join</button>' +
+      '</div>' +
+      '<div class="ws-invite-hint">Ask a workspace owner for the 6-digit code. Workspace IDs are not join codes.</div>';
     if (personal) {
       /* keep reference unused warning free */
     }
@@ -335,6 +426,21 @@
       refreshChrome();
       if (global.goTab) global.goTab('studio');
       else if (global.PreShootStudioUI) PreShootStudioUI.renderStudio();
+    });
+  }
+
+  function submitJoinCode() {
+    var inp = document.getElementById('ws-switcher-join-code');
+    var code = inp ? String(inp.value || '').replace(/\s+/g, '') : '';
+    if (!/^\d{6}$/.test(code)) {
+      toast('Enter a 6-digit join code');
+      return;
+    }
+    closeM('ws-switcher-modal');
+    if (!Ctx() || !Ctx().handleJoinCode) return;
+    Ctx().handleJoinCode(code).then(function (res) {
+      refreshChrome();
+      if (res && res.ok && global.goTab) global.goTab('studio');
     });
   }
 
@@ -394,17 +500,71 @@
     if (!api) return;
     Promise.all([
       api.listMembers(workspaceId),
-      ctx.canManageMembers ? api.listInvites(workspaceId) : Promise.resolve({ ok: true, invites: [] })
+      ctx.canManageMembers ? api.listInvites(workspaceId) : Promise.resolve({ ok: true, invites: [] }),
+      ctx.canManageMembers && api.getJoinCode
+        ? api.getJoinCode(workspaceId)
+        : Promise.resolve({ ok: true, join_code: null })
     ]).then(function (pack) {
       var memRes = pack[0];
       var invRes = pack[1];
+      var codeRes = pack[2];
       var body = document.getElementById('ws-members-body');
       if (!body) return;
       if (!memRes || !memRes.ok) {
-        body.innerHTML = '<div class="ws-empty">Could not load members.</div>';
+        body.innerHTML =
+          '<div class="ws-empty">Could not load members.</div>' +
+          '<button type="button" class="studio-btn primary" style="margin-top:10px" onclick="PreShootWorkspaceUI.openMembers()">Try again</button>';
         return;
       }
       var h = '';
+      if (ctx.canManageMembers) {
+        var jc = (codeRes && codeRes.join_code) || {};
+        var shown =
+          _lastJoinCode && _lastJoinCode.id === workspaceId ? _lastJoinCode.code : '';
+        h += '<div class="ws-sec-label">Share code</div>';
+        h += '<div class="ws-join-card">';
+        h += '<div class="ws-join-card-title">6-digit join code</div>';
+        h +=
+          '<div class="ws-invite-hint">People who join become ' +
+          esc(roleLabel(jc.role || 'editor')) +
+          's — never owners. The code is shown once when you generate it.</div>';
+        if (shown) {
+          h +=
+            '<div class="ws-join-code" id="ws-join-code-value">' +
+            esc(shown.slice(0, 3) + ' ' + shown.slice(3)) +
+            '</div>';
+          h +=
+            '<button type="button" class="studio-btn secondary sm" onclick="PreShootWorkspaceUI.copyJoinCode()">Copy code</button>';
+        } else if (jc.has_code) {
+          h +=
+            '<div class="ws-join-code muted">Code is set — regenerate to reveal a new one</div>';
+        } else {
+          h += '<div class="ws-join-code muted">No join code yet</div>';
+        }
+        h += '<div class="ws-join-actions">';
+        h +=
+          '<select class="field-inp" id="ws-join-role">' +
+          ['editor', 'commenter', 'viewer']
+            .map(function (r) {
+              return (
+                '<option value="' +
+                r +
+                '"' +
+                ((jc.role || 'editor') === r ? ' selected' : '') +
+                '>' +
+                roleLabel(r) +
+                '</option>'
+              );
+            })
+            .join('') +
+          '</select>';
+        h +=
+          '<button type="button" class="studio-btn primary sm" onclick="PreShootWorkspaceUI.regenerateJoinCode()">' +
+          (jc.has_code ? 'Regenerate' : 'Generate code') +
+          '</button>';
+        h += '</div></div>';
+      }
+
       h += '<div class="ws-sec-label">Members</div><div class="ws-list">';
       (memRes.members || []).forEach(function (m) {
         var label = m.name || m.email || String(m.user_id || '').slice(0, 8);
@@ -448,7 +608,7 @@
       h += '</div>';
 
       if (ctx.canManageMembers) {
-        h += '<div class="ws-sec-label" style="margin-top:16px">Invite</div>';
+        h += '<div class="ws-sec-label" style="margin-top:16px">Email invite</div>';
         h +=
           '<div class="ws-invite-form">' +
           '<input class="field-inp" id="ws-invite-email" type="email" placeholder="teammate@email.com" autocomplete="email">' +
@@ -457,7 +617,7 @@
           '<option value="commenter">Commenter</option>' +
           '<option value="viewer">Viewer</option>' +
           '</select>' +
-          '<button type="button" class="studio-btn primary" onclick="PreShootWorkspaceUI.sendInvite()">Create invite link</button>' +
+          '<button type="button" class="studio-btn secondary" onclick="PreShootWorkspaceUI.sendInvite()">Create invite link</button>' +
           '<div class="ws-invite-hint">Email delivery is not configured — copy the invite link and send it yourself.</div>' +
           '<div id="ws-invite-link-box" class="ws-invite-link-box" hidden></div>' +
           '</div>';
@@ -484,6 +644,41 @@
       }
       body.innerHTML = h;
     });
+  }
+
+  function regenerateJoinCode() {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    var api = API();
+    if (!ctx || !api || !api.regenerateJoinCode) return;
+    var roleEl = document.getElementById('ws-join-role');
+    var role = roleEl ? roleEl.value : 'editor';
+    if (!confirm('Generate a new join code? Any previous code will stop working.')) {
+      return;
+    }
+    api.regenerateJoinCode(ctx.activeWorkspaceId, role).then(function (res) {
+      if (!res || !res.ok || !res.code) {
+        toast((res && res.message) || 'Could not generate join code');
+        return;
+      }
+      _lastJoinCode = { id: ctx.activeWorkspaceId, code: String(res.code) };
+      toast('Join code generated');
+      renderMembersPanel(ctx.activeWorkspaceId, ctx);
+    });
+  }
+
+  function copyJoinCode() {
+    var code = _lastJoinCode && _lastJoinCode.code;
+    if (!code) {
+      toast('Generate a new code to copy it');
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(function () {
+        toast('Join code copied');
+      });
+    } else {
+      toast(code);
+    }
   }
 
   function changeRole(userId, role) {
@@ -1135,6 +1330,23 @@
   function consumeInviteFromUrl() {
     try {
       var params = new URLSearchParams(window.location.search || '');
+      var join = params.get('join') || params.get('join_code');
+      if (join && Ctx() && Ctx().handleJoinCode) {
+        if (!global.S || !global.S.authUser) {
+          toast('Sign in to join the workspace');
+          return;
+        }
+        Ctx().handleJoinCode(join).then(function () {
+          try {
+            var jurl = new URL(window.location.href);
+            jurl.searchParams.delete('join');
+            jurl.searchParams.delete('join_code');
+            window.history.replaceState({}, '', jurl.pathname + jurl.search + jurl.hash);
+          } catch (e) {}
+          if (global.goTab) global.goTab('studio');
+        });
+        return;
+      }
       var token = params.get('invite') || params.get('workspace_invite');
       if (!token && window.location.hash) {
         var hm = String(window.location.hash).match(/invite=([^&]+)/);
@@ -1169,9 +1381,14 @@
     refreshChrome: refreshChrome,
     refreshPresence: refreshPresence,
     onPresenceChanged: onPresenceChanged,
+    showSwitchOverlay: showSwitchOverlay,
+    hideSwitchOverlay: hideSwitchOverlay,
+    showSwitchError: showSwitchError,
+    retrySwitch: retrySwitch,
     openSwitcher: openSwitcher,
     choosePersonal: choosePersonal,
     chooseShared: chooseShared,
+    submitJoinCode: submitJoinCode,
     openCreate: openCreate,
     submitCreate: submitCreate,
     openMembers: openMembers,
@@ -1188,6 +1405,8 @@
     removeMember: removeMember,
     sendInvite: sendInvite,
     copyInviteLink: copyInviteLink,
+    regenerateJoinCode: regenerateJoinCode,
+    copyJoinCode: copyJoinCode,
     revokeInvite: revokeInvite,
     showConflict: showConflict,
     closeConflict: closeConflict,
