@@ -20,6 +20,7 @@ import {
   trackProductEventServer,
   estimateAiCostUsd
 } from '../lib/product-events.js';
+import { recordCreationActivity } from '../lib/entitlements.js';
 
 async function logAiRequest(userId, meta) {
   try {
@@ -403,6 +404,13 @@ export default async function handler(req, res) {
     });
 
     if (stream) {
+      if (response.ok) {
+        recordCreationActivity(
+          auth.user.id,
+          'director',
+          req.body && req.body.timezone
+        ).catch(function () {});
+      }
       /* Token usage unavailable on SSE path — count request only */
       logAiRequest(auth.user.id, {
         endpoint: 'director',
@@ -452,6 +460,9 @@ export default async function handler(req, res) {
       cost_usd: estimateAiCostUsd(anthropicBody.model, inTok, outTok),
       workspace: workspaceId ? 'shared' : 'personal'
     });
+    recordCreationActivity(auth.user.id, 'director', req.body && req.body.timezone).catch(
+      function () {}
+    );
     return res.status(200).json(data);
   } catch (error) {
     console.error('Director API error:', error);

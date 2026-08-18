@@ -18,12 +18,22 @@ import {
   sanitizeEventMeta,
   trackProductEventServer
 } from '../lib/product-events.js';
+import {
+  loadEntitlement,
+  grantOnboardingReward,
+  recordCreationActivity,
+  sanitizeTimezone,
+  STREAK_KINDS
+} from '../lib/entitlements.js';
 
 function resourceOf(req) {
   const q = req.query || {};
   if (q.__resource) return String(q.__resource);
   const raw = String(req.url || '');
   if (raw.indexOf('/api/track-user') >= 0) return 'track';
+  const action = req.body && req.body.action;
+  if (action === 'grant_onboarding_reward') return 'reward';
+  if (action === 'record_activity') return 'activity';
   return 'plan';
 }
 
@@ -53,12 +63,103 @@ async function handlePlan(req, res, auth) {
   }
 
   try {
-    const sub = await getSubscription(auth.user.id, auth.user.email);
-    return res.status(200).json({ plan: sub.plan, status: sub.status });
+    const ent = await loadEntitlement(auth.user.id, auth.user.email, getSubscription);
+    return res.status(200).json(ent);
   } catch (err) {
     console.error('check-plan error:', err.message);
     return res.status(200).json({ plan: 'free', status: 'error' });
   }
+}
+
+function clientTimezone(req) {
+  const body = req.body || {};
+  return sanitizeTimezone(
+    body.timezone || req.headers['x-timezone'] || 'UTC'
+  );
+}
+
+async function handleReward(req, res, auth) {
+  const rl = await gateRouteRateLimit(req, {
+    route: 'onboarding-reward',
+    max: 8,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) {
+    const sec = Math.max(1, rl.retryAfterSec || 60);
+    try {
+      res.setHeader('Retry-After', String(sec));
+    } catch (e) {
+      /* ignore */
+    }
+    return res.status(429).json({
+      ok: false,
+      error: 'rate_limited',
+      message: `Too many requests. Please try again in ${sec} seconds.`
+    });
+  }
+  if (auth.error) return res.status(auth.status).json({ ok: false, error: auth.error });
+
+  /* Never trust client hasCompletedOnboarding / localStorage. Grant is once-per-account. */
+  const granted = await grantOnboardingReward(auth.user.id, clientTimezone(req));
+  if (!granted || granted.ok === false) {
+    return res.status(granted && granted.status === 404 ? 503 : 500).json({
+      ok: false,
+      error: (granted && granted.error) || 'grant_failed',
+      message: 'Welcome reward is not available yet. Try again in a moment.'
+    });
+  }
+
+  const ent = await loadEntitlement(auth.user.id, auth.user.email, getSubscription);
+  if (granted.granted) {
+    trackProductEventServer(auth.user.id, 'onboarding_completed', {
+      reward: true
+    }).catch(function () {});
+  }
+  return res.status(200).json({
+    ok: true,
+    already_granted: granted.already_granted === true,
+    granted: granted.granted === true,
+    entitlement: ent
+  });
+}
+
+async function handleActivity(req, res, auth) {
+  const rl = await gateRouteRateLimit(req, {
+    route: 'creation-activity',
+    max: 20,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) {
+    const sec = Math.max(1, rl.retryAfterSec || 60);
+    try {
+      res.setHeader('Retry-After', String(sec));
+    } catch (e) {
+      /* ignore */
+    }
+    return res.status(429).json({ ok: false, error: 'rate_limited' });
+  }
+  if (auth.error) return res.status(auth.status).json({ ok: false, error: auth.error });
+
+  const kind = String((req.body && req.body.kind) || '');
+  if (STREAK_KINDS.indexOf(kind) < 0) {
+    return res.status(400).json({ ok: false, error: 'invalid_kind' });
+  }
+
+  const result = await recordCreationActivity(auth.user.id, kind, clientTimezone(req));
+  if (!result || result.ok === false) {
+    return res.status(200).json({ ok: false, error: (result && result.error) || 'activity_failed' });
+  }
+  return res.status(200).json({
+    ok: true,
+    incremented: result.incremented === true,
+    current: result.current,
+    longest: result.longest,
+    lastActiveDate: result.last_active_date,
+    days: result.days,
+    milestone: result.milestone || null
+  });
 }
 
 async function handleTrack(req, res, auth) {
@@ -204,5 +305,7 @@ export default async function handler(req, res) {
   const resource = resourceOf(req);
 
   if (resource === 'track') return handleTrack(req, res, auth);
+  if (resource === 'reward') return handleReward(req, res, auth);
+  if (resource === 'activity') return handleActivity(req, res, auth);
   return handlePlan(req, res, auth);
 }

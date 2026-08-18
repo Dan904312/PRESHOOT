@@ -11,6 +11,10 @@ import {
   trackProductEventServer,
   estimateAiCostUsd
 } from '../lib/product-events.js';
+import {
+  refundOnboardingScan,
+  recordCreationActivity
+} from '../lib/entitlements.js';
 
 const ALLOWED_MODELS = new Set(['claude-sonnet-4-6', 'claude-haiku-4-5-20251001']);
 
@@ -85,13 +89,23 @@ export default async function handler(req, res) {
     return res.status(access.status || 403).json({ error: { message: msg } });
   }
 
+  async function undoOnboardingCredit() {
+    if (access.scanSource === 'onboarding') {
+      await refundOnboardingScan(auth.user.id).catch(function () {});
+    }
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
+    await undoOnboardingCredit();
     return res.status(500).json({ error: { message: 'AI not configured' } });
   }
 
   try {
     const safe = buildSafeBody(req.body || {});
-    if (safe.error) return res.status(400).json({ error: { message: safe.error } });
+    if (safe.error) {
+      await undoOnboardingCredit();
+      return res.status(400).json({ error: { message: safe.error } });
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -102,6 +116,14 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(safe)
     });
+
+    if (!response.ok) {
+      await undoOnboardingCredit();
+    } else {
+      recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
+        function () {}
+      );
+    }
 
     if (safe.stream) {
       trackProductEventServer(auth.user.id, 'ai_request', {
@@ -146,6 +168,7 @@ export default async function handler(req, res) {
     return res.status(response.status).json(data);
   } catch (error) {
     console.error('Proxy error:', error);
+    await undoOnboardingCredit();
     return res.status(500).json({ error: { message: 'Upstream error' } });
   }
 }
