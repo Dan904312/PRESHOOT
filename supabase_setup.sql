@@ -235,6 +235,19 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen timestamptz DEFAULT now()
 );
 
+-- Onboarding reward + streak overlay (see supabase_onboarding_streak.sql)
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS onboarding_reward_granted boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS onboarding_reward_granted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS free_scans_remaining integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS director_trial_ends_at timestamptz,
+  ADD COLUMN IF NOT EXISTS studio_trial_ends_at timestamptz,
+  ADD COLUMN IF NOT EXISTS streak_current integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS streak_longest integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS streak_last_active_date date,
+  ADD COLUMN IF NOT EXISTS streak_days jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'UTC';
+
 -- Cross-device app data
 CREATE TABLE IF NOT EXISTS user_data (
   user_id text PRIMARY KEY,
@@ -564,6 +577,7 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- Phase 6 Hardening (analytics + storage ACL): also run supabase_workspaces_phase6_hardening.sql
 -- Phase 7 Growth (content_performance boundary): also run supabase_workspaces_phase7_growth.sql
 -- Phase 8 Join codes: also run supabase_workspaces_phase8_join_codes.sql
+-- Onboarding reward + creator streak: also run supabase_onboarding_streak.sql
 -- (private Broadcast channel RLS on realtime.messages).
 -- ═══════════════════════════════════════════════════════════
 
