@@ -1261,7 +1261,7 @@
 
   function findProductionReferences(productionId, platform, broaden) {
     if (!Studio() || !productionId) return;
-    if (global.S && global.S.plan !== 'pro') {
+    if (global.S && typeof global.hasStudioAccess === 'function' ? !global.hasStudioAccess() : (global.S && global.S.plan !== 'pro')) {
       if (typeof global.openM === 'function') global.openM('pw-modal');
       return;
     }
@@ -2554,7 +2554,7 @@
       setDirectorStatus('error', 'Studio isn’t ready yet.');
       return;
     }
-    if (global.S && global.S.plan !== 'pro') {
+    if (global.S && typeof global.hasStudioAccess === 'function' ? !global.hasStudioAccess() : (global.S && global.S.plan !== 'pro')) {
       if (typeof global.openM === 'function') global.openM('pw-modal');
       return;
     }
@@ -4572,6 +4572,9 @@
       });
       PreShootAnalytics.noteProductionCreated();
     }
+    if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
+      PreShootEntitlements.recordActivity('studio');
+    }
     toast('Production created');
     openProduction(result.production.id);
   }
@@ -4680,6 +4683,9 @@
         source: 'idea'
       });
       PreShootAnalytics.noteProductionCreated();
+    }
+    if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
+      PreShootEntitlements.recordActivity('studio');
     }
     toast('Sent to Studio');
     openProduction(result.production.id);

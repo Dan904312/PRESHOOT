@@ -632,6 +632,15 @@
     ss('ob_oauth_resume', null);
     if (global.PreShootAnalytics) PreShootAnalytics.track('onboarding_completed');
     if (typeof showMain === 'function') showMain();
+    if (S.authUser && global.PreShootEntitlements && PreShootEntitlements.completeOnboarding) {
+      PreShootEntitlements.completeOnboarding()
+        .then(function (res) {
+          if (res && res.granted && PreShootEntitlements.showRewardModal) {
+            PreShootEntitlements.showRewardModal();
+          }
+        })
+        .catch(function () {});
+    }
   }
 
   function onAuthResolved() {
