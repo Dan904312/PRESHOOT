@@ -21,6 +21,7 @@ import {
   estimateAiCostUsd
 } from '../lib/product-events.js';
 import { recordCreationActivity } from '../lib/entitlements.js';
+import { recordUsageEvent } from '../lib/usage-ledger.js';
 
 async function logAiRequest(userId, meta) {
   try {
@@ -410,6 +411,14 @@ export default async function handler(req, res) {
           'director',
           req.body && req.body.timezone
         ).catch(function () {});
+        recordUsageEvent({
+          user_id: auth.user.id,
+          event_type: 'director_request',
+          provider: 'anthropic',
+          model: anthropicBody.model,
+          status: 'success',
+          metadata: { stream: true, workspace: workspaceId ? 'shared' : 'personal' }
+        }).catch(function () {});
       }
       /* Token usage unavailable on SSE path — count request only */
       logAiRequest(auth.user.id, {
@@ -463,6 +472,16 @@ export default async function handler(req, res) {
     recordCreationActivity(auth.user.id, 'director', req.body && req.body.timezone).catch(
       function () {}
     );
+    recordUsageEvent({
+      user_id: auth.user.id,
+      event_type: 'director_request',
+      provider: 'anthropic',
+      model: anthropicBody.model,
+      input_units: inTok,
+      output_units: outTok,
+      status: 'success',
+      metadata: { workspace: workspaceId ? 'shared' : 'personal' }
+    }).catch(function () {});
     return res.status(200).json(data);
   } catch (error) {
     console.error('Director API error:', error);

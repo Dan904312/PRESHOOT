@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 
   const rl = await gateRouteRateLimit(req, {
     route: 'admin-auth',
-    max: 20,
+    max: 40,
     windowMs: 60 * 1000
   });
   if (!rl.allowed) return sendRateLimitResponse(res, rl, 'plain');
@@ -31,6 +31,12 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'login') {
+      const loginRl = await gateRouteRateLimit(req, {
+        route: 'admin-login',
+        max: 8,
+        windowMs: 15 * 60 * 1000
+      });
+      if (!loginRl.allowed) return sendRateLimitResponse(res, loginRl, 'plain');
       const secret = req.body && req.body.secret;
       if (!secret || typeof secret !== 'string') {
         return res.status(400).json({ ok: false, error: 'password_required' });

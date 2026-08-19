@@ -11,6 +11,7 @@ import {
   sendRateLimitResponse
 } from '../lib/security.js';
 import { trackProductEventServer, estimateAiCostUsd } from '../lib/product-events.js';
+import { recordUsageEvent } from '../lib/usage-ledger.js';
 
 const MAX_ITEMS = 5;
 
@@ -106,6 +107,15 @@ async function callClaude(system, user, maxTokens) {
       input_tokens: inTok,
       output_tokens: outTok,
       cost_usd: estimateAiCostUsd(model, inTok, outTok)
+    }).catch(function () {});
+    recordUsageEvent({
+      user_id: _aiLogUserId,
+      event_type: 'research',
+      provider: 'anthropic',
+      model,
+      input_units: inTok,
+      output_units: outTok,
+      status: 'success'
     }).catch(function () {});
   }
   const block = (data.content || []).find((b) => b.type === 'text');

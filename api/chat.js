@@ -15,6 +15,7 @@ import {
   refundOnboardingScan,
   recordCreationActivity
 } from '../lib/entitlements.js';
+import { recordUsageEvent } from '../lib/usage-ledger.js';
 
 const ALLOWED_MODELS = new Set(['claude-sonnet-4-6', 'claude-haiku-4-5-20251001']);
 
@@ -119,10 +120,18 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       await undoOnboardingCredit();
-    } else {
+    } else if (safe.stream) {
       recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
         function () {}
       );
+      recordUsageEvent({
+        user_id: auth.user.id,
+        event_type: 'scan',
+        provider: 'anthropic',
+        model: safe.model,
+        status: 'success',
+        metadata: { stream: true }
+      }).catch(function () {});
     }
 
     if (safe.stream) {
@@ -157,6 +166,29 @@ export default async function handler(req, res) {
         input_tokens: inTok,
         output_tokens: outTok,
         cost_usd: estimateAiCostUsd(safe.model, inTok, outTok)
+      }).catch(function () {});
+      recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
+        function () {}
+      );
+      recordUsageEvent({
+        user_id: auth.user.id,
+        event_type: 'scan',
+        provider: 'anthropic',
+        model: safe.model,
+        input_units: inTok,
+        output_units: outTok,
+        status: 'success'
+      }).catch(function () {});
+    } else if (response.ok) {
+      recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
+        function () {}
+      );
+      recordUsageEvent({
+        user_id: auth.user.id,
+        event_type: 'scan',
+        provider: 'anthropic',
+        model: safe.model,
+        status: 'success'
       }).catch(function () {});
     } else if (!response.ok) {
       trackProductEventServer(auth.user.id, 'api_error', {

@@ -59,6 +59,14 @@ async function handlePlan(req, res, auth) {
   }
 
   if (auth.error) {
+    if (auth.error === 'account_suspended') {
+      return res.status(403).json({
+        plan: 'free',
+        status: 'account_suspended',
+        error: 'account_suspended',
+        blocked: true
+      });
+    }
     return res.status(auth.status).json({ plan: 'free', status: auth.error });
   }
 
