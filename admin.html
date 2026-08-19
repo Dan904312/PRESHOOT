@@ -7,308 +7,425 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#06060F;--s1:#0D0D1C;--s2:#13131F;--s3:#1A1A2A;
-  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
-  --text:#EDEDF5;--text2:#7A7A9A;--text3:#3E3E58;
-  --accent:#7C4DFF;--accent2:#FF5C35;
-  --green:#00E5A0;--red:#FF4757;--amber:#FFB300;--blue:#3B82F6;
+  --bg:#111114;
+  --panel:#18181c;
+  --panel2:#1f1f24;
+  --line:#2a2a32;
+  --line2:#3a3a44;
+  --text:#f4f4f5;
+  --muted:#a1a1aa;
+  --faint:#71717a;
+  --accent:#7C4DFF;
+  --ok:#34d399;
+  --warn:#fbbf24;
+  --bad:#f87171;
+  --blue:#60a5fa;
 }
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--s1)}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
-button{font-family:inherit;cursor:pointer;border:none}
-input,textarea,select{font-family:inherit;color:var(--text)}
-#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100}
-.login-box{background:var(--s1);border:1.5px solid var(--border2);border-radius:20px;padding:40px;width:340px;text-align:center}
-.login-logo{font-size:32px;font-weight:800;color:var(--text);letter-spacing:-1px;margin-bottom:4px}
-.login-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
-.login-inp{width:100%;padding:12px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;outline:none;margin-bottom:12px;transition:border-color .2s;color:var(--text)}
-.login-inp:focus{border-color:var(--accent)}
-.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:12px;font-size:15px;font-weight:700}
-.login-err{font-size:13px;color:var(--red);margin-top:10px;min-height:18px}
-#app{display:none}
-.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:var(--s1);border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
-.sidebar-logo{font-size:18px;font-weight:800;margin-bottom:24px;padding-left:8px;letter-spacing:-0.5px}
-.sidebar-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.nav-btn{padding:10px 12px;border-radius:10px;background:none;color:var(--text2);font-size:13px;font-weight:600;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px}
-.nav-btn:hover{background:var(--s2);color:var(--text)}
-.nav-btn.active{background:rgba(124,77,255,.12);color:var(--accent)}
-.nav-btn .nav-ico{font-size:16px;width:20px;text-align:center}
-.sidebar-bottom{margin-top:auto;padding-top:16px;border-top:1px solid var(--border)}
-.main{margin-left:220px;padding:32px;min-height:100vh}
+html,body{height:100%}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.45}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:50}
+.login-box{width:320px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:28px 24px}
+.login-box h1{font-size:16px;font-weight:650;letter-spacing:-.02em;margin-bottom:4px}
+.login-box p{color:var(--muted);margin-bottom:18px;font-size:12px}
+.login-box input,.login-box button{width:100%}
+.login-box button{margin-top:10px;padding:9px 12px;background:var(--accent);color:#fff;border-radius:6px;font-weight:600;font-size:13px}
+.login-err{min-height:16px;margin-top:8px;color:var(--bad);font-size:12px}
+#app{display:none;min-height:100vh}
+.sidebar{position:fixed;inset:0 auto 0 0;width:200px;background:var(--panel);border-right:1px solid var(--line);padding:18px 10px;display:flex;flex-direction:column}
+.brand{font-size:13px;font-weight:650;letter-spacing:-.02em;padding:4px 10px 18px;color:var(--muted)}
+.brand b{color:var(--text);font-weight:700}
+.nav-btn{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;color:var(--muted);font-size:13px;font-weight:500}
+.nav-btn:hover{background:var(--panel2);color:var(--text)}
+.nav-btn.active{background:rgba(124,77,255,.12);color:var(--text)}
+.sidebar-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+.sidebar-foot .nav-btn{color:var(--faint)}
+.main{margin-left:200px;padding:24px 28px 64px}
 .page{display:none}
 .page.active{display:block}
-.page-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
-.page-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
-.stats-grid.six{grid-template-columns:repeat(6,1fr)}
-.stats-grid.two{grid-template-columns:repeat(2,1fr);max-width:480px}
-.stat-card{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;padding:18px}
-.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:4px}
-.stat-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;font-weight:600}
-.stat-card.green .stat-val{color:var(--green)}
-.stat-card.amber .stat-val{color:var(--amber)}
-.stat-card.red .stat-val{color:var(--red)}
-.stat-card.blue .stat-val{color:var(--blue)}
-.stat-card.accent .stat-val{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.section-title{font-size:15px;font-weight:700;margin:28px 0 14px}
-.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-.chart-card{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;padding:20px}
-.chart-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
-.chart-title{font-size:14px;font-weight:700;margin-bottom:4px}
-.chart-total{font-size:22px;font-weight:800;letter-spacing:-.5px}
-.chart-range{display:flex;gap:4px}
-.range-btn{padding:5px 10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;font-size:11px;font-weight:700;color:var(--text2);transition:all .15s}
-.range-btn.active{background:rgba(124,77,255,.15);border-color:var(--accent);color:var(--accent)}
-.chart-wrap{width:100%;height:180px;position:relative}
-.chart-empty{display:flex;align-items:center;justify-content:center;height:180px;color:var(--text3);font-size:13px}
-.chart-tip{position:absolute;background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;pointer-events:none;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.4)}
-.table-wrap{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;overflow:hidden}
-.table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.table-title{font-size:15px;font-weight:700}
-.search-inp{padding:8px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);outline:none;width:220px;transition:border-color .2s}
-.search-inp:focus{border-color:var(--accent)}
-.search-inp::placeholder{color:var(--text3)}
-.filter-tabs{display:flex;gap:6px}
-.filter-tab{padding:6px 14px;background:var(--s2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:700;color:var(--text2);transition:all .15s}
-.filter-tab.active{background:rgba(124,77,255,.15);border-color:var(--accent);color:var(--accent)}
+.page-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.page-hd h1{font-size:18px;font-weight:650;letter-spacing:-.03em}
+.page-hd p{color:var(--muted);font-size:12px;margin-top:3px}
+.notice{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;color:var(--muted);font-size:12px;margin-bottom:16px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.metric{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.metric .v{font-size:20px;font-weight:650;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.metric .l{margin-top:2px;color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.metric.warn .v{color:var(--warn)}
+.metric.bad .v{color:var(--bad)}
+.metric.ok .v{color:var(--ok)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.card-hd h2{font-size:13px;font-weight:600}
+.card-bd{padding:12px 14px}
+.seg{display:flex;gap:4px}
+.seg button,.btn,.filter-tab{padding:5px 9px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-size:12px;font-weight:500;background:transparent}
+.seg button.active,.filter-tab.active{border-color:var(--accent);color:var(--text);background:rgba(124,77,255,.12)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{border-color:rgba(248,113,113,.4);color:var(--bad)}
+.btn.ok{border-color:rgba(52,211,153,.4);color:var(--ok)}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.chart{height:160px;position:relative}
+.chart-empty,.empty{color:var(--faint);font-size:12px;padding:28px;text-align:center}
 table{width:100%;border-collapse:collapse}
-th{padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);background:var(--s2)}
-td{padding:14px 16px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,.02)}
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.badge.pro{background:rgba(124,77,255,.15);color:var(--accent);border:1px solid rgba(124,77,255,.25)}
-.badge.free{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border)}
-.badge.active{background:rgba(0,229,160,.1);color:var(--green);border:1px solid rgba(0,229,160,.2)}
-.badge.cancelled{background:rgba(255,71,87,.08);color:var(--red);border:1px solid rgba(255,71,87,.15)}
-.badge.revoked{background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3)}
-.badge.past_due{background:rgba(255,179,0,.1);color:var(--amber);border:1px solid rgba(255,179,0,.2)}
-.badge.promo{background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
-.badge.trialing{background:rgba(0,229,160,.08);color:var(--green);border:1px solid rgba(0,229,160,.15)}
-.badge.none{background:rgba(255,255,255,.04);color:var(--text3);border:1px solid var(--border)}
-.act-btn{padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;transition:all .15s;border:1.5px solid}
-.act-btn.revoke{background:rgba(255,71,87,.1);color:var(--red);border-color:rgba(255,71,87,.2)}
-.act-btn.revoke:hover{background:rgba(255,71,87,.2)}
-.act-btn.restore{background:rgba(0,229,160,.1);color:var(--green);border-color:rgba(0,229,160,.2)}
-.act-btn.restore:hover{background:rgba(0,229,160,.2)}
-.act-row{display:flex;gap:6px;align-items:center}
-.email-cell{font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
-.avatar-img{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0}
-.avatar-init{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
-.date-cell{font-size:12px;color:var(--text2)}
-.mono{font-size:11px;color:var(--text3);font-family:monospace;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.event-row{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
-.event-row:last-child{border-bottom:none}
-.event-ico{width:32px;height:32px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px}
-.event-info{flex:1}
-.event-type{font-size:13px;font-weight:700;margin-bottom:2px}
-.event-meta{font-size:12px;color:var(--text2)}
-.event-amount{font-size:13px;font-weight:800;color:var(--green)}
-.form-card{background:var(--s1);border:1.5px solid var(--border);border-radius:16px;padding:24px;max-width:480px}
-.form-lbl{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;margin-top:16px;display:block;text-transform:uppercase;letter-spacing:.6px}
-.form-lbl:first-child{margin-top:0}
-.form-inp{width:100%;padding:11px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;transition:border-color .2s;color:var(--text)}
-.form-inp:focus{border-color:var(--accent)}
-.form-inp::placeholder{color:var(--text3)}
-.form-btn{margin-top:20px;padding:12px 24px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:10px;font-size:14px;font-weight:700}
-.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle;font-variant-numeric:tabular-nums}
+tr:hover td{background:rgba(255,255,255,.015)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--faint)}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
+.badge.pro{color:#c4b5fd;border-color:rgba(124,77,255,.4)}
+.badge.suspended,.badge.revoked,.badge.cancelled{color:var(--bad);border-color:rgba(248,113,113,.35)}
+.badge.active,.badge.ok{color:var(--ok);border-color:rgba(52,211,153,.35)}
+.badge.promo,.badge.trialing{color:var(--blue);border-color:rgba(96,165,250,.35)}
+.badge.warn,.badge.past_due,.badge.failed{color:var(--warn);border-color:rgba(251,191,36,.35)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.search{width:220px}
+.link{color:var(--text);cursor:pointer;font-weight:600}
+.link:hover{color:#ddd}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:10px 14px;opacity:0;transition:opacity .2s;z-index:80;pointer-events:none}
+.toast.show{opacity:1}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:60}
+.overlay.open{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--bg);border-left:1px solid var(--line);overflow:auto;padding:20px 22px 48px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:12px;margin:10px 0 16px}
+.kv dt{color:var(--faint)}
+.dialog{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:70}
+.dialog.open{display:flex}
+.dialog-box{width:min(420px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px}
+.dialog-box h3{font-size:14px;margin-bottom:8px}
+.dialog-box p{color:var(--muted);font-size:12px;margin-bottom:12px}
+.dialog-box textarea,.dialog-box input{width:100%;margin-bottom:8px}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.msg-layout{display:grid;grid-template-columns:1fr 320px;gap:12px}
+.check-list{max-height:420px;overflow:auto}
+.check-row{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.status-dot.operational{background:var(--ok)}
+.status-dot.degraded{background:var(--warn)}
+.status-dot.unavailable{background:var(--bad)}
+.spinner{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
-.refresh-btn{padding:8px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text2);transition:all .15s}
-.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
-.toast-bar{position:fixed;bottom:24px;right:24px;background:var(--s1);border:1.5px solid var(--border2);border-radius:12px;padding:12px 18px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
-.toast-bar.show{opacity:1}
-@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}.stats-grid.six{grid-template-columns:repeat(3,1fr)}.chart-row{grid-template-columns:1fr}}
+@media(max-width:1100px){.metrics,.row,.msg-layout{grid-template-columns:1fr}.sidebar{width:168px}.main{margin-left:168px}}
 </style>
 </head>
 <body>
-
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">Pre<span>Shoot</span></div>
-    <div class="login-sub">Admin Dashboard</div>
-    <input class="login-inp" type="password" id="admin-key-inp" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <h1>PreShoot Admin</h1>
+    <p>Internal operations console</p>
+    <input type="password" id="admin-key-inp" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button type="button" onclick="doLogin()">Sign in</button>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
 
 <div id="app">
-  <div class="sidebar">
-    <div class="sidebar-logo">Pre<span>Shoot</span></div>
-    <button class="nav-btn active" onclick="showPage('overview',this)"><span class="nav-ico">📊</span> Overview</button>
-    <button class="nav-btn" onclick="showPage('users',this)"><span class="nav-ico">👥</span> All Users</button>
-    <button class="nav-btn" onclick="showPage('events',this)"><span class="nav-ico">📋</span> Event Log</button>
-    <button class="nav-btn" onclick="showPage('promo',this)"><span class="nav-ico">🎟</span> Promo Codes</button>
-    <button class="nav-btn" onclick="showPage('grant',this)"><span class="nav-ico">✨</span> Grant Access</button>
-    <div class="sidebar-bottom">
-      <button class="nav-btn" onclick="logout()" style="color:var(--red)"><span class="nav-ico">🚪</span> Sign Out</button>
+  <aside class="sidebar">
+    <div class="brand"><b>PreShoot</b> Admin</div>
+    <button class="nav-btn active" data-page="overview" onclick="showPage('overview',this)">Overview</button>
+    <button class="nav-btn" data-page="users" onclick="showPage('users',this)">Users</button>
+    <button class="nav-btn" data-page="usage" onclick="showPage('usage',this)">Usage</button>
+    <button class="nav-btn" data-page="revenue" onclick="showPage('revenue',this)">Revenue</button>
+    <button class="nav-btn" data-page="security" onclick="showPage('security',this)">Security</button>
+    <button class="nav-btn" data-page="messaging" onclick="showPage('messaging',this)">Messaging</button>
+    <button class="nav-btn" data-page="system" onclick="showPage('system',this)">System</button>
+    <div class="sidebar-foot">
+      <button class="nav-btn" onclick="logout()">Sign out</button>
     </div>
-  </div>
+  </aside>
 
-  <div class="main">
-
-    <!-- OVERVIEW -->
-    <div class="page active" id="page-overview">
-      <div class="page-title">Overview</div>
-      <div class="page-sub">Real-time business metrics</div>
-
-      <div class="stats-grid">
-        <div class="stat-card accent"><div class="stat-val" id="ov-total-users">—</div><div class="stat-lbl">Total Users</div></div>
-        <div class="stat-card green"><div class="stat-val" id="ov-mrr">—</div><div class="stat-lbl">MRR</div></div>
-        <div class="stat-card blue"><div class="stat-val" id="ov-arr">—</div><div class="stat-lbl">ARR (projected)</div></div>
-        <div class="stat-card amber"><div class="stat-val" id="ov-conversion">—</div><div class="stat-lbl">Conversion Rate</div></div>
-      </div>
-
-      <div class="chart-row">
-        <div class="chart-card">
-          <div class="chart-hd">
-            <div><div class="chart-title">New Signups</div><div class="chart-total" id="signups-total">—</div></div>
-            <div class="chart-range">
-              <button class="range-btn" onclick="setRange('signups',7,this)">7D</button>
-              <button class="range-btn active" onclick="setRange('signups',30,this)">30D</button>
-              <button class="range-btn" onclick="setRange('signups',90,this)">90D</button>
-            </div>
-          </div>
-          <div class="chart-wrap" id="chart-signups"><div class="chart-empty"><div class="spinner"></div></div></div>
+  <main class="main">
+    <section class="page active" id="page-overview">
+      <div class="page-hd">
+        <div>
+          <h1>Overview</h1>
+          <p>Live operational snapshot. Usage figures start when server-side tracking began.</p>
         </div>
-        <div class="chart-card">
-          <div class="chart-hd">
-            <div><div class="chart-title">Revenue</div><div class="chart-total" id="revenue-total">—</div></div>
-            <div class="chart-range">
-              <button class="range-btn" onclick="setRange('revenue',7,this)">7D</button>
-              <button class="range-btn active" onclick="setRange('revenue',30,this)">30D</button>
-              <button class="range-btn" onclick="setRange('revenue',90,this)">90D</button>
-            </div>
-          </div>
-          <div class="chart-wrap" id="chart-revenue"><div class="chart-empty"><div class="spinner"></div></div></div>
+        <div class="seg" id="ov-range">
+          <button class="active" onclick="setOvRange('today',this)">Today</button>
+          <button onclick="setOvRange('7',this)">7 days</button>
+          <button onclick="setOvRange('30',this)">30 days</button>
+          <button onclick="setOvRange('all',this)">All time</button>
         </div>
       </div>
-
-      <div class="section-title">User Activity</div>
-      <div class="stats-grid six">
-        <div class="stat-card"><div class="stat-val" id="ov-new-today" style="font-size:22px">—</div><div class="stat-lbl">New Today</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-new-week" style="font-size:22px">—</div><div class="stat-lbl">New This Week</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-new-month" style="font-size:22px">—</div><div class="stat-lbl">New This Month</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-active-today" style="font-size:22px">—</div><div class="stat-lbl">Active Today</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-active-week" style="font-size:22px">—</div><div class="stat-lbl">Active This Week</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-free" style="font-size:22px">—</div><div class="stat-lbl">Free Users</div></div>
+      <div class="notice" id="ov-tracking">Loading tracking window…</div>
+      <div class="metrics">
+        <div class="metric"><div class="v" id="ov-total-users">—</div><div class="l">Users</div></div>
+        <div class="metric"><div class="v" id="ov-new">—</div><div class="l">New (range)</div></div>
+        <div class="metric"><div class="v" id="ov-active">—</div><div class="l">Active (range)</div></div>
+        <div class="metric"><div class="v" id="ov-scans">—</div><div class="l">Scans</div></div>
+        <div class="metric"><div class="v" id="ov-ai">—</div><div class="l">AI requests</div></div>
+        <div class="metric"><div class="v" id="ov-ai-cost">—</div><div class="l">API cost</div></div>
+        <div class="metric"><div class="v" id="ov-rev-range">—</div><div class="l">Revenue</div></div>
+        <div class="metric"><div class="v" id="ov-failed">—</div><div class="l">Failed requests</div></div>
+        <div class="metric bad"><div class="v" id="ov-suspended">—</div><div class="l">Suspended</div></div>
+        <div class="metric"><div class="v" id="ov-mrr">—</div><div class="l">MRR</div></div>
+        <div class="metric"><div class="v" id="ov-pro">—</div><div class="l">Pro</div></div>
+        <div class="metric"><div class="v" id="ov-activated">—</div><div class="l">Activated (30d)</div></div>
       </div>
-
-      <div class="section-title">Revenue</div>
-      <div class="stats-grid six">
-        <div class="stat-card green"><div class="stat-val" id="ov-rev-total" style="font-size:22px">—</div><div class="stat-lbl">Total Revenue</div></div>
-        <div class="stat-card green"><div class="stat-val" id="ov-rev-month" style="font-size:22px">—</div><div class="stat-lbl">This Month</div></div>
-        <div class="stat-card green"><div class="stat-val" id="ov-rev-today" style="font-size:22px">—</div><div class="stat-lbl">Today</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-arpu" style="font-size:22px">—</div><div class="stat-lbl">Avg Rev / User</div></div>
-        <div class="stat-card red"><div class="stat-val" id="ov-churn" style="font-size:22px">—</div><div class="stat-lbl">Churn Rate</div></div>
-        <div class="stat-card accent"><div class="stat-val" id="ov-pro" style="font-size:22px">—</div><div class="stat-lbl">Pro Subscribers</div></div>
+      <div class="row">
+        <div class="card">
+          <div class="card-hd"><h2>Signups</h2><div class="seg"><button onclick="setRange('signups',7,this)">7d</button><button class="active" onclick="setRange('signups',30,this)">30d</button></div></div>
+          <div class="card-bd"><div class="chart" id="chart-signups"><div class="chart-empty"><span class="spinner"></span></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><h2>Revenue</h2><div class="seg"><button onclick="setRange('revenue',7,this)">7d</button><button class="active" onclick="setRange('revenue',30,this)">30d</button></div></div>
+          <div class="card-bd"><div class="chart" id="chart-revenue"><div class="chart-empty"><span class="spinner"></span></div></div></div>
+        </div>
       </div>
+      <div class="notice" id="ov-alerts">No cost alerts.</div>
+    </section>
 
-      <div class="section-title">Plan Breakdown</div>
-      <div class="stats-grid six">
-        <div class="stat-card"><div class="stat-val" id="ov-monthly" style="font-size:22px">—</div><div class="stat-lbl">Monthly Plan</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-yearly" style="font-size:22px">—</div><div class="stat-lbl">Yearly Plan</div></div>
-        <div class="stat-card blue"><div class="stat-val" id="ov-promo" style="font-size:22px">—</div><div class="stat-lbl">Promo Grants</div></div>
-        <div class="stat-card amber"><div class="stat-val" id="ov-pastdue" style="font-size:22px">—</div><div class="stat-lbl">Past Due</div></div>
-        <div class="stat-card red"><div class="stat-val" id="ov-cancelled" style="font-size:22px">—</div><div class="stat-lbl">Cancelled</div></div>
-        <div class="stat-card red"><div class="stat-val" id="ov-revoked" style="font-size:22px">—</div><div class="stat-lbl">Revoked</div></div>
+    <section class="page" id="page-users">
+      <div class="page-hd">
+        <div>
+          <h1>Users</h1>
+          <p>Search, filter, and inspect accounts. Suspend is enforced on every authenticated API.</p>
+        </div>
       </div>
-
-      <div class="section-title">App Usage</div>
-      <div class="stats-grid two">
-        <div class="stat-card"><div class="stat-val" id="ov-scans" style="font-size:22px">—</div><div class="stat-lbl">Total Scans</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-avg-scans" style="font-size:22px">—</div><div class="stat-lbl">Avg Scans / User</div></div>
-      </div>
-
-      <div class="section-title">Product Health (30d events)</div>
-      <div class="stats-grid six">
-        <div class="stat-card accent"><div class="stat-val" id="ov-activated" style="font-size:22px">—</div><div class="stat-lbl">Activated Users</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-ideas" style="font-size:22px">—</div><div class="stat-lbl">Ideas Generated</div></div>
-        <div class="stat-card"><div class="stat-val" id="ov-productions" style="font-size:22px">—</div><div class="stat-lbl">Productions</div></div>
-        <div class="stat-card green"><div class="stat-val" id="ov-dir-ok" style="font-size:22px">—</div><div class="stat-lbl">Director Success %</div></div>
-        <div class="stat-card amber"><div class="stat-val" id="ov-ai-cost" style="font-size:22px">—</div><div class="stat-lbl">Est. AI Cost</div></div>
-        <div class="stat-card blue"><div class="stat-val" id="ov-d7" style="font-size:22px">—</div><div class="stat-lbl">D7 Retention</div></div>
-      </div>
-      <div class="page-sub" id="ov-product-note" style="margin-top:8px">Activation = idea_generated + production_created</div>
-    </div>
-
-    <!-- ALL USERS -->
-    <div class="page" id="page-users">
-      <div class="page-title">All Users</div>
-      <div class="page-sub">Every signup — free and Pro</div>
-      <div class="table-wrap">
-        <div class="table-header">
-          <div class="table-title">Users</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <div class="filter-tabs">
-              <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
-              <button class="filter-tab" onclick="setFilter('pro',this)">Pro</button>
-              <button class="filter-tab" onclick="setFilter('free',this)">Free</button>
+      <div class="card">
+        <div class="card-hd">
+          <h2>Directory</h2>
+          <div class="toolbar">
+            <div class="seg" id="plan-tabs">
+              <button class="filter-tab active" onclick="setFilter('plan','all',this)">All</button>
+              <button class="filter-tab" onclick="setFilter('plan','pro',this)">Pro</button>
+              <button class="filter-tab" onclick="setFilter('plan','free',this)">Free</button>
             </div>
-            <input class="search-inp" id="user-search" placeholder="Search name or email..." oninput="searchUsers(this.value)">
-            <button class="refresh-btn" onclick="loadUsers()">↻ Refresh</button>
+            <div class="seg" id="status-tabs">
+              <button class="filter-tab active" onclick="setFilter('status','all',this)">Any status</button>
+              <button class="filter-tab" onclick="setFilter('status','active',this)">Active</button>
+              <button class="filter-tab" onclick="setFilter('status','suspended',this)">Suspended</button>
+            </div>
+            <select id="user-segment" onchange="loadUsers()">
+              <option value="">Segment</option>
+              <option value="new_7d">New — last 7 days</option>
+              <option value="onboard_incomplete">Onboarding incomplete</option>
+              <option value="onboard_complete">Onboarding completed</option>
+              <option value="no_scans">No scans</option>
+              <option value="high_usage">High usage</option>
+              <option value="trial">Trial</option>
+              <option value="workspace">Workspace member</option>
+            </select>
+            <select id="user-sort" onchange="loadUsers()">
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="spend">API spend</option>
+              <option value="scans">Scans</option>
+              <option value="last_active">Last active</option>
+            </select>
+            <input class="search" id="user-search" placeholder="Name, email, or user ID" oninput="searchUsers(this.value)">
+            <button class="btn" onclick="loadUsers()">Refresh</button>
           </div>
         </div>
         <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>User</th><th>Plan</th><th>Status</th><th>Scans</th><th>Joined</th><th>Last Active</th><th>Actions</th></tr></thead>
-            <tbody id="users-tbody"><tr><td colspan="7" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr></tbody>
+            <thead><tr><th></th><th>User</th><th>Plan</th><th>Account</th><th>Scans</th><th>Director</th><th>API cost</th><th>Joined</th><th>Last active</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="9" class="empty"><span class="spinner"></span></td></tr></tbody>
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- EVENTS -->
-    <div class="page" id="page-events">
-      <div class="page-title">Event Log</div>
-      <div class="page-sub">Full audit trail of all subscription activity</div>
-      <div class="table-wrap" style="padding:0">
-        <div class="table-header"><div class="table-title">Recent events</div><button class="refresh-btn" onclick="loadEvents()">↻ Refresh</button></div>
-        <div style="padding:0 20px" id="events-list"><div style="padding:40px;text-align:center"><div class="spinner"></div></div></div>
-      </div>
-    </div>
-
-    <!-- PROMO -->
-    <div class="page" id="page-promo">
-      <div class="page-title">Promo Code Usage</div>
-      <div class="page-sub">Everyone who has redeemed a promo code</div>
-      <div class="table-wrap">
-        <div class="table-header"><div class="table-title">Redemptions</div><button class="refresh-btn" onclick="loadPromo()">↻ Refresh</button></div>
-        <div style="overflow-x:auto">
-          <table>
-            <thead><tr><th>Code</th><th>Email</th><th>User ID</th><th>Used At</th></tr></thead>
-            <tbody id="promo-tbody"><tr><td colspan="4" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr></tbody>
-          </table>
+    <section class="page" id="page-usage">
+      <div class="page-hd">
+        <div>
+          <h1>Usage</h1>
+          <p>Successful AI operations only. Token cost uses the central pricing map. Streaming responses count as completed usage but may show $0 cost until the provider returns token totals.</p>
+        </div>
+        <div class="seg" id="usage-range">
+          <button onclick="setUsageRange('today',this)">Today</button>
+          <button onclick="setUsageRange('7',this)">7 days</button>
+          <button class="active" onclick="setUsageRange('30',this)">30 days</button>
+          <button onclick="setUsageRange('all',this)">All time</button>
         </div>
       </div>
-    </div>
-
-    <!-- GRANT -->
-    <div class="page" id="page-grant">
-      <div class="page-title">Grant Pro Access</div>
-      <div class="page-sub">Manually give someone Pro</div>
-      <div class="form-card">
-        <label class="form-lbl">Email address *</label>
-        <input class="form-inp" id="grant-email" placeholder="user@example.com">
-        <label class="form-lbl">User ID (optional)</label>
-        <input class="form-inp" id="grant-uid" placeholder="Supabase auth user ID">
-        <label class="form-lbl">Reason / Note</label>
-        <input class="form-inp" id="grant-reason" placeholder="e.g. Beta tester, support resolution">
-        <button class="form-btn" onclick="grantAccess()">Grant Pro Access</button>
-        <div id="grant-msg" style="height:18px;margin-top:10px;font-size:13px"></div>
+      <div class="notice" id="usage-tracking"></div>
+      <div class="metrics">
+        <div class="metric"><div class="v" id="us-scans">—</div><div class="l">Scans</div></div>
+        <div class="metric"><div class="v" id="us-dir">—</div><div class="l">Director</div></div>
+        <div class="metric"><div class="v" id="us-ai">—</div><div class="l">AI requests</div></div>
+        <div class="metric"><div class="v" id="us-cost">—</div><div class="l">Estimated cost</div></div>
       </div>
-    </div>
+      <div class="card">
+        <div class="card-hd"><h2>Cost by provider / model / operation</h2></div>
+        <table>
+          <thead><tr><th>Provider</th><th>Model</th><th>Operation</th><th>Count</th><th>Cost</th></tr></thead>
+          <tbody id="usage-break"><tr><td colspan="5" class="empty">No tracked usage yet</td></tr></tbody>
+        </table>
+      </div>
+    </section>
 
-  </div>
+    <section class="page" id="page-revenue">
+      <div class="page-hd">
+        <div>
+          <h1>Revenue</h1>
+          <p>Stripe events and promo redemptions. Subscription revoke does not grant Pro on restore.</p>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="v" id="ov-rev-total">—</div><div class="l">All-time revenue</div></div>
+        <div class="metric"><div class="v" id="ov-rev-month">—</div><div class="l">This month</div></div>
+        <div class="metric"><div class="v" id="ov-arr">—</div><div class="l">ARR (projected)</div></div>
+        <div class="metric"><div class="v" id="ov-conversion">—</div><div class="l">Conversion</div></div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-hd"><h2>Billing events</h2><button class="btn" onclick="loadEvents()">Refresh</button></div>
+        <table>
+          <thead><tr><th>Event</th><th>User</th><th>Amount</th><th>When</th></tr></thead>
+          <tbody id="events-tbody"><tr><td colspan="4" class="empty"><span class="spinner"></span></td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-hd"><h2>Promo redemptions</h2><button class="btn" onclick="loadPromo()">Refresh</button></div>
+        <table>
+          <thead><tr><th>Code</th><th>Email</th><th>User ID</th><th>Used</th></tr></thead>
+          <tbody id="promo-tbody"><tr><td colspan="4" class="empty"><span class="spinner"></span></td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="page" id="page-security">
+      <div class="page-hd">
+        <div>
+          <h1>Security</h1>
+          <p>Account blocks, admin actions, Auth audit, and high-usage flags. Not a SIEM.</p>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric bad"><div class="v" id="sec-suspended">—</div><div class="l">Suspended accounts</div></div>
+        <div class="metric"><div class="v" id="sec-429">—</div><div class="l">429s (7d)</div></div>
+        <div class="metric"><div class="v" id="sec-5xx">—</div><div class="l">5xx (7d)</div></div>
+        <div class="metric warn"><div class="v" id="sec-high">—</div><div class="l">High-usage flags</div></div>
+      </div>
+      <div class="row">
+        <div class="card">
+          <div class="card-hd"><h2>Suspended</h2></div>
+          <div id="sec-suspended-list" class="card-bd empty">None</div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><h2>High usage (24h)</h2></div>
+          <div id="sec-high-list" class="card-bd empty">None</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-hd"><h2>Recent admin actions</h2></div>
+        <table>
+          <thead><tr><th>Action</th><th>Target</th><th>IP</th><th>When</th></tr></thead>
+          <tbody id="audit-tbody"><tr><td colspan="4" class="empty">No audit rows</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-hd"><h2>Supabase Auth audit</h2></div>
+        <div class="notice" id="auth-audit-note" style="margin:12px">Checking Auth audit availability…</div>
+        <table>
+          <thead><tr><th>Type</th><th>Actor</th><th>When</th></tr></thead>
+          <tbody id="auth-audit-tbody"><tr><td colspan="3" class="empty">—</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="page" id="page-messaging">
+      <div class="page-hd">
+        <div>
+          <h1>Messaging</h1>
+          <p>Targeted transactional email. Delivery requires RESEND_API_KEY. Unsent mail is never marked sent.</p>
+        </div>
+      </div>
+      <div class="notice" id="msg-provider"></div>
+      <div class="msg-layout">
+        <div class="card">
+          <div class="card-hd">
+            <h2>Recipients</h2>
+            <div class="toolbar">
+              <select id="msg-segment" onchange="loadMsgUsers()">
+                <option value="">All loaded users</option>
+                <option value="new_7d">New — last 7 days</option>
+                <option value="onboard_incomplete">Onboarding incomplete</option>
+                <option value="onboard_complete">Onboarding completed</option>
+                <option value="no_scans">No scans</option>
+                <option value="high_usage">High usage</option>
+                <option value="trial">Trial</option>
+              </select>
+              <button class="btn" onclick="selectVisible(true)">Select visible</button>
+              <button class="btn" onclick="selectVisible(false)">Clear</button>
+            </div>
+          </div>
+          <div class="card-bd check-list" id="msg-users"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><h2>Compose</h2></div>
+          <div class="card-bd">
+            <div style="margin-bottom:10px;color:var(--muted)" id="msg-count">0 recipients</div>
+            <label class="l">Subject</label>
+            <input id="msg-subject" placeholder="Subject" style="width:100%;margin:6px 0 10px">
+            <label class="l">Message</label>
+            <textarea id="msg-body" rows="10" style="width:100%;margin-top:6px" placeholder="Plain text only"></textarea>
+            <button class="btn primary" id="msg-send" style="margin-top:12px;width:100%" onclick="confirmSend()" disabled>Send</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-hd"><h2>Email log</h2><button class="btn" onclick="loadMessageLog()">Refresh</button></div>
+        <table>
+          <thead><tr><th>Status</th><th>To</th><th>Subject</th><th>When</th></tr></thead>
+          <tbody id="msg-log"><tr><td colspan="4" class="empty">No messages</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="page" id="page-system">
+      <div class="page-hd">
+        <div>
+          <h1>System</h1>
+          <p>Verified checks only. Request duration and route errors are in Vercel logs.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-hd"><h2>Health</h2><button class="btn" onclick="loadSystem()">Refresh</button></div>
+        <div class="card-bd" id="sys-health"></div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-hd"><h2>Error routes (7 days, product_events)</h2></div>
+        <table>
+          <thead><tr><th>Endpoint</th><th>Errors</th><th>429</th><th>5xx</th></tr></thead>
+          <tbody id="sys-errors"><tr><td colspan="4" class="empty">No sampled errors</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-hd"><h2>Grant Pro</h2></div>
+        <div class="card-bd" style="max-width:420px">
+          <input id="grant-email" placeholder="Email" style="width:100%;margin-bottom:8px">
+          <input id="grant-uid" placeholder="User ID (optional)" style="width:100%;margin-bottom:8px">
+          <input id="grant-reason" placeholder="Reason" style="width:100%;margin-bottom:8px">
+          <button class="btn primary" onclick="grantAccess()">Grant Pro</button>
+          <div id="grant-msg" style="margin-top:8px;color:var(--muted)"></div>
+        </div>
+      </div>
+    </section>
+  </main>
 </div>
 
-<div class="toast-bar" id="toast"></div>
+<div class="overlay" id="user-overlay" onclick="if(event.target===this)closeUser()">
+  <div class="drawer" id="user-drawer"></div>
+</div>
+<div class="dialog" id="dialog">
+  <div class="dialog-box" id="dialog-box"></div>
+</div>
+<div class="toast" id="toast"></div>
 
 <script>
 var ALL_USERS = [];
+var MSG_USERS = [];
+var SELECTED = {};
 var searchTimer = null;
-var userFilter = 'all';
+var userFilter = { plan: 'all', status: 'all' };
+var ovRange = '30';
+var usageRange = '30';
+var TRACKING = null;
 
 function doLogin() {
   var inp = document.getElementById('admin-key-inp');
@@ -316,62 +433,38 @@ function doLogin() {
   if (!k) return;
   document.getElementById('login-err').textContent = '';
   fetch('/api/admin-auth', {
-    method: 'POST',
-    credentials: 'same-origin',
+    method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'login', secret: k })
-  })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
     .then(function (res) {
       inp.value = '';
       if (!res.ok || !res.d.ok) {
-        document.getElementById('login-err').textContent =
-          (res.d && res.d.message) || 'Invalid password';
+        document.getElementById('login-err').textContent = (res.d && res.d.message) || 'Invalid password';
         return;
       }
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       boot();
-    })
-    .catch(function () {
-      document.getElementById('login-err').textContent = 'Server error';
-    });
+    }).catch(function () { document.getElementById('login-err').textContent = 'Server error'; });
 }
-
 function logout() {
-  fetch('/api/admin-auth', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'logout' })
-  })
-    .catch(function () {})
-    .then(function () {
-      location.reload();
-    });
+  fetch('/api/admin-auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) })
+    .catch(function () {}).then(function () { location.reload(); });
 }
-
 window.onload = function () {
-  fetch('/api/admin-auth', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'session' })
-  })
+  fetch('/api/admin-auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'session' }) })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d || !d.ok) return;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       boot();
-    })
-    .catch(function () {});
+    }).catch(function () {});
 };
-
 function api(action, params) {
   return fetch('/api/admin-data', {
-    method: 'POST',
-    credentials: 'same-origin',
+    method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({ action: action }, params || {}))
   }).then(function (r) {
@@ -385,260 +478,398 @@ function api(action, params) {
     });
   });
 }
-
 function showPage(name, btn) {
-  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+  document.querySelectorAll('.sidebar .nav-btn').forEach(function (b) { b.classList.remove('active'); });
   document.getElementById('page-' + name).classList.add('active');
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   if (name === 'users') loadUsers();
-  if (name === 'events') loadEvents();
-  if (name === 'promo') loadPromo();
+  if (name === 'usage') loadUsage();
+  if (name === 'revenue') { loadEvents(); loadPromo(); }
+  if (name === 'security') loadSecurity();
+  if (name === 'messaging') { loadMsgUsers(); loadMessageLog(); }
+  if (name === 'system') loadSystem();
 }
-
 function boot() {
   loadOverviewStats();
   loadChart('signups', 30);
   loadChart('revenue', 30);
-}
-
-function $(id) { return document.getElementById(id); }
-function money(n) { return '$' + Number(n||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}); }
-function set(id, v) { var el=$(id); if(el) el.textContent = v; }
-
-function loadOverviewStats() {
-  api('overview_stats', {}).then(function(d) {
-    if (d.error) { showToast('Stats error: ' + d.error); return; }
-    set('ov-total-users', d.totalUsers||0);
-    set('ov-mrr', money(d.mrr));
-    set('ov-arr', money(d.arr));
-    set('ov-conversion', (d.conversionRate||0) + '%');
-    set('ov-new-today', d.newToday||0);
-    set('ov-new-week', d.newThisWeek||0);
-    set('ov-new-month', d.newThisMonth||0);
-    set('ov-active-today', d.activeToday||0);
-    set('ov-active-week', d.activeThisWeek||0);
-    set('ov-free', d.freeUsers||0);
-    set('ov-rev-total', money(d.totalRevenue));
-    set('ov-rev-month', money(d.revenueThisMonth));
-    set('ov-rev-today', money(d.revenueToday));
-    set('ov-arpu', money(d.avgRevenuePerUser));
-    set('ov-churn', (d.churnRate||0) + '%');
-    set('ov-pro', d.proUsers||0);
-    set('ov-monthly', d.monthly||0);
-    set('ov-yearly', d.yearly||0);
-    set('ov-promo', d.promo||0);
-    set('ov-pastdue', d.past_due||0);
-    set('ov-cancelled', d.cancelled||0);
-    set('ov-revoked', d.revoked||0);
-    set('ov-scans', d.totalScansAllUsers||0);
-    set('ov-avg-scans', d.avgScansPerUser||0);
-  });
-  api('product_overview', {}).then(function(d) {
+  api('product_overview', {}).then(function (d) {
     if (!d || d.error || !d.ok) return;
     set('ov-activated', (d.activation && d.activation.activated_users) || 0);
-    set('ov-ideas', (d.funnel && d.funnel.ideas) || 0);
-    set('ov-productions', (d.funnel && d.funnel.productions) || 0);
-    set('ov-dir-ok', (d.director && d.director.action_success_rate != null) ? d.director.action_success_rate + '%' : '—');
-    set('ov-ai-cost', money((d.ai && d.ai.estimated_cost_usd) || 0));
-    set('ov-d7', (d.retention && d.retention.d7 && d.retention.d7.rate != null) ? d.retention.d7.rate + '%' : '—');
   });
 }
-
-function setRange(type, days, btn) {
-  btn.parentElement.querySelectorAll('.range-btn').forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
-  loadChart(type, days);
+function $(id) { return document.getElementById(id); }
+function money(n) { return '$' + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function set(id, v) { var el = $(id); if (el) el.textContent = v; }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function fmtDate(ds) { if (!ds) return '—'; var d = new Date(ds); return isNaN(d) ? '—' : d.toLocaleString(); }
+function trackingCopy(iso) {
+  if (!iso) return 'Usage tracking has not started. Run supabase_admin_console.sql, then successful scans and Director requests will appear here. Historical usage was not recorded.';
+  var d = new Date(iso);
+  var label = isNaN(d) ? String(iso).slice(0, 10) : d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  return 'Usage tracking available from ' + label + ' onward. Historical usage was not recorded.';
 }
-
-function loadChart(type, days) {
-  var action = type === 'signups' ? 'signups_chart' : 'revenue_chart';
-  api(action, { days: days }).then(function(d) {
-    if (d.error) return;
-    var total = (d.values||[]).reduce(function(a,b){return a+b;},0);
-    if (type === 'signups') set('signups-total', total + ' new users');
-    else set('revenue-total', money(total));
-    drawChart('chart-' + type, d.labels, d.values, type === 'signups' ? '#7C4DFF' : '#00E5A0', type !== 'signups');
-  });
-}
-
-function drawChart(containerId, labels, values, color, isMoney) {
-  var wrap = $(containerId);
-  if (!wrap) return;
-  var hasData = values && values.some(function(v){return v>0;});
-  if (!hasData) { wrap.innerHTML = '<div class="chart-empty">No data yet</div>'; return; }
-  var W = wrap.clientWidth||400, H = 180, pL=4, pR=4, pT=14, pB=22;
-  var cW = W-pL-pR, cH = H-pT-pB;
-  var maxV = Math.max.apply(null,values)||1;
-  var n = values.length;
-  var sx = n>1 ? cW/(n-1) : 0;
-  var pts = values.map(function(v,i){return [pL+i*sx, pT+cH-(v/maxV)*cH];});
-  var pd = pts.map(function(p,i){return (i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
-  var ad = pd+' L'+pts[pts.length-1][0].toFixed(1)+','+(pT+cH)+' L'+pts[0][0].toFixed(1)+','+(pT+cH)+' Z';
-  var gid = containerId+'g';
-  var labelStep = Math.ceil(n/6);
-  var xlbls = labels.map(function(l,i){
-    if(i%labelStep!==0&&i!==n-1) return '';
-    var d=new Date(l+'T00:00:00');
-    return '<text x="'+(pL+i*sx).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--text3)" text-anchor="middle">'+(d.getMonth()+1)+'/'+(d.getDate())+'</text>';
-  }).join('');
-  var dots = pts.map(function(p,i){return '<circle class="cdot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.5" fill="'+color+'" stroke="var(--s1)" stroke-width="2" data-i="'+i+'"></circle>';}).join('');
-  wrap.innerHTML = '<svg width="100%" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="overflow:visible">'+
-    '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'+
-    '<stop offset="0%" stop-color="'+color+'" stop-opacity="0.28"></stop>'+
-    '<stop offset="100%" stop-color="'+color+'" stop-opacity="0"></stop>'+
-    '</linearGradient></defs>'+
-    '<path d="'+ad+'" fill="url(#'+gid+')"></path>'+
-    '<path d="'+pd+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>'+
-    dots+xlbls+'</svg>'+
-    '<div class="chart-tip" id="'+containerId+'-tip"></div>';
-  var tip = $(containerId+'-tip');
-  wrap.querySelectorAll('.cdot').forEach(function(dot){
-    dot.addEventListener('mouseenter',function(){
-      var i=parseInt(dot.getAttribute('data-i'));
-      var d=new Date(labels[i]+'T00:00:00');
-      tip.textContent=(d.getMonth()+1)+'/'+d.getDate()+': '+(isMoney?money(values[i]):values[i]);
-      tip.style.left=(parseFloat(dot.getAttribute('cx'))/W*wrap.clientWidth)+'px';
-      tip.style.top=(parseFloat(dot.getAttribute('cy'))-32)+'px';
-      tip.style.opacity='1';
-      dot.setAttribute('r','5');
-    });
-    dot.addEventListener('mouseleave',function(){tip.style.opacity='0';dot.setAttribute('r','3.5');});
-  });
-}
-
-function loadUsers(search) {
-  var tbody=$('users-tbody');
-  tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr>';
-  api('users_list',{search:search||null,plan_filter:userFilter==='all'?null:userFilter}).then(function(d){
-    if(d.error){tbody.innerHTML='<tr><td colspan="7" style="color:var(--red);padding:20px">Error: '+d.error+'</td></tr>';return;}
-    ALL_USERS=d.users||[];
-    renderUsers(ALL_USERS);
-  });
-}
-
-function renderUsers(users) {
-  var tbody=$('users-tbody');
-  if(!users.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">No users found</td></tr>';return;}
-  tbody.innerHTML=users.map(function(u){
-    var canRevoke=u.plan==='pro';
-    var canRestore=u.status==='revoked'||u.status==='cancelled';
-    var init=esc((u.name||u.email||'?')[0].toUpperCase());
-    var avUrl = u.avatar && /^https?:\/\//i.test(u.avatar) ? esc(u.avatar) : '';
-    var av=avUrl?'<img class="avatar-img" src="'+avUrl+'" onerror="this.style.display=\'none\'">':'<div class="avatar-init">'+init+'</div>';
-    return '<tr>'+
-      '<td><div class="email-cell">'+av+
-      '<div><div>'+esc(u.name||u.email||'Unknown')+'</div>'+
-      (u.name?'<div style="font-size:11px;color:var(--text3)">'+esc(u.email||'')+'</div>':'')+
-      '</div></div></td>'+
-      '<td><span class="badge '+(u.plan||'free')+'">'+esc((u.plan||'FREE').toUpperCase())+'</span></td>'+
-      '<td><span class="badge '+(u.status||'none')+'">'+esc(u.status||'none')+'</span></td>'+
-      '<td style="font-weight:700">'+(u.total_scans||0)+'</td>'+
-      '<td class="date-cell">'+(u.first_seen?new Date(u.first_seen).toLocaleDateString():'—')+'</td>'+
-      '<td class="date-cell">'+(u.last_seen?timeAgo(u.last_seen):'—')+'</td>'+
-      '<td><div class="act-row">'+
-      (canRevoke?'<button class="act-btn revoke" data-uid="'+esc(u.user_id)+'" data-email="'+esc(u.email||'')+'" onclick="doRevoke(this.dataset.uid,this.dataset.email)">Revoke</button>':'')+
-      (canRestore?'<button class="act-btn restore" data-uid="'+esc(u.user_id)+'" data-email="'+esc(u.email||'')+'" onclick="doRestore(this.dataset.uid,this.dataset.email)">Restore</button>':'')+
-      '</div></td></tr>';
-  }).join('');
-}
-
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function timeAgo(ds){
-  var diff=Date.now()-new Date(ds).getTime();
-  var m=Math.floor(diff/60000);
-  if(m<1)return 'Just now';if(m<60)return m+'m ago';
-  var h=Math.floor(m/60);if(h<24)return h+'h ago';
-  var d=Math.floor(h/24);if(d<30)return d+'d ago';
+function timeAgo(ds) {
+  var diff = Date.now() - new Date(ds).getTime();
+  var m = Math.floor(diff / 60000);
+  if (m < 1) return 'Just now'; if (m < 60) return m + 'm ago';
+  var h = Math.floor(m / 60); if (h < 24) return h + 'h ago';
+  var d = Math.floor(h / 24); if (d < 30) return d + 'd ago';
   return new Date(ds).toLocaleDateString();
 }
 
-function setFilter(f,btn){
-  userFilter=f;
-  btn.parentElement.querySelectorAll('.filter-tab').forEach(function(b){b.classList.remove('active');});
+function setOvRange(r, btn) {
+  ovRange = r;
+  btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  loadUsers($('user-search').value.trim()||null);
+  loadOverviewStats();
+}
+function loadOverviewStats() {
+  api('overview_stats', { range: ovRange }).then(function (d) {
+    if (d.error) { showToast('Stats error: ' + d.error); return; }
+    TRACKING = d.usage_tracking_started_at || null;
+    set('ov-tracking', trackingCopy(TRACKING));
+    set('ov-total-users', d.totalUsers || 0);
+    var u = d.usage || {};
+    set('ov-new', ovRange === 'today' ? (d.newToday || 0) : ovRange === '7' ? (d.newThisWeek || 0) : ovRange === '30' ? (d.newThisMonth || 0) : (d.totalUsers || 0));
+    set('ov-active', ovRange === 'today' ? (d.activeToday || 0) : (d.activeThisWeek || 0));
+    set('ov-scans', ovRange === 'all' ? (u.scans_all_time || 0) : (u.scans || 0));
+    set('ov-ai', ovRange === 'all' ? (u.ai_all_time || 0) : (u.ai_requests || 0));
+    set('ov-ai-cost', money(ovRange === 'all' ? u.api_cost_all_time : u.api_cost));
+    set('ov-rev-range', ovRange === 'today' ? money(d.revenueToday) : ovRange === 'all' ? money(d.totalRevenue) : money(d.revenueThisMonth));
+    set('ov-failed', u.failed_requests || 0);
+    set('ov-suspended', d.suspendedAccounts || 0);
+    set('ov-mrr', money(d.mrr));
+    set('ov-pro', d.proUsers || 0);
+    set('ov-rev-total', money(d.totalRevenue));
+    set('ov-rev-month', money(d.revenueThisMonth));
+    set('ov-arr', money(d.arr));
+    set('ov-conversion', (d.conversionRate || 0) + '%');
+    var alerts = (d.cost_alerts && d.cost_alerts.alerts) || [];
+    $('ov-alerts').textContent = alerts.length ? alerts.map(function (a) { return a.message; }).join(' · ') : 'No cost threshold alerts. Optional: ADMIN_DAILY_SPEND_WARN, ADMIN_MONTHLY_SPEND_WARN, ADMIN_USER_SPEND_WARN.';
+  });
+}
+function setRange(type, days, btn) {
+  btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadChart(type, days);
+}
+function loadChart(type, days) {
+  var action = type === 'signups' ? 'signups_chart' : 'revenue_chart';
+  api(action, { days: days }).then(function (d) {
+    if (d.error) return;
+    drawChart('chart-' + type, d.labels, d.values, type === 'signups' ? '#7C4DFF' : '#34d399', type !== 'signups');
+  });
+}
+function drawChart(containerId, labels, values, color, isMoney) {
+  var wrap = $(containerId);
+  if (!wrap) return;
+  var hasData = values && values.some(function (v) { return v > 0; });
+  if (!hasData) { wrap.innerHTML = '<div class="chart-empty">No data in this window</div>'; return; }
+  var W = wrap.clientWidth || 400, H = 160, pL = 4, pR = 4, pT = 12, pB = 20;
+  var cW = W - pL - pR, cH = H - pT - pB;
+  var maxV = Math.max.apply(null, values) || 1;
+  var n = values.length;
+  var sx = n > 1 ? cW / (n - 1) : 0;
+  var pts = values.map(function (v, i) { return [pL + i * sx, pT + cH - (v / maxV) * cH]; });
+  var pd = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+  wrap.innerHTML = '<svg width="100%" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><path d="' + pd + '" fill="none" stroke="' + color + '" stroke-width="2"/></svg>';
 }
 
-function searchUsers(val){
+function setFilter(kind, val, btn) {
+  userFilter[kind] = val;
+  btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadUsers();
+}
+function searchUsers(val) {
   clearTimeout(searchTimer);
-  searchTimer=setTimeout(function(){loadUsers(val.trim()||null);},400);
+  searchTimer = setTimeout(function () { loadUsers(val.trim() || null); }, 350);
 }
-
-function doRevoke(uid,email){
-  if(!confirm('Revoke Pro for '+email+'?'))return;
-  var reason=prompt('Reason (optional):')||'';
-  api('revoke',{user_id:uid,reason:reason}).then(function(d){
-    if(d.success){showToast('Access revoked');loadUsers();loadOverviewStats();}
-    else showToast('Error: '+(d.error||'unknown'));
-  });
-}
-
-function doRestore(uid,email){
-  if(!confirm('Restore Pro for '+email+'?'))return;
-  api('restore',{user_id:uid}).then(function(d){
-    if(d.success){showToast('Access restored');loadUsers();loadOverviewStats();}
-    else showToast('Error: '+(d.error||'unknown'));
-  });
-}
-
-var EV_ICO={'checkout.completed':'💳','subscription.cancelled':'❌','subscription.updated':'🔄','payment.failed':'⚠️','payment.succeeded':'✅','promo.applied':'🎟','admin.revoked':'🚫','admin.restored':'✅','admin.granted':'✨'};
-
-function loadEvents(){
-  var el=$('events-list');
-  el.innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div></div>';
-  api('events',{}).then(function(d){
-    if(d.error){el.innerHTML='<div style="color:var(--red);padding:20px">'+d.error+'</div>';return;}
-    var evts=d.events||[];
-    if(!evts.length){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">No events yet</div>';return;}
-    el.innerHTML=evts.map(function(e){
-      return '<div class="event-row">'+
-        '<div class="event-ico">'+(EV_ICO[e.event_type]||'📌')+'</div>'+
-        '<div class="event-info"><div class="event-type">'+esc(e.event_type)+'</div>'+
-        '<div class="event-meta">'+esc(e.email||e.user_id||'Unknown')+' &mdash; '+esc(new Date(e.created_at).toLocaleString())+'</div></div>'+
-        (e.amount?'<div class="event-amount">'+money(e.amount)+'</div>':'')+
-        '</div>';
+function loadUsers(search) {
+  var tbody = $('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" class="empty"><span class="spinner"></span></td></tr>';
+  api('users_list', {
+    search: search || ($('user-search').value || '').trim() || null,
+    plan_filter: userFilter.plan === 'all' ? null : userFilter.plan,
+    status_filter: userFilter.status === 'all' ? null : userFilter.status,
+    segment: $('user-segment').value || null,
+    sort: $('user-sort').value
+  }).then(function (d) {
+    if (d.error) { tbody.innerHTML = '<tr><td colspan="9" class="empty">' + esc(d.error) + '</td></tr>'; return; }
+    TRACKING = d.usage_tracking_started_at || TRACKING;
+    ALL_USERS = d.users || [];
+    if (!ALL_USERS.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No users match</td></tr>'; return; }
+    tbody.innerHTML = ALL_USERS.map(function (u) {
+      return '<tr>' +
+        '<td><input type="checkbox" data-uid="' + esc(u.user_id) + '"></td>' +
+        '<td><span class="link" data-uid="' + esc(u.user_id) + '" onclick="openUser(this.dataset.uid)">' + esc(u.name || u.email || 'Unknown') + '</span><div class="mono">' + esc(u.email || u.user_id) + '</div></td>' +
+        '<td><span class="badge ' + esc(u.plan || 'free') + '">' + esc((u.plan || 'free').toUpperCase()) + '</span></td>' +
+        '<td><span class="badge ' + esc(u.account_status) + '">' + esc(u.account_status) + '</span>' + (u.high_usage ? ' <span class="badge warn">High usage</span>' : '') + '</td>' +
+        '<td>' + (u.total_scans || 0) + '</td>' +
+        '<td>' + (u.director_requests || 0) + '</td>' +
+        '<td>' + money(u.api_cost) + '</td>' +
+        '<td>' + (u.first_seen ? new Date(u.first_seen).toLocaleDateString() : '—') + '</td>' +
+        '<td>' + (u.last_seen ? timeAgo(u.last_seen) : '—') + '</td></tr>';
     }).join('');
   });
 }
 
-function loadPromo(){
-  var tbody=$('promo-tbody');
-  tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px"><div class="spinner"></div></td></tr>';
-  api('promo_log',{}).then(function(d){
-    if(d.error){tbody.innerHTML='<tr><td colspan="4" style="color:var(--red);padding:20px">'+d.error+'</td></tr>';return;}
-    var usage=d.usage||[];
-    if(!usage.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">No promo codes redeemed yet</td></tr>';return;}
-    tbody.innerHTML=usage.map(function(u){
-      return '<tr>'+
-        '<td><span style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700">'+esc(u.code)+'</span></td>'+
-        '<td>'+esc(u.email||'—')+'</td>'+
-        '<td class="mono">'+esc(u.user_id||'—')+'</td>'+
-        '<td class="date-cell">'+esc(new Date(u.used_at).toLocaleString())+'</td></tr>';
-    }).join('');
+function openUser(uid) {
+  $('user-overlay').classList.add('open');
+  $('user-drawer').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  api('user_detail', { user_id: uid }).then(renderUserDetail);
+}
+function closeUser() { $('user-overlay').classList.remove('open'); }
+function renderUserDetail(d) {
+  if (!d || d.error) { $('user-drawer').innerHTML = '<p>' + esc(d && d.error || 'Failed') + '</p>'; return; }
+  var u = d.user || {};
+  var acc = d.account_status || {};
+  var sub = d.subscription || {};
+  var usage = d.usage || {};
+  var auth = d.auth || {};
+  var suspended = acc.status === 'suspended';
+  var html = '<div class="page-hd"><div><h1>' + esc(u.name || u.email || u.user_id) + '</h1><p class="mono">' + esc(u.user_id) + '</p></div><button class="btn" onclick="closeUser()">Close</button></div>';
+  html += '<div class="notice">' + esc(trackingCopy(d.usage_tracking_started_at || TRACKING)) + '</div>';
+  html += '<dl class="kv">';
+  html += '<dt>Email</dt><dd>' + esc(u.email || '—') + '</dd>';
+  html += '<dt>Created</dt><dd>' + esc(fmtDate(u.first_seen || auth.created_at)) + '</dd>';
+  html += '<dt>Last active</dt><dd>' + esc(fmtDate(u.last_seen)) + '</dd>';
+  html += '<dt>Last login</dt><dd>' + esc(fmtDate(auth.last_sign_in_at)) + '</dd>';
+  html += '<dt>Plan</dt><dd>' + esc((sub.plan || 'free').toUpperCase()) + ' · ' + esc(sub.status || 'none') + '</dd>';
+  html += '<dt>Account</dt><dd>' + esc(acc.status || 'active') + '</dd>';
+  if (suspended) {
+    html += '<dt>Reason</dt><dd>' + esc(acc.reason || '—') + '</dd>';
+    html += '<dt>Suspended</dt><dd>' + esc(fmtDate(acc.at)) + '</dd>';
+    html += '<dt>By</dt><dd>' + esc(acc.by || 'admin') + '</dd>';
+  }
+  html += '<dt>Onboarding</dt><dd>' + (u.onboarding_completed ? 'Completed' : 'Incomplete') + '</dd>';
+  html += '<dt>Trial</dt><dd>Director ' + esc(u.director_trial_ends_at ? fmtDate(u.director_trial_ends_at) : '—') + '</dd>';
+  html += '<dt>Revenue</dt><dd>' + money(d.revenue) + '</dd>';
+  html += '</dl>';
+  html += '<div class="metrics" style="grid-template-columns:repeat(2,1fr)">';
+  html += '<div class="metric"><div class="v">' + (usage.scans || 0) + '</div><div class="l">Scans</div></div>';
+  html += '<div class="metric"><div class="v">' + (usage.director_requests || 0) + '</div><div class="l">Director</div></div>';
+  html += '<div class="metric"><div class="v">' + (usage.ai_requests || 0) + '</div><div class="l">AI requests</div></div>';
+  html += '<div class="metric"><div class="v">' + money(usage.api_cost) + '</div><div class="l">API cost (all tracked)</div></div>';
+  html += '<div class="metric"><div class="v">' + money(usage.api_cost_month) + '</div><div class="l">API cost this month</div></div>';
+  html += '</div>';
+  html += '<h2 style="font-size:13px;margin:8px 0">Cost breakdown</h2><table><thead><tr><th>Provider</th><th>Model</th><th>Operation</th><th>Count</th><th>Cost</th></tr></thead><tbody>';
+  var br = d.breakdown || [];
+  html += br.length ? br.map(function (r) {
+    return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td><td>' + money(r.cost) + '</td></tr>';
+  }).join('') : '<tr><td colspan="5" class="empty">No tracked operations</td></tr>';
+  html += '</tbody></table>';
+  html += '<h2 style="font-size:13px;margin:16px 0 8px">Workspaces</h2><table><thead><tr><th>Name</th><th>Role</th><th>Kind</th></tr></thead><tbody>';
+  html += (d.workspaces && d.workspaces.length) ? d.workspaces.map(function (w) {
+    return '<tr><td>' + esc(w.name || w.workspace_id) + '</td><td>' + esc(w.role) + '</td><td>' + esc(w.kind || '—') + '</td></tr>';
+  }).join('') : '<tr><td colspan="3" class="empty">No memberships</td></tr>';
+  html += '</tbody></table>';
+  html += '<div class="dialog-actions" style="justify-content:flex-start;margin-top:18px">';
+  if (suspended) html += '<button class="btn ok" onclick="confirmRestore(\'' + esc(u.user_id) + '\',\'' + esc(u.email || '') + '\')">Restore account</button>';
+  else html += '<button class="btn danger" onclick="confirmSuspend(\'' + esc(u.user_id) + '\',\'' + esc(u.email || '') + '\')">Suspend account</button>';
+  html += '</div>';
+  $('user-drawer').innerHTML = html;
+}
+
+function openDialog(html) { $('dialog-box').innerHTML = html; $('dialog').classList.add('open'); }
+function closeDialog() { $('dialog').classList.remove('open'); }
+function confirmSuspend(uid, email) {
+  openDialog(
+    '<h3>Suspend account</h3><p>This signs the user out, bans Auth sessions, and rejects every authenticated API until restore.</p>' +
+    '<input id="dlg-reason" placeholder="Reason (stored for operations)">' +
+    '<input id="dlg-pass" type="password" placeholder="Re-enter admin password">' +
+    '<div class="dialog-actions"><button class="btn" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn danger" onclick="doSuspend(\'' + esc(uid) + '\',\'' + esc(email) + '\')">Suspend</button></div>'
+  );
+}
+function doSuspend(uid, email) {
+  var reason = $('dlg-reason').value;
+  var pass = $('dlg-pass').value;
+  api('suspend_user', { user_id: uid, email: email, reason: reason, confirm_password: pass }).then(function (d) {
+    if (d.success) { closeDialog(); showToast('Account suspended'); openUser(uid); loadUsers(); loadOverviewStats(); }
+    else showToast(d.message || d.error || 'Failed');
+  });
+}
+function confirmRestore(uid, email) {
+  openDialog(
+    '<h3>Restore account</h3><p>Restores login and API access. Does not grant Pro.</p>' +
+    '<div class="dialog-actions"><button class="btn" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn ok" onclick="doRestore(\'' + esc(uid) + '\',\'' + esc(email) + '\')">Restore</button></div>'
+  );
+}
+function doRestore(uid, email) {
+  api('restore_user', { user_id: uid, email: email }).then(function (d) {
+    if (d.success) { closeDialog(); showToast('Account restored'); openUser(uid); loadUsers(); loadOverviewStats(); }
+    else showToast(d.error || 'Failed');
   });
 }
 
-function grantAccess(){
-  var email=$('grant-email').value.trim();
-  var uid=$('grant-uid').value.trim();
-  var reason=$('grant-reason').value.trim();
-  var msg=$('grant-msg');
-  if(!email){msg.style.color='var(--red)';msg.textContent='Email is required';return;}
-  msg.style.color='var(--text2)';msg.textContent='Granting...';
-  api('grant',{email:email,user_id:uid||null,reason:reason}).then(function(d){
-    if(d.success){
-      msg.style.color='var(--green)';msg.textContent='Pro granted to '+email;
-      $('grant-email').value='';$('grant-uid').value='';$('grant-reason').value='';
-      loadOverviewStats();
-    } else {msg.style.color='var(--red)';msg.textContent='Error: '+(d.error||'unknown');}
-  }).catch(function(){msg.style.color='var(--red)';msg.textContent='Network error';});
+function setUsageRange(r, btn) {
+  usageRange = r;
+  btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadUsage();
+}
+function loadUsage() {
+  api('usage_overview', { range: usageRange }).then(function (d) {
+    if (d.error) return;
+    set('usage-tracking', trackingCopy(d.usage_tracking_started_at));
+    set('us-scans', d.scans || 0);
+    set('us-dir', d.director || 0);
+    set('us-ai', d.ai_requests || 0);
+    set('us-cost', money(d.api_cost));
+    var rows = d.breakdown || [];
+    $('usage-break').innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td><td>' + money(r.cost) + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="empty">No tracked usage in this window</td></tr>';
+  });
 }
 
+function loadEvents() {
+  api('events', {}).then(function (d) {
+    var rows = d.events || [];
+    $('events-tbody').innerHTML = rows.length ? rows.map(function (e) {
+      return '<tr><td>' + esc(e.event_type) + '</td><td class="mono">' + esc(e.email || e.user_id || '—') + '</td><td>' + (e.amount ? money(e.amount) : '—') + '</td><td>' + esc(fmtDate(e.created_at)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No billing events</td></tr>';
+  });
+}
+function loadPromo() {
+  api('promo_log', {}).then(function (d) {
+    var rows = d.usage || [];
+    $('promo-tbody').innerHTML = rows.length ? rows.map(function (u) {
+      return '<tr><td>' + esc(u.code) + '</td><td>' + esc(u.email || '—') + '</td><td class="mono">' + esc(u.user_id || '—') + '</td><td>' + esc(fmtDate(u.used_at)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No promo redemptions</td></tr>';
+  });
+}
+
+function loadSecurity() {
+  api('security_overview', {}).then(function (d) {
+    if (!d || d.error) return;
+    var sus = d.suspended_accounts || [];
+    set('sec-suspended', sus.length);
+    set('sec-429', (d.errors_7d && d.errors_7d.rate_limited) || 0);
+    set('sec-5xx', (d.errors_7d && d.errors_7d.server) || 0);
+    set('sec-high', (d.high_usage || []).length);
+    $('sec-suspended-list').innerHTML = sus.length ? sus.map(function (u) {
+      return '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>' + esc(u.email || u.user_id) + '</strong><div class="mono">' + esc(u.account_status_reason || '') + ' · ' + esc(fmtDate(u.account_status_at)) + ' · ' + esc(u.account_status_by || '') + '</div></div>';
+    }).join('') : 'None';
+    $('sec-high-list').innerHTML = (d.high_usage || []).length ? d.high_usage.map(function (f) {
+      return '<div style="padding:6px 0;border-bottom:1px solid var(--line)">' + esc(f.message) + '<div class="mono">' + esc(f.user_id) + '</div></div>';
+    }).join('') : 'None flagged. Thresholds are review-only (not auto-ban).';
+    var audit = d.recent_admin_actions || [];
+    $('audit-tbody').innerHTML = audit.length ? audit.map(function (a) {
+      return '<tr><td>' + esc(a.action) + '</td><td class="mono">' + esc(a.target_user_id || '—') + '</td><td class="mono">' + esc(a.ip || '—') + '</td><td>' + esc(fmtDate(a.created_at)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No admin actions yet</td></tr>';
+    var auth = d.auth_audit || {};
+    $('auth-audit-note').textContent = auth.available
+      ? 'Sourced from Supabase Auth audit_log_entries (sign-in, refresh, revocation).'
+      : 'Supabase Auth audit is not available on this project (HTTP or permissions). Failed-login counts are not fabricated.';
+    var entries = auth.entries || [];
+    $('auth-audit-tbody').innerHTML = entries.length ? entries.map(function (e) {
+      return '<tr><td>' + esc(e.payload_type || 'event') + '</td><td class="mono">' + esc(e.actor || '—') + '</td><td>' + esc(fmtDate(e.created_at)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="3" class="empty">No auth audit rows returned</td></tr>';
+  });
+}
+
+function loadSystem() {
+  api('system_health', {}).then(function (d) {
+    if (!d || d.error) return;
+    var checks = d.checks || {};
+    $('sys-health').innerHTML = Object.keys(checks).map(function (k) {
+      var c = checks[k];
+      return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="status-dot ' + esc(c.state) + '"></span><strong>' + esc(k) + '</strong> · ' + esc(c.state) + '<div class="mono">' + esc(c.detail) + '</div></div>';
+    }).join('') + '<p style="margin-top:10px;color:var(--muted)">' + esc(d.note || '') + '</p>';
+    var rows = (d.errors_7d && d.errors_7d.by_endpoint) || [];
+    $('sys-errors').innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr><td>' + esc(r.endpoint) + '</td><td>' + r.count + '</td><td>' + r.status_429 + '</td><td>' + r.status_5xx + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No sampled api_error events</td></tr>';
+  });
+}
+
+function loadMsgUsers() {
+  api('users_list', { segment: $('msg-segment').value || null, sort: 'newest' }).then(function (d) {
+    MSG_USERS = d.users || [];
+    $('msg-provider').textContent = '';
+    $('msg-users').innerHTML = MSG_USERS.map(function (u) {
+      var id = u.user_id;
+      return '<label class="check-row"><input type="checkbox" ' + (SELECTED[id] ? 'checked' : '') + ' onchange="toggleMsg(\'' + esc(id) + '\',this.checked)"><span><strong>' + esc(u.name || u.email || id) + '</strong><div class="mono">' + esc(u.email || '') + '</div></span></label>';
+    }).join('') || '<div class="empty">No users</div>';
+    refreshMsgCount();
+  });
+  api('message_log', {}).then(function (d) {
+    var p = d.provider || {};
+    $('msg-provider').textContent = p.configured
+      ? 'Provider: Resend. Messages will be logged as sent or failed from the provider response.'
+      : 'No email provider connected. Send will record failed rows. Set RESEND_API_KEY and EMAIL_FROM to enable delivery.';
+  });
+}
+function toggleMsg(id, on) { if (on) SELECTED[id] = true; else delete SELECTED[id]; refreshMsgCount(); }
+function selectVisible(on) {
+  MSG_USERS.forEach(function (u) { if (on) SELECTED[u.user_id] = true; else delete SELECTED[u.user_id]; });
+  loadMsgUsers();
+}
+function selectedRecipients() {
+  return MSG_USERS.filter(function (u) { return SELECTED[u.user_id]; }).map(function (u) { return { user_id: u.user_id, email: u.email }; }).filter(function (u) { return u.email; });
+}
+function refreshMsgCount() {
+  var n = selectedRecipients().length;
+  $('msg-count').textContent = n + ' recipient' + (n === 1 ? '' : 's');
+  $('msg-send').disabled = n === 0;
+}
+function confirmSend() {
+  var rec = selectedRecipients();
+  var subject = $('msg-subject').value.trim();
+  var message = $('msg-body').value.trim();
+  if (!rec.length || !subject || !message) { showToast('Select recipients and enter subject + message'); return; }
+  var extra = rec.length >= 20 ? '<p>This is a large batch. Confirm you intend to email ' + rec.length + ' people.</p><label><input type="checkbox" id="dlg-large"> I understand this is not send-to-everyone unless I selected everyone.</label>' : '';
+  openDialog(
+    '<h3>Send message</h3><p>' + rec.length + ' recipients<br>Subject: ' + esc(subject) + '</p>' + extra +
+    '<div class="dialog-actions"><button class="btn" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn primary" onclick="doSend()">Send</button></div>'
+  );
+}
+function doSend() {
+  var rec = selectedRecipients();
+  var large = rec.length >= 20;
+  if (large && !($('dlg-large') && $('dlg-large').checked)) { showToast('Confirm the large-batch checkbox'); return; }
+  api('message_send', {
+    recipients: rec,
+    subject: $('msg-subject').value.trim(),
+    message: $('msg-body').value.trim(),
+    confirm_count: rec.length,
+    confirm_large: large
+  }).then(function (d) {
+    closeDialog();
+    if (d.error) { showToast(d.error); return; }
+    showToast((d.sent || 0) + ' sent, ' + (d.failed || 0) + ' failed' + (d.configured ? '' : ' (provider not configured)'));
+    loadMessageLog();
+  });
+}
+function loadMessageLog() {
+  api('message_log', {}).then(function (d) {
+    var rows = d.entries || [];
+    $('msg-log').innerHTML = rows.length ? rows.map(function (e) {
+      return '<tr><td><span class="badge ' + esc(e.status) + '">' + esc(e.status) + '</span></td><td>' + esc(e.recipient_email) + '</td><td>' + esc(e.subject) + '</td><td>' + esc(fmtDate(e.sent_at)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No messages logged</td></tr>';
+  });
+}
+
+function grantAccess() {
+  var email = $('grant-email').value.trim();
+  var uid = $('grant-uid').value.trim();
+  var reason = $('grant-reason').value.trim();
+  if (!email) { $('grant-msg').textContent = 'Email is required'; return; }
+  api('grant', { email: email, user_id: uid || null, reason: reason }).then(function (d) {
+    $('grant-msg').textContent = d.success ? 'Pro granted to ' + email : (d.error || 'Failed');
+    if (d.success) loadOverviewStats();
+  });
+}
 var toastT;
-function showToast(msg){
-  var el=$('toast');el.textContent=msg;el.classList.add('show');
-  clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show');},3000);
+function showToast(msg) {
+  var el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(function () { el.classList.remove('show'); }, 3200);
 }
 </script>
 </body>

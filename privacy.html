@@ -32,7 +32,7 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
   <a class="back" href="/">← Back to PreShoot</a>
   <div class="logo">Pre<span>Shoot</span></div>
   <h1>Privacy Policy</h1>
-  <div class="updated">Last Updated: May 10, 2026</div>
+  <div class="updated">Last Updated: August 18, 2026</div>
 
   <p>Welcome to PreShoot ("PreShoot", "we", "our", or "us"). This Privacy Policy explains how we collect, use, store, and protect your information when you use our website, web application, and related services.</p>
   <p>By using PreShoot, you agree to the collection and use of information in accordance with this Privacy Policy.</p>
@@ -58,7 +58,18 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
     <li>Preferences and usage patterns</li>
     <li>AI-generated outputs and recommendations</li>
   </ul>
-  <p>This information is used to improve personalization and provide more relevant content suggestions.</p>
+  <h3>Operational usage metrics</h3>
+  <p>After usage tracking is enabled, PreShoot records limited operational telemetry so we can operate the product, estimate AI provider cost, prevent abuse, and administer accounts. This may include:</p>
+  <ul>
+    <li>Successful scan, Director, and other billable AI operation counts</li>
+    <li>AI provider name, model identifier, token or unit counts, and an estimated cost</li>
+    <li>Request identifiers and coarse metadata (for example, whether a request was streamed)</li>
+    <li>Account security events such as suspension and restoration</li>
+    <li>Administrative audit logs of operator actions</li>
+    <li>Transactional or operational emails if an email delivery provider is connected, including recipient, subject, send time, and delivery status</li>
+  </ul>
+  <p>We do not store API keys, passwords, or access tokens in these logs. We do not store full Director conversation contents in the usage ledger. Prompt text is not written to the usage ledger.</p>
+  <p>If a feature is not enabled (for example, no email provider is configured), that data is not collected as a delivered message. Failed send attempts may still be logged as failed so operators are not shown a false “sent” status.</p>
 
   <h3>Uploaded Content</h3>
   <p>Users may upload images or other content for AI analysis and content generation purposes.</p>
@@ -79,6 +90,9 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
     <li>Process subscriptions and payments</li>
     <li>Prevent abuse, fraud, or misuse of the platform</li>
     <li>Maintain platform security and stability</li>
+    <li>Measure operational usage and estimated AI provider cost</li>
+    <li>Send transactional or operational emails when a delivery provider is configured</li>
+    <li>Investigate security incidents and administer accounts</li>
   </ul>
 
   <hr>
@@ -128,7 +142,14 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
     <li>Comply with legal obligations</li>
     <li>Resolve disputes and enforce agreements</li>
   </ul>
-  <p>Users may request deletion of their account and associated data by contacting us.</p>
+  <p>Operational records are intended to be retained for limited periods unless a longer period is required for security, accounting, or law:</p>
+  <ul>
+    <li>AI usage events: up to 24 months</li>
+    <li>Administrative audit logs: up to 24 months</li>
+    <li>Operational email logs: up to 24 months</li>
+  </ul>
+  <p>These periods describe product intent. Automated deletion jobs may not yet run in every environment. Users may request deletion of their account and associated data by contacting us.</p>
+  <p>This policy is written for an Australian business context and should be reviewed by qualified legal counsel. It does not claim ISO, SOC 2, GDPR certification, or other compliance marks that PreShoot has not independently obtained.</p>
 
   <hr>
 
