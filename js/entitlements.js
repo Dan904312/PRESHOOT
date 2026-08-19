@@ -13,6 +13,10 @@
   function apply(data) {
     if (!data || typeof data !== 'object') return;
     if (typeof S === 'undefined') return;
+    if (data.status === 'account_suspended' || data.error === 'account_suspended' || data.blocked === true) {
+      if (typeof global.handleAccountSuspended === 'function') global.handleAccountSuspended();
+      return;
+    }
     if (data.entitlement) data = Object.assign({}, data, data.entitlement);
     S.plan = data.plan === 'pro' ? 'pro' : 'free';
     S.entitlement = {
