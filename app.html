@@ -456,21 +456,26 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .field-inp{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;font-family:var(--fb);margin-bottom:14px}
 .field-inp:focus{border-color:var(--accent)}
 .field-inp::placeholder{color:var(--text3)} /* Paywall */
-.pw-glow{width:100%;height:110px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:42px}
-.pw-body{padding:0 24px}
+.pw-glow{width:100%;height:88px;position:relative;overflow:hidden;background:transparent;display:flex;align-items:center;justify-content:center}
+.pw-glow::after{content:'';position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:80%;height:140px;border-radius:50%;background:var(--accent);opacity:.55;filter:blur(72px);pointer-events:none}
+.pw-body{padding:0 24px 20px;position:relative}
 .pw-title{font-family:var(--fd);font-size:26px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--text)}
 .pw-sub{font-size:14px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:20px}
 .pw-feats{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
 .pw-feat{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--text)}
 .pw-feat-ico{width:32px;height:32px;border-radius:9px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.pw-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.pw-plan{background:var(--s2);border:2px solid var(--border);border-radius:var(--r);padding:14px;cursor:pointer;position:relative;text-align:center}
-.pw-plan.sel{border-color:var(--accent)}
-.pw-pop{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:2px 10px;border-radius:10px;white-space:nowrap}
-.pw-price{font-family:var(--fd);font-size:26px;font-weight:700;color:var(--text)}
-.pw-period{font-size:11px;color:var(--text2)}
-.pw-save{font-size:10px;color:var(--text);font-weight:600;margin-top:4px}
-.pw-cta{width:100%;padding:16px;border-radius:10px;background:var(--text);color:var(--bg);font-family:var(--fd);font-size:16px;font-weight:600;box-shadow:none;border:1px solid var(--text)}
+.pw-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.pw-plan{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:18px 14px 16px;cursor:pointer;position:relative;overflow:hidden;text-align:left}
+.pw-plan::after{content:'';position:absolute;top:-96px;left:50%;transform:translateX(-50%);width:140%;height:120px;border-radius:50%;background:var(--accent);opacity:0;filter:blur(64px);pointer-events:none}
+.pw-plan.sel{border-color:var(--accent-border);background:var(--accent-soft);box-shadow:0 0 40px var(--accent-glow)}
+#pw-y{padding-top:26px}
+.pw-plan.sel::after{opacity:.45}
+.pw-plan-name{font-family:var(--fd);font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;position:relative;z-index:1}
+.pw-pop{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--on-accent);font-size:9px;font-weight:700;padding:3px 10px;border-radius:0 0 8px 8px;white-space:nowrap;letter-spacing:.04em;z-index:2}
+.pw-price{font-family:var(--fd);font-size:32px;font-weight:700;color:var(--text);letter-spacing:-1px;position:relative;z-index:1}
+.pw-period{font-size:12px;color:var(--text2);position:relative;z-index:1;margin-top:2px}
+.pw-save{font-size:11px;color:var(--text);font-weight:600;margin-top:6px;position:relative;z-index:1}
+.pw-cta{width:100%;padding:16px;border-radius:12px;background:var(--accent);color:var(--on-accent);font-family:var(--fd);font-size:16px;font-weight:600;box-shadow:0 0 28px var(--accent-glow);border:1px solid var(--accent)}
 .pw-dismiss{width:100%;padding:11px;color:var(--text3);font-size:13px;margin-top:5px} /* Appearance */
 .theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
 .theme-opt{border-radius:12px;padding:13px 8px;cursor:pointer;text-align:center;border:2px solid transparent;transition:border-color .2s}
@@ -822,12 +827,12 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .toast{border-radius:10px;background:var(--s1);border:1px solid var(--border);backdrop-filter:none!important;box-shadow:none!important}
 
 /* Paywall */
-.pw-glow{height:72px;background:var(--s1)!important;border-bottom:1px solid var(--border)}
-.pw-plan{border-radius:12px;padding:14px;text-align:center;background:var(--s1)!important}
-.pw-plan.sel{background:var(--s1)!important;border-color:var(--accent)!important;color:var(--text)!important}
-.pw-plan.sel .pw-price,.pw-plan.sel .pw-period,.pw-plan.sel .pw-save{color:var(--text)!important}
+.pw-glow{height:88px;background:transparent!important;border-bottom:none}
+.pw-plan{border-radius:16px;padding:18px 14px 16px;text-align:left;background:var(--s1)!important}
+.pw-plan.sel{background:var(--accent-soft)!important;border-color:var(--accent-border)!important;color:var(--text)!important}
+.pw-plan.sel .pw-price,.pw-plan.sel .pw-period,.pw-plan.sel .pw-save,.pw-plan.sel .pw-plan-name{color:var(--text)!important}
 .pw-pop{background:var(--accent);color:var(--on-accent)}
-.pw-feat-ico{background:var(--s2)!important;color:var(--text2)!important}
+.pw-feat-ico{background:var(--accent-soft)!important;color:var(--accent)!important}
 .theme-opt{border-radius:10px}
 .theme-opt.sel{border-color:var(--accent)}
 .color-sw{border-radius:50%}
@@ -856,7 +861,8 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 
 /* Kill leftover glow / decorative accent shadows */
 .home-logo::before,.director-card-ico,.rescan-btn,.lib-tab.active,.chip.selected,.seg-btn.active,
-.fmt-go-btn,.ob-btn-primary,.ob-nav-next,.tgl input:checked+.tgl-s,.pw-cta{box-shadow:none!important}
+.fmt-go-btn,.ob-btn-primary,.ob-nav-next,.tgl input:checked+.tgl-s{box-shadow:none!important}
+#pw-modal .pw-cta{background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important;box-shadow:0 0 28px var(--accent-glow)!important}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
 @keyframes obPoint{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}40%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}}
 
@@ -866,8 +872,11 @@ html.theme-light .ic.saved,html.theme-light .card-select.selected,html.theme-lig
   background:var(--s1)!important;
 }
 html.theme-light .director-card,html.theme-light .prof-hero{background:var(--s1)!important}
-html.theme-light .rescan-btn,html.theme-light .fmt-go-btn,html.theme-light .gen-shotlist-btn,html.theme-light .pw-cta,html.theme-light .ob-btn-primary,html.theme-light .ob-nav-next{
+html.theme-light .rescan-btn,html.theme-light .fmt-go-btn,html.theme-light .gen-shotlist-btn,html.theme-light .ob-btn-primary,html.theme-light .ob-nav-next{
   background:#000!important;color:#fff!important;border-color:#000!important;
+}
+html.theme-light #pw-modal .pw-cta{
+  background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important;
 }
 html.theme-light .bnav{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.08)}
 html.theme-light .bni-ico{color:rgba(0,0,0,.35)}
@@ -992,7 +1001,7 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .st-idea-h{font-size:13px;color:var(--text2);line-height:1.5}
 .studio-actions-row{display:flex;flex-wrap:wrap;gap:8px;padding:4px 20px 14px}
 .studio-inline-actions{display:flex;gap:8px;margin-top:8px}
-.st-overflow-menu{position:absolute;right:20px;margin-top:-6px;z-index:5;min-width:160px;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,.45);display:flex;flex-direction:column}
+.st-overflow-menu{position:absolute;right:20px;margin-top:-6px;z-index:5;min-width:160px;background:var(--s1);border:1px solid var(--accent-border);border-radius:14px;padding:6px;box-shadow:0 12px 40px var(--accent-glow);display:flex;flex-direction:column}
 .st-overflow-menu[hidden]{display:none!important}
 .st-overflow-menu button{appearance:none;border:none;background:transparent;color:var(--text);text-align:left;padding:11px 12px;border-radius:10px;font-size:14px;font-weight:600;font-family:var(--fb);cursor:pointer}
 .st-overflow-menu button:active{background:var(--s2)}
@@ -1103,6 +1112,45 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .ws-review-card .ws-review-stats{font-size:13px;color:var(--text2);margin:4px 0 10px}
 .ws-review-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .ws-review-select{max-width:180px;padding:8px 10px;font-size:13px}
+html.theme-dark{color-scheme:dark}
+html.theme-light{color-scheme:light}
+select,
+select.field-inp,
+select.st-input,
+.ws-role-select,
+.ws-review-select{
+  appearance:none;-webkit-appearance:none;
+  background-color:var(--accent-soft);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:14px;
+  border:1px solid var(--accent-border);
+  color:var(--text);
+  accent-color:var(--accent);
+  padding-right:36px;
+  border-radius:12px;
+}
+html.theme-light select,
+html.theme-light select.field-inp,
+html.theme-light select.st-input,
+html.theme-light .ws-role-select,
+html.theme-light .ws-review-select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+select option,
+.ws-role-select option,
+.ws-review-select option{
+  background-color:var(--s1);
+  color:var(--text);
+}
+.st-overflow-menu{
+  background:var(--s1);
+  border-color:var(--accent-border);
+  box-shadow:0 12px 40px var(--accent-glow);
+}
+.st-overflow-menu button:hover,
+.st-overflow-menu button:active{background:var(--accent-soft)}
 .ws-review-unresolved{margin-top:8px}
 .ws-review-item{display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;padding:8px 0;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-size:13px;cursor:pointer;font-family:var(--fd)}
 .ws-review-dot{width:8px;height:8px;border-radius:50%;background:#c45c26;flex-shrink:0;margin-top:5px}
@@ -1114,8 +1162,9 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .ws-comment-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .ws-comment-reply{margin:10px 0 0 14px;padding:8px 0 0;border-top:1px dashed var(--border)}
 .ws-comment-compose{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
-.ws-mention-suggest{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--s2)}
+.ws-mention-suggest{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:8px;border:1px solid var(--accent-border);border-radius:10px;background:var(--accent-soft)}
 .ws-mention-opt{text-align:left;border:0;background:transparent;padding:8px;border-radius:8px;color:var(--text);font-size:13px;cursor:pointer;font-family:var(--fd)}
+.ws-mention-opt:hover,.ws-mention-opt:focus{background:var(--accent-dim)}
 .ws-notif-row{display:block;width:100%;text-align:left;padding:12px 0;border:0;border-bottom:1px solid var(--border);background:transparent;cursor:pointer}
 .ws-notif-row.unread .ws-notif-title{font-weight:700}
 .ws-notif-title{font-size:14px;color:var(--text);font-family:var(--fd)}
@@ -1616,7 +1665,7 @@ html.dir-voice-active{overflow:hidden}
 <div class="info-tip-ov" id="info-tip-ov" onclick="closeInfoTip()"> <div class="info-tip-box" onclick="event.stopPropagation()"> <span class="info-tip-ico" id="info-tip-ico"></span> <div class="info-tip-title" id="info-tip-title"></div> <div class="info-tip-body" id="info-tip-body"></div> <div class="info-tip-ex" id="info-tip-ex"></div> <button class="info-tip-close" onclick="closeInfoTip()">Got it</button> </div>
 </div> <!-- IDEA SHEET -->
 <div class="sh-ov" id="sh-ov" onclick="shClose(event)"><div class="sh" id="sh"><div class="sh-handle"></div><div id="sh-body"></div></div></div> <!-- PAYWALL -->
-<div class="modal-ov" id="pw-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="pw-glow"></div> <div class="pw-body"> <div class="pw-title" id="pw-title">Unlock PreShoot Pro</div> <div class="pw-sub" id="pw-sub">Keep scanning scenes, unlock Director, and turn ideas into productions.</div> <div class="pw-feats"> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12c0-2.5 2-4.5 4.5-2.5S16.5 7 18 9.5 16 16.5 12.5 14.5 7 17 7 12z"/></svg></div>Unlimited daily scans</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h18v11H3z"/><path d="M3 9l4-5 3 2.2L13 4l3 2.2L20 4"/><path d="M3 13h18"/></svg></div>PreShoot Director, full AI assistant</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7h11M9 12h11M9 17h11M5 7h.01M5 12h.01M5 17h.01"/></svg></div>Step-by-step shoot guide per idea</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s5 4.5 5 9a5 5 0 1 1-10 0c0-2.5 1.8-4.5 3-6 0 2 1 3 2 3z"/></svg></div>Studio productions, scripts &amp; shot lists</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5a3 3 0 0 0-3 3v1A2.5 2.5 0 0 0 5 11.5V14a3 3 0 0 0 3 3h.5M14.5 5a3 3 0 0 1 3 3v1A2.5 2.5 0 0 1 19 11.5V14a3 3 0 0 1-3 3H15M9.5 5A2.5 2.5 0 0 1 12 3a2.5 2.5 0 0 1 2.5 2M8.5 17v2M15.5 17v2M12 11v8"/></svg></div>AI personalised to your niche and gear</div> </div> <div class="pw-plans"> <div class="pw-plan" id="pw-m" onclick="selPlan('m')"><div class="pw-price">$9</div><div class="pw-period">per month</div></div> <div class="pw-plan sel" id="pw-y" onclick="selPlan('y')"><div class="pw-pop">BEST VALUE</div><div class="pw-price">$79</div><div class="pw-period">per year</div><div class="pw-save">Save $29</div></div> </div> <button class="pw-cta" id="pw-cta-btn" onclick="upgradePro()">Start Free Trial</button> <button class="pw-dismiss" onclick="closeM('pw-modal')">Maybe later</button> <div style="margin-top:10px;text-align:center"> <button onclick="togglePromo()" style="font-size:12px;color:var(--text3);text-decoration:underline;background:none;border:none;cursor:pointer">Have a promo code?</button> </div> <div id="promo-box" style="display:none;margin-top:10px;display:none"> <div style="display:flex;gap:8px"> <input id="promo-input" placeholder="Enter code" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;font-size:14px;color:var(--text);outline:none;font-family:var(--fb)" oninput="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')applyPromo()"> <button onclick="applyPromo()" style="padding:10px 16px;border-radius:var(--r);background:var(--accent);color:#fff;font-size:13px;font-weight:700;font-family:var(--fd)">Apply</button> </div> <div id="promo-msg" style="font-size:12px;margin-top:6px;text-align:center"></div> </div> </div> </div>
+<div class="modal-ov" id="pw-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="pw-glow"></div> <div class="pw-body"> <div class="pw-title" id="pw-title">Unlock PreShoot Pro</div> <div class="pw-sub" id="pw-sub">Keep scanning scenes, unlock Director, and turn ideas into productions.</div> <div class="pw-feats"> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12c0-2.5 2-4.5 4.5-2.5S16.5 7 18 9.5 16 16.5 12.5 14.5 7 17 7 12z"/></svg></div>Unlimited daily scans</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h18v11H3z"/><path d="M3 9l4-5 3 2.2L13 4l3 2.2L20 4"/><path d="M3 13h18"/></svg></div>PreShoot Director, full AI assistant</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7h11M9 12h11M9 17h11M5 7h.01M5 12h.01M5 17h.01"/></svg></div>Step-by-step shoot guide per idea</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s5 4.5 5 9a5 5 0 1 1-10 0c0-2.5 1.8-4.5 3-6 0 2 1 3 2 3z"/></svg></div>Studio productions, scripts &amp; shot lists</div> <div class="pw-feat"><div class="pw-feat-ico"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5a3 3 0 0 0-3 3v1A2.5 2.5 0 0 0 5 11.5V14a3 3 0 0 0 3 3h.5M14.5 5a3 3 0 0 1 3 3v1A2.5 2.5 0 0 1 19 11.5V14a3 3 0 0 1-3 3H15M9.5 5A2.5 2.5 0 0 1 12 3a2.5 2.5 0 0 1 2.5 2M8.5 17v2M15.5 17v2M12 11v8"/></svg></div>AI personalised to your niche and gear</div> </div> <div class="pw-plans"> <div class="pw-plan" id="pw-m" onclick="selPlan('m')"><div class="pw-plan-name">Monthly</div><div class="pw-price">$9</div><div class="pw-period">per month</div></div> <div class="pw-plan sel" id="pw-y" onclick="selPlan('y')"><div class="pw-pop">BEST VALUE</div><div class="pw-plan-name">Yearly</div><div class="pw-price">$79</div><div class="pw-period">per year</div><div class="pw-save">Save $29</div></div> </div> <button class="pw-cta" id="pw-cta-btn" onclick="upgradePro()">Start Free Trial</button> <button class="pw-dismiss" onclick="closeM('pw-modal')">Maybe later</button> <div style="margin-top:10px;text-align:center"> <button onclick="togglePromo()" style="font-size:12px;color:var(--text3);text-decoration:underline;background:none;border:none;cursor:pointer">Have a promo code?</button> </div> <div id="promo-box" style="display:none;margin-top:10px;display:none"> <div style="display:flex;gap:8px"> <input id="promo-input" placeholder="Enter code" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;font-size:14px;color:var(--text);outline:none;font-family:var(--fb)" oninput="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')applyPromo()"> <button onclick="applyPromo()" style="padding:10px 16px;border-radius:var(--r);background:var(--accent);color:#fff;font-size:13px;font-weight:700;font-family:var(--fd)">Apply</button> </div> <div id="promo-msg" style="font-size:12px;margin-top:6px;text-align:center"></div> </div> </div> </div>
 </div> <!-- EDIT PROFILE MODAL -->
 <div class="modal-ov" id="edit-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Edit Profile</div><div class="modal-x" onclick="closeM('edit-modal')"><svg class="ico-svg" width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div> <div class="modal-body"> <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px"> <div id="edit-av" class="prof-av" style="width:56px;height:56px;font-size:20px;margin-bottom:0;flex-shrink:0" onclick="document.getElementById('av-in').click()"></div> <div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Profile photo</div><button onclick="document.getElementById('av-in').click()" style="font-size:13px;color:var(--accent);font-weight:600">Change</button></div> </div> <label class="field-lbl">Name</label><input class="field-inp" id="edit-name" placeholder="Your name"> <label class="field-lbl">Handle</label><input class="field-inp" id="edit-handle" placeholder="@yourhandle"> <label class="field-lbl">Bio</label><input class="field-inp" id="edit-bio" placeholder="Content creator"> <button onclick="saveProf()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd)">Save</button> </div> </div>
 </div> <!-- APPEARANCE MODAL -->
