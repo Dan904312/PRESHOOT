@@ -164,7 +164,16 @@ test('landing communicates Studio and honest Director context', () => {
   assert.ok(land.includes('Studio + collaboration') || land.includes('Studio holds the production'));
   assert.ok(land.includes('deterministic context') || land.includes('project context'));
   assert.ok(land.includes('<sup>$</sup>9') || land.includes('$9'));
-  assert.ok(land.includes('$79') || land.includes('79/year'));
+  assert.ok(land.includes('<sup>$</sup>79') || land.includes('$79') || land.includes('79/year'));
+  assert.ok(land.includes('https://buy.stripe.com/28EaEXa574Y9esvaEWa7C00'));
+  assert.ok(land.includes('https://buy.stripe.com/dRm5kD0ux62d2JN00ia7C01'));
+  assert.ok(land.includes('href="/app.html"'));
+  const app = fs.readFileSync(path.join(root, 'app.html'), 'utf8');
+  assert.ok(app.includes("m: 'https://buy.stripe.com/28EaEXa574Y9esvaEWa7C00'"));
+  assert.ok(app.includes("y: 'https://buy.stripe.com/dRm5kD0ux62d2JN00ia7C01'"));
+  assert.ok(app.includes('onclick="selPlan(\'m\')"'));
+  assert.ok(app.includes('onclick="selPlan(\'y\')"'));
+  assert.ok(app.includes('onclick="upgradePro()"'));
 });
 
 test('phase7 SQL content_performance boundary exists', () => {
