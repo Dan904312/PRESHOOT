@@ -529,7 +529,13 @@ function loadOverviewStats() {
   api('overview_stats', { range: ovRange }).then(function (d) {
     if (d.error) { showToast('Stats error: ' + d.error); return; }
     TRACKING = d.usage_tracking_started_at || null;
-    set('ov-tracking', trackingCopy(TRACKING));
+    if (d.ledger && d.ledger.error === 'missing_table') {
+      set('ov-tracking', 'Scan tracking is not recording. The usage_events table is missing. Run supabase_admin_console.sql in Supabase, then redeploy. Do not treat the 0 as historical usage.');
+    } else if (d.ledger && d.ledger.ok === false) {
+      set('ov-tracking', 'Scan tracking could not be read from the database (' + (d.ledger.error || 'query_failed') + '). The 0 is not a reconstructed history.');
+    } else {
+      set('ov-tracking', trackingCopy(TRACKING));
+    }
     set('ov-total-users', d.totalUsers || 0);
     var u = d.usage || {};
     set('ov-new', ovRange === 'today' ? (d.newToday || 0) : ovRange === '7' ? (d.newThisWeek || 0) : ovRange === '30' ? (d.newThisMonth || 0) : (d.totalUsers || 0));
