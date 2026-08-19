@@ -128,11 +128,21 @@ test('admin login is separately rate-limited', () => {
   assert.ok(adminAuth.includes('max: 8'));
 });
 
-test('scan and Director success paths record usage', () => {
+test('scan and Director success paths await usage recording', () => {
   assert.ok(chat.includes("event_type: 'scan'"));
-  assert.ok(chat.includes('recordUsageEvent'));
+  assert.ok(chat.includes('await recordUsageEvent'));
+  assert.ok(chat.includes('scan_usage_record_failed'));
   assert.ok(director.includes("event_type: 'director_request'"));
+  assert.ok(director.includes('await recordUsageEvent'));
   assert.ok(research.includes("event_type: 'research'"));
+});
+
+test('admin usage query falls back to usage_events table', () => {
+  const consoleLib = fs.readFileSync(path.join(root, 'lib/admin-console.js'), 'utf8');
+  assert.ok(consoleLib.includes('fetchUsageRollupFromTable'));
+  assert.ok(consoleLib.includes('probeUsageLedger'));
+  assert.ok(admin.includes('probeUsageLedger'));
+  assert.ok(admin.includes('ledger:'));
 });
 
 test('email adapter never claims success without a provider', () => {
