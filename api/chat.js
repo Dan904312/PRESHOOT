@@ -120,18 +120,6 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       await undoOnboardingCredit();
-    } else if (safe.stream) {
-      recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
-        function () {}
-      );
-      recordUsageEvent({
-        user_id: auth.user.id,
-        event_type: 'scan',
-        provider: 'anthropic',
-        model: safe.model,
-        status: 'success',
-        metadata: { stream: true }
-      }).catch(function () {});
     }
 
     if (safe.stream) {
@@ -147,12 +135,26 @@ export default async function handler(req, res) {
       const reader = response.body.getReader();
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          res.end();
-          break;
-        }
+        if (done) break;
         res.write(value);
       }
+      if (response.ok) {
+        recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
+          function () {}
+        );
+        const recorded = await recordUsageEvent({
+          user_id: auth.user.id,
+          event_type: 'scan',
+          provider: 'anthropic',
+          model: safe.model,
+          status: 'success',
+          metadata: { stream: true }
+        });
+        if (!recorded || !recorded.ok) {
+          console.error('scan_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
+        }
+      }
+      res.end();
       return;
     }
 
@@ -170,7 +172,7 @@ export default async function handler(req, res) {
       recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
         function () {}
       );
-      recordUsageEvent({
+      const recorded = await recordUsageEvent({
         user_id: auth.user.id,
         event_type: 'scan',
         provider: 'anthropic',
@@ -178,18 +180,24 @@ export default async function handler(req, res) {
         input_units: inTok,
         output_units: outTok,
         status: 'success'
-      }).catch(function () {});
+      });
+      if (!recorded || !recorded.ok) {
+        console.error('scan_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
+      }
     } else if (response.ok) {
       recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
         function () {}
       );
-      recordUsageEvent({
+      const recorded = await recordUsageEvent({
         user_id: auth.user.id,
         event_type: 'scan',
         provider: 'anthropic',
         model: safe.model,
         status: 'success'
-      }).catch(function () {});
+      });
+      if (!recorded || !recorded.ok) {
+        console.error('scan_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
+      }
     } else if (!response.ok) {
       trackProductEventServer(auth.user.id, 'api_error', {
         endpoint: 'chat',

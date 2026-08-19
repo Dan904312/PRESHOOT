@@ -405,22 +405,7 @@ export default async function handler(req, res) {
     });
 
     if (stream) {
-      if (response.ok) {
-        recordCreationActivity(
-          auth.user.id,
-          'director',
-          req.body && req.body.timezone
-        ).catch(function () {});
-        recordUsageEvent({
-          user_id: auth.user.id,
-          event_type: 'director_request',
-          provider: 'anthropic',
-          model: anthropicBody.model,
-          status: 'success',
-          metadata: { stream: true, workspace: workspaceId ? 'shared' : 'personal' }
-        }).catch(function () {});
-      }
-      /* Token usage unavailable on SSE path — count request only */
+      /* Token usage unavailable on SSE path — count request only after the stream finishes. */
       logAiRequest(auth.user.id, {
         endpoint: 'director',
         model: anthropicBody.model,
@@ -434,12 +419,28 @@ export default async function handler(req, res) {
       const reader = response.body.getReader();
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          res.end();
-          break;
-        }
+        if (done) break;
         res.write(value);
       }
+      if (response.ok) {
+        recordCreationActivity(
+          auth.user.id,
+          'director',
+          req.body && req.body.timezone
+        ).catch(function () {});
+        const recorded = await recordUsageEvent({
+          user_id: auth.user.id,
+          event_type: 'director_request',
+          provider: 'anthropic',
+          model: anthropicBody.model,
+          status: 'success',
+          metadata: { stream: true, workspace: workspaceId ? 'shared' : 'personal' }
+        });
+        if (!recorded || !recorded.ok) {
+          console.error('director_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
+        }
+      }
+      res.end();
       return;
     }
 
@@ -472,7 +473,7 @@ export default async function handler(req, res) {
     recordCreationActivity(auth.user.id, 'director', req.body && req.body.timezone).catch(
       function () {}
     );
-    recordUsageEvent({
+    const recorded = await recordUsageEvent({
       user_id: auth.user.id,
       event_type: 'director_request',
       provider: 'anthropic',
@@ -481,7 +482,10 @@ export default async function handler(req, res) {
       output_units: outTok,
       status: 'success',
       metadata: { workspace: workspaceId ? 'shared' : 'personal' }
-    }).catch(function () {});
+    });
+    if (!recorded || !recorded.ok) {
+      console.error('director_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
+    }
     return res.status(200).json(data);
   } catch (error) {
     console.error('Director API error:', error);

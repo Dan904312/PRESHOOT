@@ -33,7 +33,8 @@ import {
   startOfUtcDay,
   startOfUtcMonth,
   moneyUsd,
-  spendThresholds
+  spendThresholds,
+  probeUsageLedger
 } from '../lib/admin-console.js';
 
 function rangeSince(range) {
@@ -137,7 +138,8 @@ export default async function handler(req, res) {
           rollRange,
           rollToday,
           rollMonth,
-          errors
+          errors,
+          ledger
         ] = await Promise.all([
           fetch(`${SUPA_URL}/rest/v1/users?select=user_id,first_seen,last_seen,total_scans,account_status`, { headers: h }),
           fetch(`${SUPA_URL}/rest/v1/subscriptions?select=plan,status,billing_interval,started_at,user_id,email`, { headers: h }),
@@ -147,7 +149,8 @@ export default async function handler(req, res) {
           fetchUsageRollup(since),
           fetchUsageRollup(startOfUtcDay()),
           fetchUsageRollup(startOfUtcMonth()),
-          countProductErrors(since || isoDaysAgo(30))
+          countProductErrors(since || isoDaysAgo(30)),
+          probeUsageLedger()
         ]);
         const users = await usersR.json();
         const subs = await subsR.json();
@@ -230,7 +233,8 @@ export default async function handler(req, res) {
             rate_limited: errors.rate_limited,
             server_errors: errors.server
           },
-          cost_alerts: alerts
+          cost_alerts: alerts,
+          ledger: ledger || { ok: false, error: 'unknown' }
         });
       }
 

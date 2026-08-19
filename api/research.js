@@ -108,7 +108,7 @@ async function callClaude(system, user, maxTokens) {
       output_tokens: outTok,
       cost_usd: estimateAiCostUsd(model, inTok, outTok)
     }).catch(function () {});
-    recordUsageEvent({
+    await recordUsageEvent({
       user_id: _aiLogUserId,
       event_type: 'research',
       provider: 'anthropic',
@@ -116,7 +116,7 @@ async function callClaude(system, user, maxTokens) {
       input_units: inTok,
       output_units: outTok,
       status: 'success'
-    }).catch(function () {});
+    });
   }
   const block = (data.content || []).find((b) => b.type === 'text');
   return (block && block.text) || '';
