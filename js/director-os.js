@@ -1228,9 +1228,29 @@
     }
 
     if (target === 'shotlist' || target === 'shotlist_rebuild') {
+      if (Studio.buildShotListFromScript) {
+        var rebuilt = Studio.buildShotListFromScript(productionId, {
+          allowStarter: !(Studio.hasRealScript && Studio.hasRealScript(ws, idea))
+        });
+        rememberTurn({
+          intent: 'generate',
+          action: 'rebuild_shot_list',
+          object: { type: 'shotlist', id: productionId, name: 'Shot list' }
+        });
+        return {
+          ok: !!(rebuilt && rebuilt.ok),
+          message:
+            rebuilt && rebuilt.ok
+              ? rebuilt.message || 'Shot list rebuilt from the script'
+              : (rebuilt && rebuilt.message) || 'Could not rebuild shot list',
+          refresh: !!(rebuilt && rebuilt.ok),
+          section: 'shots'
+        };
+      }
       if (!Studio.seedWorkspaceFromIdea) return { ok: false, error: 'seed_unavailable' };
       var seededShots = Studio.seedWorkspaceFromIdea(idea, prod.scanRef || {}, {
-        coverImage: prod.coverImage
+        coverImage: prod.coverImage,
+        includeStarterShots: true
       });
       ws.shotList = (seededShots && seededShots.shotList) || [];
       Studio.updateProduction(productionId, { workspace: ws });
@@ -1241,7 +1261,7 @@
       });
       return {
         ok: true,
-        message: 'Shot list rebuilt from the production idea',
+        message: 'Shot list rebuilt',
         refresh: true,
         section: 'shots'
       };

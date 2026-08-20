@@ -552,6 +552,18 @@
     if (scan.sceneLabel || scan.mainSubject) {
       h += '<div class="pw-scan-line">Original scan · ' + esc(scan.mainSubject || scan.sceneLabel) + '</div>';
     }
+    var realScript = Studio().hasRealScript ? Studio().hasRealScript(prod.workspace, idea) : false;
+    var hasShots = !!(prod.workspace && prod.workspace.shotList && prod.workspace.shotList.length);
+    if (realScript && hasShots) {
+      h += '<div class="st-doc-ready">Production ready.</div>';
+      h += '<div class="st-doc-actions">';
+      h += '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyScript(\'' + esc(productionId) + '\')">Copy Script</button>';
+      h += '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyShotList(\'' + esc(productionId) + '\')">Copy Shot List</button>';
+      h += '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportScriptPdf(\'' + esc(productionId) + '\')">Script PDF</button>';
+      h += '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportShotListPdf(\'' + esc(productionId) + '\')">Shot List PDF</button>';
+      h += '<button type="button" class="studio-btn sm" onclick="PreShootStudioUI.exportPackagePdf(\'' + esc(productionId) + '\')">Export Production Package</button>';
+      h += '</div>';
+    }
     h += '</div>';
 
     if (suggestions.length) {
@@ -681,27 +693,55 @@
     });
     var expanded = ensureExpandedMap(productionId);
     var fields = shotFieldsForLevel(level);
+    var realScript = Studio().hasRealScript ? Studio().hasRealScript(ws, prod.ideaSnapshot || {}) : false;
+    var canEdit = studioCanMutate();
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Shot List</div>';
     h +=
       '<div class="pw-section-sub">Adapted for <strong>' +
       esc(level) +
-      '</strong> · tap a shot to expand</div></div>';
+      '</strong> · each shot maps to a script beat</div></div>';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
+    if (canEdit) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.generateShotList(\'' +
+        esc(productionId) +
+        '\')">Generate Shot List</button>';
+    }
+    if (shots.length) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyShotList(\'' +
+        esc(productionId) +
+        '\')">Copy Shot List</button>';
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportShotListPdf(\'' +
+        esc(productionId) +
+        '\')">Shot List PDF</button>';
+    }
     h +=
       '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addShot(\'' +
       esc(productionId) +
-      '\')">Add shot</button></div>';
+      '\')">Add shot</button></div></div>';
 
     if (!shots.length) {
       h += '<div class="pw-card pw-empty-card">';
-      h += '<div class="studio-empty-t">No shots yet</div>';
-      h += '<div class="studio-empty-s">Build a filmable shot list from the linked idea, or add shots manually.</div>';
-      if (prod.ideaSnapshot && (prod.ideaSnapshot.title || prod.ideaSnapshot.hook)) {
+      if (realScript) {
+        h += '<div class="studio-empty-t">Script ready.</div>';
+        h += '<div class="studio-empty-s">Turn your script into a production-ready shot list. Shots will map to script sections.</div>';
+        if (canEdit) {
+          h +=
+            '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.generateShotList(\'' +
+            esc(productionId) +
+            '\')">Generate Shot List</button>';
+        }
+      } else {
+        h += '<div class="studio-empty-t">No shots yet</div>';
+        h += '<div class="studio-empty-s">Generate a script first, then build a shot list from those beats — or add shots manually.</div>';
         h +=
-          '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.seedFromIdea(\'' +
+          '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.setProdSection(\'' +
           esc(productionId) +
-          '\')">Build from idea</button>';
+          "','script')\">Go to Script</button>";
       }
       h += '</div>';
       return h;
@@ -722,6 +762,16 @@
       h += '<div class="pw-shot-index">Shot ' + esc(String(shot.order || i + 1)) + '</div>';
       h += '<div class="pw-shot-head-main">';
       h += '<div class="pw-shot-purpose">' + esc(shot.purpose || 'Shot') + '</div>';
+      if (shot.scriptLineId) {
+        var scriptLines = (ws.script && ws.script.lines) || [];
+        var si = -1;
+        for (var li = 0; li < scriptLines.length; li++) {
+          if (scriptLines[li].id === shot.scriptLineId) si = li;
+        }
+        if (si >= 0) {
+          h += '<div class="pw-shot-dur">Script · Scene ' + (si + 1 < 10 ? '0' : '') + (si + 1) + '</div>';
+        }
+      }
       h += '<div class="pw-shot-dur">' + esc(dur) + '</div>';
       if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
         h += PreShootWorkspaceComments.commentChipHtml(
@@ -814,10 +864,12 @@
   function renderScriptSection(prod, productionId, ws) {
     var lines = (ws.script && ws.script.lines) || [];
     var shots = ws.shotList || [];
+    var realScript = Studio().hasRealScript ? Studio().hasRealScript(ws, prod.ideaSnapshot || {}) : lines.length > 0;
+    var canEdit = studioCanMutate();
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Script</div>';
-    h += '<div class="pw-section-sub">Each line maps to a shot</div>';
+    h += '<div class="pw-section-sub">Spoken and visual beats — not the idea description</div>';
     if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
       h += PreShootWorkspaceComments.commentChipHtml(
         productionId,
@@ -831,7 +883,23 @@
     h +=
       '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openScriptFullscreen(\'' +
       esc(productionId) +
-      '\')" title="Expand script editor" aria-label="Expand script editor">⛶ Expand</button>';
+      '\')" title="Expand script editor" aria-label="Expand script editor">Write Script</button>';
+    if (canEdit) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.generateScript(\'' +
+        esc(productionId) +
+        '\')">Generate Script</button>';
+    }
+    if (realScript) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyScript(\'' +
+        esc(productionId) +
+        '\')">Copy Script</button>';
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportScriptPdf(\'' +
+        esc(productionId) +
+        '\')">Script PDF</button>';
+    }
     h +=
       '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addScriptLine(\'' +
       esc(productionId) +
@@ -854,13 +922,17 @@
           '</textarea></div>';
       } else {
         h += '<div class="pw-card pw-empty-card">';
-        h += '<div class="studio-empty-t">No script lines</div>';
-        h += '<div class="studio-empty-s">Add dialogue or VO lines and link each to a shot — or expand for full-screen writing.</div>';
-        if (prod.ideaSnapshot && prod.ideaSnapshot.hook) {
+        h += '<div class="studio-empty-t">No script yet</div>';
+        h += '<div class="studio-empty-s">Write your own or generate one from this production. The idea description is not a script.</div>';
+        if (canEdit) {
           h +=
-            '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.seedFromIdea(\'' +
+            '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.generateScript(\'' +
             esc(productionId) +
-            '\')">Build from idea</button>';
+            '\')">Generate Script</button>';
+          h +=
+            '<button type="button" class="studio-btn ghost" style="margin-top:8px" onclick="PreShootStudioUI.openScriptFullscreen(\'' +
+            esc(productionId) +
+            '\')">Write Script</button>';
         }
         h += '</div>';
       }
@@ -3785,7 +3857,132 @@
     renderStudio();
   }
 
+  function generateScript(productionId) {
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
+    if (!Studio() || !productionId) return;
+    var found = Studio().findProduction(productionId);
+    if (!found) {
+      toast('Production not found');
+      return;
+    }
+    var prod = Studio().ensureWorkspace(found.production);
+    var idea = prod.ideaSnapshot || {};
+    var ov = (prod.workspace && prod.workspace.overview) || {};
+    if (Studio().hasRealScript && Studio().hasRealScript(prod.workspace, idea)) {
+      if (!confirm('Replace the current script with a newly generated draft? Your current script will be overwritten.')) {
+        return;
+      }
+    }
+    var niche = (global.S && global.S.niche) || {};
+    var prompt =
+      'Write an executable shooting script for this production. Do NOT copy the idea description, strategy, or why-it-works text.\n' +
+      'Return the FULL script only.\n\n' +
+      'Required shape (blank line between beats):\n' +
+      'HOOK\n[ON CAMERA]\n"spoken line"\n[VISUAL]\nWhat we see.\n\n' +
+      'SETUP\n[VOICEOVER] or [ON CAMERA]\n...\n\nPAYOFF\n...\n\nCTA\n"..."\n\n' +
+      'Context — concept only, not script:\n' +
+      'Title: ' + (idea.title || prod.name || '') + '\n' +
+      'Hook idea: ' + (idea.hook || '') + '\n' +
+      'Angle: ' + (idea.shotAngle || '') + '\n' +
+      'Why it works (do not paste): ' + String(idea.whyItWorks || '').slice(0, 180) + '\n' +
+      'Platform: ' + (ov.platform || niche.platform || '') + '\n' +
+      'Audience / niche: ' + (niche.contentType || '') + '\n' +
+      'Format: ' + (ov.format || idea.category || '') + '\n' +
+      'Goal: ' + (ov.goal || '') + '\n' +
+      'Production notes: ' + String(prod.notes || '').slice(0, 160);
+    if (global.S) {
+      global.S.studioView = global.S.studioView || {};
+      global.S.studioView.productionId = productionId;
+      global.S.studioView.section = 'script';
+    }
+    requestScriptAiEdit({ productionId: productionId, mode: 'replace', message: prompt });
+  }
+
+  function generateShotList(productionId) {
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
+    if (!Studio() || !Studio().buildShotListFromScript) return;
+    var found = Studio().findProduction(productionId);
+    if (!found) {
+      toast('Production not found');
+      return;
+    }
+    var prod = Studio().ensureWorkspace(found.production);
+    var ws = prod.workspace || {};
+    if (!Studio().hasRealScript(ws, prod.ideaSnapshot || {})) {
+      toast('Write or generate a script first');
+      if (global.S && global.S.studioView) global.S.studioView.section = 'script';
+      renderStudio();
+      return;
+    }
+    if (ws.shotList && ws.shotList.length) {
+      if (!confirm('Replace the current shot list? Script stays. Existing shots will be overwritten.')) {
+        return;
+      }
+    }
+    var result = Studio().buildShotListFromScript(productionId, { allowStarter: false });
+    if (!result || !result.ok) {
+      toast((result && result.message) || 'Could not generate shot list');
+      return;
+    }
+    toast('Shot list built from script');
+    if (global.S && global.S.studioView) global.S.studioView.section = 'shots';
+    renderContinueCard();
+    renderStudio();
+  }
+
+  function copyScript(productionId) {
+    var Ex = global.PreShootStudioExport;
+    if (!Ex) {
+      toast('Export unavailable');
+      return;
+    }
+    Ex.copyScript(productionId).then(
+      function () { toast('Script copied'); },
+      function () { toast('Could not copy script'); }
+    );
+  }
+
+  function copyShotList(productionId) {
+    var Ex = global.PreShootStudioExport;
+    if (!Ex) {
+      toast('Export unavailable');
+      return;
+    }
+    Ex.copyShotList(productionId).then(
+      function () { toast('Shot list copied'); },
+      function () { toast('Could not copy shot list'); }
+    );
+  }
+
+  function exportScriptPdf(productionId) {
+    var Ex = global.PreShootStudioExport;
+    if (!Ex || !Ex.exportScriptPdf(productionId)) toast('Could not export script PDF');
+    else toast('Downloading script PDF');
+  }
+
+  function exportShotListPdf(productionId) {
+    var Ex = global.PreShootStudioExport;
+    if (!Ex || !Ex.exportShotListPdf(productionId)) toast('Could not export shot list PDF');
+    else toast('Downloading shot list PDF');
+  }
+
+  function exportPackagePdf(productionId) {
+    var Ex = global.PreShootStudioExport;
+    if (!Ex || !Ex.exportPackagePdf(productionId)) toast('Could not export package PDF');
+    else toast('Downloading production package');
+  }
+
   function seedFromIdea(productionId) {
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
     if (!Studio().buildWorkspaceFromIdea) return;
     Studio().buildWorkspaceFromIdea(productionId);
     toast('Workspace built from idea');
@@ -4579,8 +4776,56 @@
     openProduction(result.production.id);
   }
 
+  function studioCanMutate() {
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared() &&
+      PreShootWorkspace.canEdit &&
+      !PreShootWorkspace.canEdit()
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   /* ── Send to Studio ── */
   var pendingSend = null;
+
+  function fillSendProductions(projectId, selectedProductionId) {
+    var prodSel = document.getElementById('st-send-production');
+    var nameWrap = document.getElementById('st-send-new-prod-wrap');
+    if (!prodSel) return;
+    var project = projectId && Studio() ? Studio().findProject(projectId) : null;
+    var productions = (project && project.productions) || [];
+    prodSel.innerHTML =
+      '<option value="">Create new production…</option>' +
+      productions
+        .map(function (prod) {
+          return (
+            '<option value="' +
+            esc(prod.id) +
+            '"' +
+            (prod.id === selectedProductionId ? ' selected' : '') +
+            '>' +
+            esc(prod.name || 'Untitled') +
+            '</option>'
+          );
+        })
+        .join('');
+    if (nameWrap) nameWrap.style.display = prodSel.value ? 'none' : '';
+  }
+
+  function onSendProjectChange() {
+    var projSel = document.getElementById('st-send-project');
+    fillSendProductions(projSel ? projSel.value : '', '');
+  }
+
+  function onSendProductionChange() {
+    var prodSel = document.getElementById('st-send-production');
+    var nameWrap = document.getElementById('st-send-new-prod-wrap');
+    if (nameWrap) nameWrap.style.display = prodSel && prodSel.value ? 'none' : '';
+  }
 
   function openSendToStudio(idx, src) {
     var ideas = [];
@@ -4599,6 +4844,10 @@
       toast('Idea not found');
       return;
     }
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
     var sceneInfo = global.S.sceneInfo || {};
     var rec = Studio().recommendProject(idea, sceneInfo);
     pendingSend = {
@@ -4612,82 +4861,117 @@
 
     var reason = document.getElementById('st-send-reason');
     var suggestedBtn = document.getElementById('st-send-suggested');
-    var existing = document.getElementById('st-send-existing');
+    var projectSel = document.getElementById('st-send-project');
     var newName = document.getElementById('st-send-new-name');
+    var prodName = document.getElementById('st-send-prod-name');
 
-    if (reason) reason.textContent = rec.reason || '';
+    if (reason) {
+      reason.textContent = rec.reason || 'Choose the exact project and production this idea belongs to.';
+    }
+    var projects = Studio().listProjects();
+    var preferredId = rec.suggested ? rec.suggested.id : '';
+    if (projectSel) {
+      projectSel.innerHTML =
+        '<option value="">Choose a project…</option>' +
+        projects
+          .map(function (p) {
+            return (
+              '<option value="' +
+              esc(p.id) +
+              '"' +
+              (p.id === preferredId ? ' selected' : '') +
+              '>' +
+              esc(p.name) +
+              '</option>'
+            );
+          })
+          .join('');
+    }
     if (suggestedBtn) {
       if (rec.suggested) {
         suggestedBtn.style.display = '';
         suggestedBtn.textContent = 'Use “' + rec.suggested.name + '”';
         suggestedBtn.onclick = function () {
-          confirmSend('suggested');
+          if (projectSel) projectSel.value = rec.suggested.id;
+          fillSendProductions(rec.suggested.id, '');
         };
       } else {
         suggestedBtn.style.display = 'none';
       }
     }
-    if (existing) {
-      var projects = Studio().listProjects();
-      existing.innerHTML =
-        '<option value="">Choose existing project…</option>' +
-        projects
-          .map(function (p) {
-            return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
-          })
-          .join('');
-    }
+    fillSendProductions(preferredId, '');
     if (newName) newName.value = rec.suggestedName || Studio().suggestProjectName(idea, sceneInfo);
+    if (prodName) prodName.value = idea.title || '';
     openM('studio-send-modal');
   }
 
   function confirmSend(mode) {
     if (!pendingSend) return;
-    var projectId = null;
-    if (mode === 'suggested' && pendingSend.recommendation && pendingSend.recommendation.suggested) {
-      projectId = pendingSend.recommendation.suggested.id;
-    } else if (mode === 'existing') {
-      var existing = document.getElementById('st-send-existing');
-      projectId = existing ? existing.value : '';
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
+    var projectSel = document.getElementById('st-send-project');
+    var prodSel = document.getElementById('st-send-production');
+    var newName = document.getElementById('st-send-new-name');
+    var prodName = document.getElementById('st-send-prod-name');
+    var opts = {
+      idea: pendingSend.idea,
+      sceneInfo: pendingSend.sceneInfo,
+      meta: { source: 'idea', coverImage: pendingSend.coverImage }
+    };
+
+    if (mode === 'new') {
+      opts.newProjectName = newName ? newName.value : pendingSend.recommendation.suggestedName;
+      opts.newProductionName = prodName && prodName.value ? prodName.value : pendingSend.idea.title;
+    } else {
+      var projectId = projectSel ? projectSel.value : '';
+      if (mode === 'suggested' && pendingSend.recommendation && pendingSend.recommendation.suggested) {
+        projectId = pendingSend.recommendation.suggested.id;
+      }
       if (!projectId) {
         toast('Choose a project');
         return;
       }
-    } else if (mode === 'new') {
-      var newName = document.getElementById('st-send-new-name');
-      var p = Studio().createProject({
-        name: newName ? newName.value : pendingSend.recommendation.suggestedName,
-        coverImage: pendingSend.coverImage
-      });
-      projectId = p.id;
-    } else {
-      return;
+      opts.projectId = projectId;
+      var productionId = prodSel ? prodSel.value : '';
+      if (productionId) {
+        opts.productionId = productionId;
+      } else {
+        opts.newProductionName = prodName && prodName.value ? prodName.value : pendingSend.idea.title;
+      }
     }
 
-    var payload = Studio().productionFromIdea(pendingSend.idea, pendingSend.sceneInfo, {
-      source: 'idea',
-      coverImage: pendingSend.coverImage
-    });
-    var result = Studio().createProduction(projectId, payload);
+    if (!Studio().importIdeaIntoStudio) {
+      toast('Studio import unavailable');
+      return;
+    }
+    var result = Studio().importIdeaIntoStudio(opts);
     closeM('studio-send-modal');
     pendingSend = null;
     if (typeof global.shCloseForce === 'function') global.shCloseForce();
-    if (!result) {
-      toast('Could not create production');
+    if (!result || !result.ok || !result.production) {
+      var err = (result && result.error) || '';
+      if (err === 'production_not_in_project') toast('That production is not in the selected project');
+      else if (err === 'production_not_found') toast('Production not found');
+      else if (err === 'project_not_found') toast('Project not found');
+      else toast('Could not import to Studio');
       return;
     }
     if (global.PreShootAnalytics) {
-      if (mode === 'new') PreShootAnalytics.track('project_created', { source: 'send' });
-      PreShootAnalytics.track('production_created', {
-        id: String(result.production.id || '').slice(0, 40),
-        source: 'idea'
-      });
-      PreShootAnalytics.noteProductionCreated();
+      if (result.createdProject) PreShootAnalytics.track('project_created', { source: 'send' });
+      if (result.createdProduction) {
+        PreShootAnalytics.track('production_created', {
+          id: String(result.production.id || '').slice(0, 40),
+          source: 'idea'
+        });
+        PreShootAnalytics.noteProductionCreated();
+      }
     }
     if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
       PreShootEntitlements.recordActivity('studio');
     }
-    toast('Sent to Studio');
+    toast(result.createdProduction ? 'Imported to a new production' : 'Imported into “' + (result.production.name || 'production') + '”');
     openProduction(result.production.id);
   }
 
@@ -4888,6 +5172,8 @@
     confirmBlankProduction: confirmBlankProduction,
     openSendToStudio: openSendToStudio,
     confirmSend: confirmSend,
+    onSendProjectChange: onSendProjectChange,
+    onSendProductionChange: onSendProductionChange,
     renameProjectPrompt: renameProjectPrompt,
     duplicateProject: duplicateProject,
     archiveProject: archiveProject,
@@ -4924,6 +5210,13 @@
     linkScriptLine: linkScriptLine,
     deleteScriptLine: deleteScriptLine,
     convertScriptBody: convertScriptBody,
+    generateScript: generateScript,
+    generateShotList: generateShotList,
+    copyScript: copyScript,
+    copyShotList: copyShotList,
+    exportScriptPdf: exportScriptPdf,
+    exportShotListPdf: exportShotListPdf,
+    exportPackagePdf: exportPackagePdf,
     findProductionReferences: findProductionReferences,
     saveResearchItem: saveResearchItem,
     removeProductionReference: removeProductionReference,
