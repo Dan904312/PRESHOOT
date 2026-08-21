@@ -64,6 +64,10 @@ assert.ok(
   hasRewrite('/api/track-user', '__resource=track'),
   'track-user rewrite missing'
 );
+assert.ok(
+  hasRewrite('/api/trends', '__resource=trends'),
+  'trends rewrite missing'
+);
 
 /* Handler resource detection (mirrors api/workspaces.js / check-plan.js) */
 function workspaceResource(url, query) {
