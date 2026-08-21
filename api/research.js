@@ -8,10 +8,12 @@ import {
   requireUser,
   requireResearchAccess,
   gateRouteRateLimit,
-  sendRateLimitResponse
+  sendRateLimitResponse,
+  serviceHeaders
 } from '../lib/security.js';
 import { trackProductEventServer, estimateAiCostUsd } from '../lib/product-events.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
+import { getTrendDataset, memoryGet, memorySet, sanitizeRegion } from '../lib/trends.js';
 
 const MAX_ITEMS = 5;
 
@@ -532,9 +534,137 @@ const ADAPTERS = {
   // Future: tiktok, instagram, vimeo, pinterest, behance
 };
 
+function resourceOf(req) {
+  const q = req.query || {};
+  if (q.__resource) return String(q.__resource);
+  const raw = String(req.url || '');
+  if (raw.indexOf('/api/trends') >= 0) return 'trends';
+  return 'research';
+}
+
+async function readPersistedTrends(region) {
+  const mem = memoryGet(region);
+  if (mem && Array.isArray(mem.items)) return mem;
+  const SUPA_URL = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!SUPA_URL || !key) return mem;
+  try {
+    const r = await fetch(
+      `${SUPA_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent('trends_cache_' + region)}&select=value&limit=1`,
+      { headers: serviceHeaders() }
+    );
+    const rows = await r.json().catch(() => null);
+    const raw = Array.isArray(rows) && rows[0] && rows[0].value;
+    if (!raw) return mem;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (parsed && Array.isArray(parsed.items)) {
+      memorySet(region, parsed);
+      return parsed;
+    }
+  } catch (e) {
+    return mem;
+  }
+  return mem;
+}
+
+async function writePersistedTrends(region, dataset) {
+  memorySet(region, dataset);
+  const SUPA_URL = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!SUPA_URL || !key || !dataset) return;
+  try {
+    await fetch(`${SUPA_URL}/rest/v1/app_settings`, {
+      method: 'POST',
+      headers: Object.assign({}, serviceHeaders(), {
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      }),
+      body: JSON.stringify({
+        key: 'trends_cache_' + region,
+        value: JSON.stringify(dataset),
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (e) {
+    /* memory cache is enough for this instance */
+  }
+}
+
+async function handleTrends(req, res) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: { message: 'Method not allowed' } });
+  }
+
+  const auth = await requireUser(req);
+  const rl = await gateRouteRateLimit(req, {
+    route: 'trends',
+    max: 30,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) return sendRateLimitResponse(res, rl);
+  if (auth.error) {
+    return res.status(auth.status).json({ error: { message: 'Sign in to view trending' } });
+  }
+
+  const q = req.query || {};
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const region = sanitizeRegion(q.region || body.region || 'US');
+  const force = String(q.refresh || body.refresh || '') === '1';
+
+  try {
+    const dataset = await getTrendDataset({
+      region,
+      force,
+      youtubeKey: process.env.YOUTUBE_API_KEY || process.env.GOOGLE_YOUTUBE_API_KEY || '',
+      readCache: readPersistedTrends,
+      writeCache: writePersistedTrends
+    });
+    const payload = {
+      ok: true,
+      region: dataset.region,
+      fetchedAt: dataset.fetchedAt,
+      expiresAt: dataset.expiresAt,
+      cache: dataset.cache,
+      items: dataset.items || [],
+      sources: dataset.sources || [],
+      limitations: dataset.limitations || []
+    };
+    return res.status(200).json(payload);
+  } catch (e) {
+    const stale = await readPersistedTrends(region);
+    if (stale && Array.isArray(stale.items) && stale.items.length) {
+      return res.status(200).json({
+        ok: true,
+        region,
+        fetchedAt: stale.fetchedAt,
+        expiresAt: stale.expiresAt,
+        cache: 'stale',
+        items: stale.items,
+        sources: stale.sources || [],
+        limitations: stale.limitations || [],
+        warning: 'refresh_failed'
+      });
+    }
+    return res.status(200).json({
+      ok: true,
+      region,
+      fetchedAt: null,
+      expiresAt: null,
+      cache: 'empty',
+      items: [],
+      sources: [],
+      limitations: [
+        'Trend sources did not return public data. No placeholder trends are shown.'
+      ],
+      warning: 'unavailable'
+    });
+  }
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return handleOptions(req, res);
+  if (resourceOf(req) === 'trends') return handleTrends(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: { message: 'Method not allowed' } });
 
   const auth = await requireUser(req);
