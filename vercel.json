@@ -29,7 +29,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://*.googleusercontent.com https://i.ytimg.com https://img.youtube.com https://*.ytimg.com; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://buy.stripe.com https://*.stripe.com https://*.supabase.co https://accounts.google.com; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://*.googleusercontent.com https://i.ytimg.com https://img.youtube.com https://*.ytimg.com https://*.gstatic.com https://*.mzstatic.com; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://buy.stripe.com https://*.stripe.com https://*.supabase.co https://accounts.google.com; upgrade-insecure-requests"
         }
       ]
     },
@@ -99,6 +99,10 @@
     {
       "src": "/api/track-user",
       "dest": "/api/check-plan?__resource=track"
+    },
+    {
+      "src": "/api/trends",
+      "dest": "/api/research?__resource=trends"
     },
     {
       "src": "/api/(.*)",
