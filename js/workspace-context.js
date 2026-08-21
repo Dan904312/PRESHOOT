@@ -336,13 +336,17 @@
         continueProductionId: null,
         updatedAt: 0,
         deletedProjects: {},
-        deletedProductions: {}
+        deletedProductions: {},
+        calendar: { version: 1, events: [] }
       };
     }
     if (!Array.isArray(doc.projects)) doc.projects = [];
     if (!doc.deletedProjects || typeof doc.deletedProjects !== 'object') doc.deletedProjects = {};
     if (!doc.deletedProductions || typeof doc.deletedProductions !== 'object') {
       doc.deletedProductions = {};
+    }
+    if (!doc.calendar || typeof doc.calendar !== 'object') {
+      doc.calendar = { version: 1, events: [] };
     }
     doc.version = 3;
     return doc;

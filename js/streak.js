@@ -85,7 +85,8 @@
           '</div>' +
         '</div>' +
         cal +
-        '<div class="streak-card-note">One creation day counts once — scan, Director, or Studio.</div>' +
+        '<div class="streak-card-note">One creation day counts once — scan, plan, post, Director, or Studio. Streak is personal.</div>' +
+        '<button type="button" class="studio-btn" style="width:100%;margin-top:12px" onclick="PreShootCalendar&&PreShootCalendar.open()">Open content calendar</button>' +
       '</div>'
     );
   }
@@ -97,6 +98,10 @@
   }
 
   function openCalendar() {
+    if (global.PreShootCalendar && PreShootCalendar.open) {
+      PreShootCalendar.open();
+      return;
+    }
     fillSheet();
     if (typeof openM === 'function') openM('streak-modal');
   }

@@ -10,6 +10,9 @@
   var VERSION = 3;
   var DIRTY_KEY = 'studio_dirty';
   var TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+  var CAL_TYPES = ['post', 'scan', 'idea', 'production', 'other'];
+  var CAL_STATUSES = ['idea', 'planned', 'in_production', 'ready', 'posted', 'skipped'];
+  var CAL_CAP = 500;
 
   var STATUSES = [
     { id: 'planning', label: 'Planning', order: 0 },
@@ -64,8 +67,92 @@
       continueProductionId: null,
       updatedAt: 0,
       deletedProjects: {},
-      deletedProductions: {}
+      deletedProductions: {},
+      calendar: { version: 1, events: [] }
     };
+  }
+
+  function emptyCalendar() {
+    return { version: 1, events: [] };
+  }
+
+  function clampCal(s, n) {
+    return String(s == null ? '' : s).slice(0, n);
+  }
+
+  function normalizeCalendarEvent(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    var date = String(raw.date || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    var id = clampCal(raw.id, 80);
+    if (!id) return null;
+    var type = CAL_TYPES.indexOf(String(raw.type || '')) >= 0 ? raw.type : 'post';
+    var status =
+      CAL_STATUSES.indexOf(String(raw.status || '')) >= 0
+        ? raw.status
+        : type === 'idea'
+          ? 'idea'
+          : 'planned';
+    return {
+      id: id,
+      date: date,
+      type: type,
+      status: status,
+      title: clampCal(raw.title, 160) || 'Untitled',
+      projectId: raw.projectId ? clampCal(raw.projectId, 80) : null,
+      productionId: raw.productionId ? clampCal(raw.productionId, 80) : null,
+      ideaId: raw.ideaId ? clampCal(raw.ideaId, 120) : null,
+      workspaceId: raw.workspaceId ? clampCal(raw.workspaceId, 80) : null,
+      platform: clampCal(raw.platform, 40),
+      notes: clampCal(raw.notes, 2000),
+      createdAt: Number(raw.createdAt) || 0,
+      updatedAt: Number(raw.updatedAt) || 0,
+      completedAt: raw.completedAt == null || raw.completedAt === '' ? null : Number(raw.completedAt)
+    };
+  }
+
+  function normalizeCalendar(raw) {
+    var events = raw && Array.isArray(raw.events) ? raw.events : [];
+    var seen = {};
+    var out = [];
+    events.forEach(function (row) {
+      var ev = normalizeCalendarEvent(row);
+      if (!ev || seen[ev.id]) return;
+      seen[ev.id] = true;
+      out.push(ev);
+    });
+    out.sort(function (a, b) {
+      var d = String(a.date).localeCompare(String(b.date));
+      if (d) return d;
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+    return { version: 1, events: out.slice(-CAL_CAP) };
+  }
+
+  function mergeCalendars(a, b) {
+    var left = normalizeCalendar(a);
+    var right = normalizeCalendar(b);
+    var map = {};
+    left.events.forEach(function (e) {
+      map[e.id] = e;
+    });
+    right.events.forEach(function (e) {
+      var prev = map[e.id];
+      if (!prev) map[e.id] = e;
+      else map[e.id] = (e.updatedAt || 0) >= (prev.updatedAt || 0) ? e : prev;
+    });
+    return normalizeCalendar({ version: 1, events: Object.keys(map).map(function (id) { return map[id]; }) });
+  }
+
+  function activeWorkspaceId() {
+    try {
+      var ctx = workspaceCtx();
+      if (ctx && ctx.isShared && ctx.isShared() && ctx.getContext) {
+        var c = ctx.getContext();
+        return (c && (c.workspaceId || c.activeWorkspaceId)) || null;
+      }
+    } catch (e) {}
+    return null;
   }
 
   function normalizeTombstones(map) {
@@ -128,7 +215,7 @@
       overview: { summary: '', goal: '', platform: '', format: '' },
       shotList: [],
       script: { body: '', lines: [] },
-      references: { youtube: [], capcut: [], uploads: [], other: [], pinterest: [], _cache: {} },
+      references: { youtube: [], capcut: [], uploads: [], other: [], pinterest: [], trending: [], _cache: {} },
       assets: [],
       performance: {
         views: '',
@@ -232,6 +319,7 @@
     if (!Array.isArray(refs.uploads)) refs.uploads = [];
     if (!Array.isArray(refs.other)) refs.other = Array.isArray(refs.pinterest) ? refs.pinterest : [];
     if (!Array.isArray(refs.pinterest)) refs.pinterest = [];
+    if (!Array.isArray(refs.trending)) refs.trending = [];
     if (!refs._cache || typeof refs._cache !== 'object') refs._cache = {};
     return refs;
   }
@@ -241,6 +329,7 @@
     if (p === 'youtube') return 'youtube';
     if (p === 'capcut') return 'capcut';
     if (p === 'upload' || p === 'uploads') return 'uploads';
+    if (p === 'trending' || p === 'trend') return 'trending';
     return 'other';
   }
 
@@ -279,7 +368,7 @@
     var prod = ensureWorkspace(found.production);
     prod.workspace.references = ensureRefBuckets(prod.workspace.references);
     var removed = null;
-    ['youtube', 'capcut', 'uploads', 'other', 'pinterest'].forEach(function (key) {
+    ['youtube', 'capcut', 'uploads', 'other', 'pinterest', 'trending'].forEach(function (key) {
       var before = prod.workspace.references[key] || [];
       prod.workspace.references[key] = before.filter(function (r) {
         if (r.id === refId) {
@@ -305,7 +394,8 @@
       .concat(refs.capcut || [])
       .concat(refs.uploads || [])
       .concat(refs.other || [])
-      .concat(refs.pinterest || []);
+      .concat(refs.pinterest || [])
+      .concat(refs.trending || []);
   }
 
   function addAsset(productionId, item) {
@@ -590,6 +680,7 @@
           : [];
       }
       if (!Array.isArray(prod.workspace.references.pinterest)) prod.workspace.references.pinterest = [];
+      if (!Array.isArray(prod.workspace.references.trending)) prod.workspace.references.trending = [];
       if (!prod.workspace.references._cache || typeof prod.workspace.references._cache !== 'object') {
         prod.workspace.references._cache = {};
       }
@@ -615,6 +706,7 @@
     raw.version = VERSION;
     raw.deletedProjects = normalizeTombstones(raw.deletedProjects);
     raw.deletedProductions = normalizeTombstones(raw.deletedProductions);
+    raw.calendar = normalizeCalendar(raw.calendar);
     (raw.projects || []).forEach(function (p) {
       (p.productions || []).forEach(ensureWorkspace);
     });
@@ -638,6 +730,7 @@
         doc.version = VERSION;
         doc.deletedProjects = normalizeTombstones(doc.deletedProjects);
         doc.deletedProductions = normalizeTombstones(doc.deletedProductions);
+        doc.calendar = normalizeCalendar(doc.calendar);
         (doc.projects || []).forEach(function (p) {
           (p.productions || []).forEach(ensureWorkspace);
         });
@@ -686,6 +779,7 @@
     store.version = VERSION;
     store.deletedProjects = normalizeTombstones(store.deletedProjects);
     store.deletedProductions = normalizeTombstones(store.deletedProductions);
+    store.calendar = normalizeCalendar(store.calendar);
     (store.projects || []).forEach(function (p) {
       (p.productions || []).forEach(ensureWorkspace);
     });
@@ -723,6 +817,7 @@
       store.version = VERSION;
       store.deletedProjects = normalizeTombstones(store.deletedProjects);
       store.deletedProductions = normalizeTombstones(store.deletedProductions);
+      store.calendar = normalizeCalendar(store.calendar);
       (store.projects || []).forEach(function (p) {
         (p.productions || []).forEach(ensureWorkspace);
       });
@@ -773,7 +868,13 @@
             : olderWs.references && olderWs.references.uploads) || [],
           pinterest: (newerWs.references && newerWs.references.pinterest && newerWs.references.pinterest.length
             ? newerWs.references.pinterest
-            : olderWs.references && olderWs.references.pinterest) || []
+            : olderWs.references && olderWs.references.pinterest) || [],
+          other: (newerWs.references && newerWs.references.other && newerWs.references.other.length
+            ? newerWs.references.other
+            : olderWs.references && olderWs.references.other) || [],
+          trending: (newerWs.references && newerWs.references.trending && newerWs.references.trending.length
+            ? newerWs.references.trending
+            : olderWs.references && olderWs.references.trending) || []
         },
         assets: (newerWs.assets && newerWs.assets.length ? newerWs.assets : olderWs.assets) || [],
         performance: Object.assign({}, olderWs.performance || {}, newerWs.performance || {})
@@ -860,7 +961,8 @@
         ),
         updatedAt: cloud.updatedAt || now(),
         deletedProjects: deletedProjects,
-        deletedProductions: deletedProductions
+        deletedProductions: deletedProductions,
+        calendar: mergeCalendars(local.calendar, cloud.calendar)
       };
     }
     if (cloudEmpty && !localEmpty) {
@@ -877,7 +979,8 @@
         ),
         updatedAt: local.updatedAt || now(),
         deletedProjects: deletedProjects,
-        deletedProductions: deletedProductions
+        deletedProductions: deletedProductions,
+        calendar: mergeCalendars(local.calendar, cloud.calendar)
       };
     }
 
@@ -913,7 +1016,8 @@
       continueProductionId: resolveContinueId(continueId, projects, deletedProductions),
       updatedAt: Math.max(local.updatedAt || 0, cloud.updatedAt || 0),
       deletedProjects: deletedProjects,
-      deletedProductions: deletedProductions
+      deletedProductions: deletedProductions,
+      calendar: mergeCalendars(local.calendar, cloud.calendar)
     };
   }
 
@@ -2330,6 +2434,111 @@
     }
   }
 
+  function localCalDate() {
+    var tz =
+      global.PreShootEntitlements && PreShootEntitlements.tz ? PreShootEntitlements.tz() : 'UTC';
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    } catch (e) {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  function pickCalendarStore(personal) {
+    return personal ? getPersonalStore() : getStore();
+  }
+
+  function commitCalendarStore(store, personal) {
+    if (personal) return savePersonalStore(store);
+    return saveStore(store);
+  }
+
+  function listCalendarEvents(opts) {
+    opts = opts || {};
+    return normalizeCalendar(pickCalendarStore(opts.personal === true).calendar).events;
+  }
+
+  function upsertCalendarEvent(input, opts) {
+    opts = opts || {};
+    var personal = opts.personal === true;
+    if (!personal && isSharedActive()) {
+      var ctx = workspaceCtx();
+      if (ctx && ctx.canEdit && !ctx.canEdit()) return { ok: false, error: 'read_only' };
+    }
+    var store = pickCalendarStore(personal);
+    var nowTs = now();
+    var incoming = Object.assign({}, input || {});
+    if (!incoming.id) incoming.id = uid('cal');
+    if (!incoming.createdAt) incoming.createdAt = nowTs;
+    incoming.updatedAt = nowTs;
+    if (!incoming.date) incoming.date = localCalDate();
+    if (personal) incoming.workspaceId = null;
+    else if (!incoming.workspaceId) incoming.workspaceId = activeWorkspaceId();
+    var ev = normalizeCalendarEvent(incoming);
+    if (!ev) return { ok: false, error: 'invalid_event' };
+    var next = normalizeCalendar(store.calendar).events.filter(function (e) {
+      return e.id !== ev.id;
+    });
+    next.push(ev);
+    store.calendar = normalizeCalendar({ version: 1, events: next });
+    commitCalendarStore(store, personal);
+    return { ok: true, event: ev, calendar: store.calendar };
+  }
+
+  function removeCalendarEvent(eventId, opts) {
+    opts = opts || {};
+    var personal = opts.personal === true;
+    if (!personal && isSharedActive()) {
+      var ctx = workspaceCtx();
+      if (ctx && ctx.canEdit && !ctx.canEdit()) return { ok: false, error: 'read_only' };
+    }
+    var store = pickCalendarStore(personal);
+    var id = String(eventId || '');
+    store.calendar = normalizeCalendar({
+      version: 1,
+      events: normalizeCalendar(store.calendar).events.filter(function (e) {
+        return e.id !== id;
+      })
+    });
+    commitCalendarStore(store, personal);
+    return { ok: true, calendar: store.calendar };
+  }
+
+  function markCalendarPosted(eventId, opts) {
+    opts = opts || {};
+    var list = listCalendarEvents(opts);
+    var found = null;
+    list.forEach(function (e) {
+      if (e.id === eventId) found = e;
+    });
+    if (!found) return { ok: false, error: 'not_found' };
+    found.status = 'posted';
+    found.completedAt = now();
+    return upsertCalendarEvent(found, opts);
+  }
+
+  function listStudioLinkOptions() {
+    var projects = listProjects();
+    var productions = [];
+    projects.forEach(function (p) {
+      (p.productions || []).forEach(function (prod) {
+        productions.push({
+          id: prod.id,
+          name: prod.name,
+          status: prod.status,
+          projectId: p.id,
+          projectName: p.name
+        });
+      });
+    });
+    return { projects: projects, productions: productions };
+  }
+
 
   global.PreShootStudio = {
     STATUSES: STATUSES,
@@ -2340,6 +2549,14 @@
     hydrateFromPrefs: hydrateFromPrefs,
     applyCloudStudio: applyCloudStudio,
     mergeStudioStores: mergeStudioStores,
+    listCalendarEvents: listCalendarEvents,
+    upsertCalendarEvent: upsertCalendarEvent,
+    removeCalendarEvent: removeCalendarEvent,
+    markCalendarPosted: markCalendarPosted,
+    listStudioLinkOptions: listStudioLinkOptions,
+    localCalDate: localCalDate,
+    normalizeCalendar: normalizeCalendar,
+    mergeCalendars: mergeCalendars,
     exportForSync: exportForSync,
     exportForWorkspaceSync: exportForWorkspaceSync,
     hasPersistedStore: hasPersistedStore,

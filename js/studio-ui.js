@@ -668,6 +668,7 @@
       ['shots', 'Shot List', 'What to film'],
       ['script', 'Script', 'What to say'],
       ['refs', 'References', 'Inspiration'],
+      ['trending', 'Trending', 'Public trends'],
       ['assets', 'Assets', 'Files & media'],
       ['performance', 'Performance', 'Results']
     ].forEach(function (tool) {
@@ -683,6 +684,12 @@
         '</span></button>';
     });
     h += '</div></div>';
+    if (global.PreShootCalendar && PreShootCalendar.planFromProduction) {
+      h +=
+        '<button type="button" class="studio-btn" style="width:100%;margin-top:10px" onclick="PreShootCalendar.planFromProduction(\'' +
+        esc(productionId) +
+        '\')">Plan posting date</button>';
+    }
     return h;
   }
 
@@ -1135,6 +1142,32 @@
         '<button type="button" class="studio-btn" style="margin-top:8px" onclick="PreShootStudioUI.seedFromIdea(\'' +
         esc(productionId) +
         '\')">Seed from idea searches</button>';
+    }
+
+    var trendSaved = refs.trending || [];
+    if (trendSaved.length) {
+      h += renderRefCategory({
+        title: 'Saved trend references',
+        platform: 'trending',
+        productionId: productionId,
+        items: trendSaved,
+        empty: '',
+        findLabel: null,
+        broaden: false
+      });
+    }
+    return h;
+  }
+
+  function renderTrendingSection(prod, productionId) {
+    var h = '';
+    h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Trending</div>';
+    h +=
+      '<div class="pw-section-sub">Public trend cache — metadata and links only, no copyrighted media copies</div></div></div>';
+    if (global.PreShootTrending && PreShootTrending.renderStudioPanel) {
+      h += PreShootTrending.renderStudioPanel(productionId);
+    } else {
+      h += '<div class="pw-section-sub">Trending is unavailable in this session.</div>';
     }
     return h;
   }
@@ -3389,6 +3422,7 @@
     if (section === 'overview') h += renderOverviewSection(prod, project, productionId, ov, pct);
     else if (section === 'shots') h += renderShotsSection(prod, productionId, ws);
     else if (section === 'script') h += renderScriptSection(prod, productionId, ws);
+    else if (section === 'trending') h += renderTrendingSection(prod, productionId);
     else if (section === 'refs' || section === 'assets') h += renderRefsSection(prod, productionId, ws);
     else if (section === 'performance') h += renderPerformanceSection(prod, productionId, ws);
     h += '</div>';
@@ -3397,6 +3431,9 @@
 
     h += '</div>';
     root.innerHTML = h;
+    if (section === 'trending' && global.PreShootTrending && PreShootTrending.hydrateStudio) {
+      PreShootTrending.hydrateStudio(productionId);
+    }
     setTimeout(function () {
       setDirectorGoState('idle');
     }, 0);
@@ -4772,6 +4809,9 @@
     if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
       PreShootEntitlements.recordActivity('studio');
     }
+    if (global.PreShootCalendar && PreShootCalendar.indexProduction) {
+      PreShootCalendar.indexProduction(result.production, result.project);
+    }
     toast('Production created');
     openProduction(result.production.id);
   }
@@ -4970,6 +5010,9 @@
     }
     if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
       PreShootEntitlements.recordActivity('studio');
+    }
+    if (global.PreShootCalendar && PreShootCalendar.indexProduction && result.createdProduction) {
+      PreShootCalendar.indexProduction(result.production, result.project);
     }
     toast(result.createdProduction ? 'Imported to a new production' : 'Imported into “' + (result.production.name || 'production') + '”');
     openProduction(result.production.id);
