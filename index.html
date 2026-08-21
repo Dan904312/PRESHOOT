@@ -21,8 +21,26 @@ html.hero-live #cinematic-hero .hero-text-wrapper .text-track,
 html.hero-live #cinematic-hero .hero-text-wrapper .text-days,
 html.hero-live #cinematic-hero .hero-text-wrapper .text-secs{visibility:visible!important;opacity:1}
 </style>
-<title>PreShoot: AI Video Ideas for Creators</title>
-<meta name="description" content="Scan anything. Get six film-ready ideas. In thirty seconds. AI built for content creators.">
+<title>PreShoot — AI Creative Production Studio</title>
+<meta name="description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
+<link rel="canonical" href="https://preshoot.vercel.app/">
+<link rel="image_src" href="https://preshoot.vercel.app/og/preshoot-cover.jpg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PreShoot">
+<meta property="og:url" content="https://preshoot.vercel.app/">
+<meta property="og:title" content="PreShoot — AI Creative Production Studio">
+<meta property="og:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
+<meta property="og:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
+<meta property="og:image:secure_url" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1024">
+<meta property="og:image:height" content="1024">
+<meta property="og:image:alt" content="PreShoot — AI creative production studio on desktop and mobile">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PreShoot — AI Creative Production Studio">
+<meta name="twitter:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
+<meta name="twitter:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
+<meta name="twitter:image:alt" content="PreShoot — AI creative production studio on desktop and mobile">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -609,6 +627,15 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 .btn-ghost{padding:14px 28px;border-radius:var(--r-pill);border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--txt);font-size:14px;font-weight:500;backdrop-filter:blur(8px);transition:border-color .2s ease,background .2s ease,transform .35s var(--ease-out)}
 .btn-ghost:hover{border-color:var(--glass-border-hover);background:rgba(74,158,255,.08)}
 
+/* ── About the founder (compact, before footer) ── */
+.about-founder{max-width:1140px;margin:0 auto;padding:clamp(56px,8vw,88px) var(--page-x) clamp(48px,6vw,72px);box-sizing:border-box;border-top:1px solid var(--glass-border);position:relative;z-index:2}
+.about-founder-inner{max-width:560px}
+.about-founder .section-h{font-size:clamp(24px,3.4vw,36px);margin-bottom:18px}
+.about-founder p{font-size:15px;color:var(--txt-2);line-height:1.7;margin-bottom:14px}
+.about-founder-goal{font-family:var(--fd);font-size:17px;font-weight:600;letter-spacing:-.03em;color:var(--txt);line-height:1.4;margin:18px 0 22px}
+.about-founder-cta{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--accent);transition:transform .2s var(--ease),color .2s ease}
+.about-founder-cta:hover{transform:translateX(3px);color:var(--cyan)}
+
 /* ── Footer ── */
 footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;max-width:1140px;margin:0 auto;position:relative;z-index:2;box-sizing:border-box}
 .footer-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
@@ -1188,6 +1215,18 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
   </div>
 </section>
 
+<section class="about-founder" id="about" aria-labelledby="about-founder-heading">
+  <div class="about-founder-inner reveal">
+    <span class="section-eyebrow">About the founder</span>
+    <h2 class="section-h" id="about-founder-heading">Built by a creator, for creators.</h2>
+    <p>PreShoot was built by Daniel Liu, a filmmaker, photographer, creator, and entrepreneur based in Perth, Australia.</p>
+    <p>Daniel built PreShoot after experiencing the problem firsthand: having an idea for a video but spending hours figuring out the script, shots, structure, and production plan before even picking up a camera.</p>
+    <p>PreShoot is built around one goal:</p>
+    <p class="about-founder-goal">Get creators from idea to production faster.</p>
+    <a class="about-founder-cta" href="https://daniel-liu.vercel.app" target="_blank" rel="noopener noreferrer">Meet Daniel <span aria-hidden="true">→</span></a>
+  </div>
+</section>
+
 <footer>
   <div class="footer-grid">
     <div>
@@ -1201,6 +1240,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
       <a href="#hooks">100+ Hooks</a>
       <a href="#demo">Director AI</a>
       <a href="#pricing">Pricing</a>
+      <a href="#about">About</a>
       <a href="/app.html">Open app</a>
     </div>
     <div class="footer-col">
