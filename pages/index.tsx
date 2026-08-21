@@ -10,11 +10,20 @@ export default function LandingFallback() {
   return (
     <>
       <Head>
-        <title>PreShoot: AI Video Ideas for Creators</title>
+        <title>PreShoot — AI Creative Production Studio</title>
         <meta
           name="description"
-          content="Scan anything. Get six film-ready ideas. In thirty seconds."
+          content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning."
         />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://preshoot.vercel.app/" />
+        <meta property="og:title" content="PreShoot — AI Creative Production Studio" />
+        <meta property="og:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning." />
+        <meta property="og:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="PreShoot — AI Creative Production Studio" />
+        <meta name="twitter:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning." />
+        <meta name="twitter:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg" />
         <meta httpEquiv="refresh" content="0;url=/index.html" />
         <link rel="canonical" href="/" />
         <style>{`
