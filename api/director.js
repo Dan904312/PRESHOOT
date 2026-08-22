@@ -17,11 +17,15 @@ import {
   roleCanEdit
 } from '../lib/workspaces.js';
 import {
-  trackProductEventServer,
-  estimateAiCostUsd
+  trackProductEventServer
 } from '../lib/product-events.js';
 import { recordCreationActivity } from '../lib/entitlements.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
+import {
+  parseAnthropicStreamUsage,
+  normalizeAnthropicUsage,
+  estimateAiCostFromUsage
+} from '../lib/ai-pricing.js';
 
 async function logAiRequest(userId, meta) {
   try {
@@ -426,10 +430,17 @@ export default async function handler(req, res) {
       res.setHeader('X-Accel-Buffering', 'no');
       res.status(response.status);
       const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let tail = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         res.write(value);
+        try {
+          tail = (tail + decoder.decode(value, { stream: true })).slice(-8000);
+        } catch (e) {
+          /* ignore */
+        }
       }
       if (response.ok) {
         try {
@@ -442,11 +453,16 @@ export default async function handler(req, res) {
         } catch (e) {
           console.error('streak_record_failed', 'director', e && e.message);
         }
+        const streamUsage = parseAnthropicStreamUsage(tail);
         const recorded = await recordUsageEvent({
           user_id: auth.user.id,
           event_type: 'director_request',
           provider: 'anthropic',
           model: anthropicBody.model,
+          input_units: streamUsage.input_tokens,
+          output_units: streamUsage.output_tokens,
+          cache_creation_units: streamUsage.cache_creation_tokens,
+          cache_read_units: streamUsage.cache_read_tokens,
           status: 'success',
           metadata: { stream: true, workspace: workspaceId ? 'shared' : 'personal' }
         });
@@ -473,15 +489,13 @@ export default async function handler(req, res) {
         content: data && data.content
       });
     }
-    const usage = (data && data.usage) || {};
-    const inTok = usage.input_tokens || 0;
-    const outTok = usage.output_tokens || 0;
+    const usage = normalizeAnthropicUsage((data && data.usage) || {});
     logAiRequest(auth.user.id, {
       endpoint: 'director',
       model: anthropicBody.model,
-      input_tokens: inTok,
-      output_tokens: outTok,
-      cost_usd: estimateAiCostUsd(anthropicBody.model, inTok, outTok),
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+      cost_usd: estimateAiCostFromUsage(anthropicBody.model, usage),
       workspace: workspaceId ? 'shared' : 'personal'
     });
     try {
@@ -499,8 +513,10 @@ export default async function handler(req, res) {
       event_type: 'director_request',
       provider: 'anthropic',
       model: anthropicBody.model,
-      input_units: inTok,
-      output_units: outTok,
+      input_units: usage.input_tokens,
+      output_units: usage.output_tokens,
+      cache_creation_units: usage.cache_creation_tokens,
+      cache_read_units: usage.cache_read_tokens,
       status: 'success',
       metadata: { workspace: workspaceId ? 'shared' : 'personal' }
     });

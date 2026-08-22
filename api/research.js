@@ -11,8 +11,9 @@ import {
   sendRateLimitResponse,
   serviceHeaders
 } from '../lib/security.js';
-import { trackProductEventServer, estimateAiCostUsd } from '../lib/product-events.js';
+import { trackProductEventServer } from '../lib/product-events.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
+import { normalizeAnthropicUsage, estimateAiCostFromUsage } from '../lib/ai-pricing.js';
 import { getTrendDataset, memoryGet, memorySet, sanitizeRegion } from '../lib/trends.js';
 
 const MAX_ITEMS = 5;
@@ -100,23 +101,23 @@ async function callClaude(system, user, maxTokens) {
   }
   const data = await r.json();
   if (_aiLogUserId) {
-    const usage = data.usage || {};
-    const inTok = usage.input_tokens || 0;
-    const outTok = usage.output_tokens || 0;
+    const usage = normalizeAnthropicUsage(data.usage || {});
     trackProductEventServer(_aiLogUserId, 'ai_request', {
       endpoint: 'research',
       model,
-      input_tokens: inTok,
-      output_tokens: outTok,
-      cost_usd: estimateAiCostUsd(model, inTok, outTok)
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+      cost_usd: estimateAiCostFromUsage(model, usage)
     }).catch(function () {});
     await recordUsageEvent({
       user_id: _aiLogUserId,
       event_type: 'research',
       provider: 'anthropic',
       model,
-      input_units: inTok,
-      output_units: outTok,
+      input_units: usage.input_tokens,
+      output_units: usage.output_tokens,
+      cache_creation_units: usage.cache_creation_tokens,
+      cache_read_units: usage.cache_read_tokens,
       status: 'success'
     });
   }

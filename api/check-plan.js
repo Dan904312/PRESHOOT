@@ -23,6 +23,7 @@ import {
   grantOnboardingReward,
   recordCreationActivity,
   sanitizeTimezone,
+  persistUserTimezone,
   STREAK_KINDS
 } from '../lib/entitlements.js';
 
@@ -71,6 +72,7 @@ async function handlePlan(req, res, auth) {
   }
 
   try {
+    await persistUserTimezone(auth.user.id, clientTimezone(req));
     const ent = await loadEntitlement(auth.user.id, auth.user.email, getSubscription);
     return res.status(200).json(ent);
   } catch (err) {
@@ -118,6 +120,14 @@ async function handleReward(req, res, auth) {
     });
   }
 
+  if (granted.granted) {
+    try {
+      await recordCreationActivity(auth.user.id, 'onboarding', clientTimezone(req));
+    } catch (e) {
+      console.error('streak_record_failed', 'onboarding', e && e.message);
+    }
+  }
+
   const ent = await loadEntitlement(auth.user.id, auth.user.email, getSubscription);
   if (granted.granted) {
     trackProductEventServer(auth.user.id, 'onboarding_completed', {
@@ -135,7 +145,7 @@ async function handleReward(req, res, auth) {
 async function handleActivity(req, res, auth) {
   const rl = await gateRouteRateLimit(req, {
     route: 'creation-activity',
-    max: 20,
+    max: 40,
     windowMs: 60 * 1000,
     userId: auth.error ? null : auth.user.id
   });
@@ -155,10 +165,17 @@ async function handleActivity(req, res, auth) {
     return res.status(400).json({ ok: false, error: 'invalid_kind' });
   }
 
-  const result = await recordCreationActivity(auth.user.id, kind, clientTimezone(req));
+  const workspaceId =
+    (req.body && (req.body.workspaceId || req.body.workspace_id)) || null;
+  const sub = await getSubscription(auth.user.id, auth.user.email);
+  const result = await recordCreationActivity(auth.user.id, kind, clientTimezone(req), {
+    workspaceId,
+    plan: sub && sub.plan === 'pro' ? 'pro' : 'free'
+  });
   if (!result || result.ok === false) {
     return res.status(200).json({ ok: false, error: (result && result.error) || 'activity_failed' });
   }
+  const ent = await loadEntitlement(auth.user.id, auth.user.email, getSubscription);
   return res.status(200).json({
     ok: true,
     incremented: result.incremented === true,
@@ -166,7 +183,10 @@ async function handleActivity(req, res, auth) {
     longest: result.longest,
     lastActiveDate: result.last_active_date,
     days: result.days,
-    milestone: result.milestone || null
+    milestone: result.milestone || null,
+    todayComplete: result.todayComplete === true,
+    grants: result.grants || [],
+    entitlement: ent
   });
 }
 

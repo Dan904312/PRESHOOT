@@ -8,14 +8,18 @@ import {
   sanitizeImage
 } from '../lib/security.js';
 import {
-  trackProductEventServer,
-  estimateAiCostUsd
+  trackProductEventServer
 } from '../lib/product-events.js';
 import {
   refundOnboardingScan,
   recordCreationActivity
 } from '../lib/entitlements.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
+import {
+  parseAnthropicStreamUsage,
+  normalizeAnthropicUsage,
+  estimateAiCostFromUsage
+} from '../lib/ai-pricing.js';
 
 const ALLOWED_MODELS = new Set(['claude-sonnet-4-6', 'claude-haiku-4-5-20251001']);
 
@@ -133,20 +137,34 @@ export default async function handler(req, res) {
       res.setHeader('X-Accel-Buffering', 'no');
       res.status(response.status);
       const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let tail = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         res.write(value);
+        try {
+          tail = (tail + decoder.decode(value, { stream: true })).slice(-8000);
+        } catch (e) {
+          /* ignore decode errors */
+        }
       }
       if (response.ok) {
-        recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
-          function () {}
-        );
+        try {
+          await recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone);
+        } catch (e) {
+          console.error('streak_record_failed', 'scan', e && e.message);
+        }
+        const streamUsage = parseAnthropicStreamUsage(tail);
         const recorded = await recordUsageEvent({
           user_id: auth.user.id,
           event_type: 'scan',
           provider: 'anthropic',
           model: safe.model,
+          input_units: streamUsage.input_tokens,
+          output_units: streamUsage.output_tokens,
+          cache_creation_units: streamUsage.cache_creation_tokens,
+          cache_read_units: streamUsage.cache_read_tokens,
           status: 'success',
           metadata: { stream: true }
         });
@@ -160,34 +178,39 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (response.ok && data && data.usage) {
-      const inTok = data.usage.input_tokens || 0;
-      const outTok = data.usage.output_tokens || 0;
+      const usage = normalizeAnthropicUsage(data.usage);
       trackProductEventServer(auth.user.id, 'ai_request', {
         endpoint: 'chat',
         model: safe.model,
-        input_tokens: inTok,
-        output_tokens: outTok,
-        cost_usd: estimateAiCostUsd(safe.model, inTok, outTok)
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
+        cost_usd: estimateAiCostFromUsage(safe.model, usage)
       }).catch(function () {});
-      recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
-        function () {}
-      );
+      try {
+        await recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone);
+      } catch (e) {
+        console.error('streak_record_failed', 'scan', e && e.message);
+      }
       const recorded = await recordUsageEvent({
         user_id: auth.user.id,
         event_type: 'scan',
         provider: 'anthropic',
         model: safe.model,
-        input_units: inTok,
-        output_units: outTok,
+        input_units: usage.input_tokens,
+        output_units: usage.output_tokens,
+        cache_creation_units: usage.cache_creation_tokens,
+        cache_read_units: usage.cache_read_tokens,
         status: 'success'
       });
       if (!recorded || !recorded.ok) {
         console.error('scan_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
       }
     } else if (response.ok) {
-      recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone).catch(
-        function () {}
-      );
+      try {
+        await recordCreationActivity(auth.user.id, 'scan', req.body && req.body.timezone);
+      } catch (e) {
+        console.error('streak_record_failed', 'scan', e && e.message);
+      }
       const recorded = await recordUsageEvent({
         user_id: auth.user.id,
         event_type: 'scan',
