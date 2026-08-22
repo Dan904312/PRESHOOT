@@ -1268,10 +1268,11 @@
     state.switchError = null;
     state.switchTarget = null;
     syncToS();
+    /* Paint the new Studio while #studio-root is still hidden, then reveal. */
+    refreshStudioUI();
     if (global.PreShootWorkspaceUI && global.PreShootWorkspaceUI.hideSwitchOverlay) {
       global.PreShootWorkspaceUI.hideSwitchOverlay();
     }
-    refreshStudioUI();
     return true;
   }
 

@@ -50,7 +50,11 @@
     var root = document.getElementById('studio-root');
     var name = (meta && meta.name) || 'Workspace';
     var kind = (meta && meta.kind) || 'shared';
-    if (root) root.classList.add('is-ws-switching');
+    if (root) {
+      root.classList.add('is-ws-switching');
+      root.setAttribute('aria-busy', 'true');
+      root.innerHTML = '';
+    }
     if (!overlay) return;
     overlay.hidden = false;
     overlay.innerHTML =
@@ -83,13 +87,19 @@
       overlay.hidden = true;
       overlay.innerHTML = '';
     }
-    if (root) root.classList.remove('is-ws-switching');
+    if (root) {
+      root.classList.remove('is-ws-switching');
+      root.removeAttribute('aria-busy');
+    }
   }
 
   function showSwitchError(err, meta) {
     var overlay = document.getElementById('ws-switch-overlay');
     var root = document.getElementById('studio-root');
-    if (root) root.classList.add('is-ws-switching');
+    if (root) {
+      root.classList.add('is-ws-switching');
+      root.setAttribute('aria-busy', 'true');
+    }
     if (!overlay) return;
     overlay.hidden = false;
     var title = (err && err.title) || 'Could not open workspace';
@@ -268,11 +278,80 @@
     );
   }
 
+  function studioMoreItemsHtml(extra) {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    var h = '';
+    h +=
+      '<button type="button" onclick="PreShootWorkspaceUI.openSwitcher();PreShootWorkspaceUI.closeStudioMenu()">Switch workspace</button>';
+    if (ctx && ctx.isShared) {
+      h +=
+        '<button type="button" onclick="PreShootWorkspaceUI.openMembers();PreShootWorkspaceUI.closeStudioMenu()">Members</button>';
+      h +=
+        '<button type="button" onclick="PreShootWorkspaceUI.openActivity();PreShootWorkspaceUI.closeStudioMenu()">Activity</button>';
+      h +=
+        '<button type="button" onclick="PreShootWorkspaceComments.openNotifications();PreShootWorkspaceUI.closeStudioMenu()">Notifications' +
+        (ctx.unreadNotifications ? ' · ' + ctx.unreadNotifications : '') +
+        '</button>';
+      h +=
+        '<button type="button" onclick="PreShootWorkspaceUI.openHistory();PreShootWorkspaceUI.closeStudioMenu()">History</button>';
+      if (ctx.remoteUpdate) {
+        h +=
+          '<button type="button" onclick="PreShootWorkspaceUI.reviewRemoteUpdate();PreShootWorkspaceUI.closeStudioMenu()">Review update</button>';
+      }
+      if (
+        ctx.saveStatus === 'dirty' ||
+        ctx.saveStatus === 'error' ||
+        ctx.saveStatus === 'offline' ||
+        ctx.sharedDirty
+      ) {
+        h +=
+          '<button type="button" onclick="PreShootWorkspaceUI.saveShared();PreShootWorkspaceUI.closeStudioMenu()">Save</button>';
+      }
+    }
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.openSearch();PreShootWorkspaceUI.closeStudioMenu()">Search</button>';
+    if (extra) h += extra;
+    return h;
+  }
+
+  function studioMenuButtonHtml(extra) {
+    return (
+      '<div class="studio-more-wrap">' +
+      '<button type="button" class="studio-icon-btn studio-more-btn" aria-label="Studio menu" aria-haspopup="menu" onclick="PreShootWorkspaceUI.toggleStudioMenu(event)">' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg>' +
+      '</button>' +
+      '<div class="st-overflow-menu studio-more-menu" hidden role="menu">' +
+      studioMoreItemsHtml(extra || '') +
+      '</div></div>'
+    );
+  }
+
+  function closeStudioMenu() {
+    var menus = document.querySelectorAll('.studio-more-menu');
+    for (var i = 0; i < menus.length; i++) menus[i].hidden = true;
+  }
+
+  function toggleStudioMenu(ev) {
+    if (ev) ev.stopPropagation();
+    var wrap = ev && ev.currentTarget && ev.currentTarget.closest
+      ? ev.currentTarget.closest('.studio-more-wrap')
+      : null;
+    var menu = wrap ? wrap.querySelector('.studio-more-menu') : null;
+    if (!menu) return;
+    var open = menu.hidden;
+    closeStudioMenu();
+    menu.hidden = !open;
+  }
+
   function studioHeaderActionsHtml() {
     var ctx = Ctx() ? Ctx().getContext() : null;
     var canEdit = !ctx || !ctx.isShared || ctx.canEdit;
     var h = '';
+    h += '<div class="studio-hd-primary">';
     h += workspaceSwitcherButtonHtml();
+    h += '</div>';
+    h += '<div class="studio-hd-tools">';
+    h += '<div class="studio-hd-desktop">';
     if (ctx && ctx.isShared) {
       h += presenceChipHtml();
       h += saveStatusIndicatorHtml();
@@ -305,6 +384,8 @@
     }
     h +=
       '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
+    h += '</div>';
+    h += studioMenuButtonHtml();
     if (canEdit) {
       h +=
         '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
@@ -312,6 +393,7 @@
       h +=
         '<span class="ws-readonly-pill" title="Commenter and viewer roles are read-only">Read only</span>';
     }
+    h += '</div>';
     return h;
   }
 
@@ -1371,9 +1453,23 @@
     } catch (e) {}
   }
 
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener(
+      'click',
+      function (e) {
+        if (e.target && e.target.closest && e.target.closest('.studio-more-wrap')) return;
+        closeStudioMenu();
+      },
+      false
+    );
+  }
+
   global.PreShootWorkspaceUI = {
     workspaceSwitcherButtonHtml: workspaceSwitcherButtonHtml,
     studioHeaderActionsHtml: studioHeaderActionsHtml,
+    studioMenuButtonHtml: studioMenuButtonHtml,
+    toggleStudioMenu: toggleStudioMenu,
+    closeStudioMenu: closeStudioMenu,
     saveStatusIndicatorHtml: saveStatusIndicatorHtml,
     presenceChipHtml: presenceChipHtml,
     productionPresenceHtml: productionPresenceHtml,

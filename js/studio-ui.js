@@ -324,6 +324,8 @@
       ' production' +
       (prods.length === 1 ? '' : 's') +
       '</div></div>';
+    h += '<div class="studio-hd-tools">';
+    h += '<div class="studio-hd-desktop">';
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.workspaceSwitcherButtonHtml) {
       h += PreShootWorkspaceUI.workspaceSwitcherButtonHtml();
     }
@@ -335,10 +337,15 @@
       h +=
         '<button type="button" class="studio-btn ghost sm ws-remote-btn" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button>';
     }
+    h += '</div>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.studioMenuButtonHtml) {
+      h += PreShootWorkspaceUI.studioMenuButtonHtml();
+    }
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProjectMenu(\'' +
       esc(projectId) +
       '\')" aria-label="Project options">⋯</button>';
+    h += '</div>';
     h += '</div>';
 
     h += '<div id="st-project-menu" class="st-overflow-menu" hidden>';
@@ -902,7 +909,7 @@
       '\')" title="Expand script editor" aria-label="Expand script editor">Write Script</button>';
     if (canEdit) {
       h +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.generateScript(\'' +
+        '<button type="button" class="studio-btn primary sm" onclick="PreShootStudioUI.generateScript(\'' +
         esc(productionId) +
         '\')">Generate Script</button>';
     }
@@ -3362,6 +3369,8 @@
       '% · Health ' +
       healthScore +
       '%</div></div>';
+    h += '<div class="studio-hd-tools">';
+    h += '<div class="studio-hd-desktop">';
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.workspaceSwitcherButtonHtml) {
       h += PreShootWorkspaceUI.workspaceSwitcherButtonHtml();
     }
@@ -3373,10 +3382,15 @@
       h +=
         '<button type="button" class="studio-btn ghost sm ws-remote-btn" onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review update</button>';
     }
+    h += '</div>';
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.studioMenuButtonHtml) {
+      h += PreShootWorkspaceUI.studioMenuButtonHtml();
+    }
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProductionMenu(\'' +
       esc(productionId) +
       '\')" aria-label="Production options">⋯</button>';
+    h += '</div>';
     h += '</div>';
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.productionActivityHtml) {
       h += PreShootWorkspaceUI.productionActivityHtml(productionId);
@@ -4297,7 +4311,7 @@
 
   function proposeDirectorAction(action, payload, meta) {
     meta = meta || {};
-    /* Prefer in-page staged action + green Go when Studio command bar is present */
+    /* Prefer in-page staged action + accent Go when Studio command bar is present */
     if (
       global.S &&
       global.S.tab === 'studio' &&

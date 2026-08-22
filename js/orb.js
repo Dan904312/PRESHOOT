@@ -133,7 +133,7 @@ var FRAG = /* glsl */ `
 
     vec3 col = mix(color1, color2, cl);
     col = mix(color3, col, v0);
-    col = (col + v1) * v2 * v3;
+    col = (col + v1 * color1) * v2 * v3;
     col = clamp(col, 0.0, 1.0);
 
     return extractAlpha(col);
@@ -174,17 +174,51 @@ function hexToRgb(hex) {
   ];
 }
 
-function mixRgb(a, b, t) {
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+function rgbToHsl(r, g, b) {
+  var max = Math.max(r, g, b);
+  var min = Math.min(r, g, b);
+  var h = 0;
+  var s = 0;
+  var l = (max + min) / 2;
+  var d = max - min;
+  if (d > 1e-6) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return [h, s, l];
+}
+
+function hue2rgb(p, q, t) {
+  if (t < 0) t += 1;
+  if (t > 1) t -= 1;
+  if (t < 1 / 6) return p + (q - p) * 6 * t;
+  if (t < 1 / 2) return q;
+  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+  return p;
+}
+
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  if (s < 0.04) return [l, l, l];
+  var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  var p = 2 * l - q;
+  var hn = h / 360;
+  return [hue2rgb(p, q, hn + 1 / 3), hue2rgb(p, q, hn), hue2rgb(p, q, hn - 1 / 3)];
 }
 
 function colorsFromAccent(hex) {
   var c = hexToRgb(hex);
-  return {
-    c1: c,
-    c2: mixRgb(c, [1, 1, 1], 0.32),
-    c3: mixRgb(c, [0.04, 0.04, 0.08], 0.55)
-  };
+  var hsl = rgbToHsl(c[0], c[1], c[2]);
+  var sat = Math.min(1, Math.max(0.42, hsl[1] * 1.08));
+  var light = Math.min(0.72, Math.max(0.38, hsl[2]));
+  var c1 = hslToRgb(hsl[0], sat, light);
+  var c2 = hslToRgb(hsl[0] + 28, Math.min(1, sat * 0.92), Math.min(0.82, light + 0.14));
+  var c3 = hslToRgb(hsl[0] - 22, Math.min(1, sat * 1.05), Math.max(0.16, light * 0.45));
+  return { c1: c1, c2: c2, c3: c3 };
 }
 
 var lastScanAccent = '#4A9EFF';
@@ -406,7 +440,8 @@ function mountScanOrb() {
     scanOrbInstance = null;
   }
 
-  var accent = (typeof S !== 'undefined' && S.accent) ? S.accent : lastScanAccent;
+  var fromWindow = typeof window !== 'undefined' && window.S && window.S.accent;
+  var accent = fromWindow || lastScanAccent || '#4A9EFF';
   lastScanAccent = accent;
   scanOrbInstance = createOrb(mount, {
     accent: accent,
