@@ -63,8 +63,8 @@
 <script src="/js/studio-sync.js?v=320"></script>
 <script src="/js/workspace-sync.js?v=361"></script>
 <script src="/js/workspace-changes.js?v=361"></script>
-<script src="/js/workspace-context.js?v=362"></script>
-<script src="/js/workspace-ui.js?v=362"></script>
+<script src="/js/workspace-context.js?v=363"></script>
+<script src="/js/workspace-ui.js?v=363"></script>
 <script src="/js/workspace-realtime.js?v=360"></script>
 <script src="/js/workspace-comments.js?v=360"></script>
 <script src="/js/analytics.js?v=360"></script>
@@ -73,12 +73,12 @@
 <script src="/js/calendar.js?v=382"></script>
 <script src="/js/trending.js?v=381"></script>
 <script src="/js/director-voice.js?v=360"></script>
-<script src="/js/studio-ui.js?v=383"></script>
+<script src="/js/studio-ui.js?v=384"></script>
 <script src="/js/studio-export.js?v=383"></script>
 <script src="/js/studio-keyboard.js?v=302"></script>
 <script src="/js/director-os.js?v=383"></script>
 <script src="/js/onboard.js"></script>
-<script type="module" src="/js/orb.js"></script>
+<script type="module" src="/js/orb.js?v=384"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -94,6 +94,7 @@
   --accent-hover:#3b8eef;--accent-soft:rgba(74,158,255,.12);
   --accent-border:rgba(74,158,255,.45);--accent-glow:rgba(74,158,255,.28);
   --accent-contrast:#000000;--accent-dim:var(--accent-soft);
+  --accent-text:#4A9EFF;
   --on-accent:var(--accent-contrast);
   /* Semantic neutrals (no decorative colour) */
   --danger:#ffffff;--ok:#ffffff;--warn:#ffffff;
@@ -293,8 +294,9 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .home-logo span{color:var(--text);background:none;-webkit-text-fill-color:var(--text)}
 .streak-pill{display:flex;align-items:center;gap:5px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:500;color:var(--text2);backdrop-filter:none}
 .scan-zone-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--home-gap,12px);width:100%;min-height:0}.scan-zone-foot{display:flex;flex-direction:column;align-items:center;gap:var(--home-gap,12px);width:100%;flex-shrink:0;padding-bottom:2px}.scan-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:var(--home-gap-sm,8px) var(--pad-x) 0;gap:var(--home-gap,12px);position:relative;z-index:1;min-height:0;width:100%;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-.scan-ring{width:clamp(128px,34vw,176px);height:clamp(128px,34vw,176px);flex-shrink:0;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;animation:none;cursor:pointer;box-shadow:none;color:#fff;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent}.scan-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;z-index:0}.scan-orb canvas{display:block;width:100%!important;height:100%!important}.scan-ring-cam,.scan-ring .ico-svg{position:relative;z-index:1;width:32%;height:32%;color:#fff!important;stroke:#fff!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none}
-.scan-ring:active{transform:scale(.92)!important;box-shadow:none}
+.scan-ring{width:clamp(128px,34vw,176px);height:clamp(128px,34vw,176px);flex-shrink:0;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;animation:none;cursor:pointer;box-shadow:none;color:#fff;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent}.scan-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;z-index:0;background:radial-gradient(circle at 38% 34%,var(--accent),var(--accent-hover) 52%,transparent 74%)}.scan-orb canvas{display:block;width:100%!important;height:100%!important}.scan-ring-cam,.scan-ring .ico-svg{position:relative;z-index:1;width:32%;height:32%;color:#fff!important;stroke:#fff!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none}
+.scan-ring.is-busy{pointer-events:none;opacity:.7}
+.fmt-go-btn.is-busy{pointer-events:none;opacity:.55}
 .scan-lbl{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:-.5px;text-align:center;color:var(--text);margin-bottom:2px}
 .usage-bar{display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--text);box-shadow:var(--sh);backdrop-filter:blur(12px);width:100%;max-width:var(--home-card-max);box-sizing:border-box;flex-shrink:0}
 .director-card{width:100%;max-width:var(--home-card-max);background:rgba(255,255,255,.04);border:1.5px solid var(--accent-dim);border-radius:18px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;backdrop-filter:blur(12px);transition:transform .15s,border-color .2s ease;flex-shrink:0;box-sizing:border-box}
@@ -831,9 +833,9 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
   width:36px;height:36px;border-radius:8px;
   background:var(--s1);border:1px solid var(--border);color:var(--text);
 }
-/* Primary CTA — white on black (understated); accent reserved for selected/focus */
+/* Primary CTA — user's accent. Secondary stays surface. */
 .rescan-btn,.fmt-go-btn,.gen-shotlist-btn,.pw-cta,.ob-btn-primary,.ob-nav-next,.auth-btn.primary,.btn-primary{
-  background:var(--text)!important;color:var(--bg)!important;border:1px solid var(--text)!important;
+  background:var(--accent)!important;color:var(--on-accent)!important;border:1px solid var(--accent)!important;
   box-shadow:none!important;font-family:var(--fd)!important;font-weight:600!important;
 }
 .rescan-btn{padding:9px 14px;font-size:12px;border-radius:8px}
@@ -970,7 +972,7 @@ html.theme-light .ic.saved,html.theme-light .card-select.selected,html.theme-lig
 }
 html.theme-light .director-card,html.theme-light .prof-hero{background:var(--s1)!important}
 html.theme-light .rescan-btn,html.theme-light .fmt-go-btn,html.theme-light .gen-shotlist-btn,html.theme-light .ob-btn-primary,html.theme-light .ob-nav-next{
-  background:#000!important;color:#fff!important;border-color:#000!important;
+  background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important;
 }
 html.theme-light #pw-modal .pw-cta{
   background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important;
@@ -1033,6 +1035,7 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .studio-btn.primary{background:var(--accent);color:var(--accent-contrast);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-border)}
 .studio-btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
 .studio-btn.secondary,.studio-btn.ghost{background:var(--s2);color:var(--text);border-color:var(--border2)}
+.studio-btn.tertiary,.studio-btn.link{background:transparent;color:var(--accent-text);border-color:transparent;box-shadow:none;font-weight:600}
 .studio-btn.danger,.studio-btn.ghost.danger{background:transparent;color:#e5484d;border-color:rgba(229,72,77,.5)}
 .studio-btn.sm{padding:7px 10px;font-size:12px;border-radius:10px}
 .studio-btn.block{width:100%;margin-top:8px}
@@ -1141,6 +1144,12 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 
 .studio-eyebrow{font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;margin-bottom:4px}
 .studio-hd-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.studio-hd-primary{min-width:0;flex:1}
+.studio-hd-tools{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.studio-hd-desktop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.studio-more-wrap{position:relative;flex-shrink:0}
+.studio-more-btn{display:none}
+.studio-more-menu{right:0;left:auto;margin-top:8px;min-width:200px;z-index:40}
 .ws-switch-btn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:8px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;text-align:left;min-width:120px;max-width:180px}
 .ws-switch-btn-kicker{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);font-family:var(--fb)}
 .ws-switch-btn-name{font-size:13px;font-weight:700;font-family:var(--fd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:156px}
@@ -1303,6 +1312,43 @@ select option,
   .ws-switch-btn{flex:1;max-width:none}
   .ws-member-actions{flex-direction:column;align-items:stretch}
 }
+@media (max-width:768px){
+  #screen-studio,.studio-shell,.studio-hd,.studio-detail-hd{overflow-x:hidden}
+  .studio-hd,.studio-detail-hd{flex-wrap:wrap;gap:10px;align-items:center}
+  .studio-hd-text{flex:1 1 140px;min-width:0}
+  .studio-title{font-size:clamp(20px,6.4vw,28px);overflow:hidden;text-overflow:ellipsis}
+  .studio-sub{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .studio-hd-actions,.studio-hd-tools{width:100%;justify-content:flex-start;flex-wrap:nowrap}
+  .studio-hd-primary{flex:1;min-width:0}
+  .ws-switch-btn{min-width:0;max-width:100%;width:100%;padding:8px 10px}
+  .ws-switch-btn-name,.ws-switch-btn-sub{max-width:100%}
+  .studio-hd-desktop{display:none!important}
+  .studio-more-btn{display:flex!important}
+  .studio-hd-tools .studio-btn.primary{flex:0 0 auto;white-space:nowrap}
+  .pw-section-actions{justify-content:flex-start!important}
+  .pw-section-hd{flex-wrap:wrap}
+  .st-two-col,.pw-overview-top{grid-template-columns:1fr;flex-direction:column}
+  .modal-sheet{max-width:100%}
+}
+@media (max-width:430px){
+  .studio-hd-tools{gap:6px}
+  .studio-btn.primary{padding:10px 12px;font-size:12px}
+  .st-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}
+  .st-tab{width:100%;max-width:none;white-space:normal;text-align:center;padding:8px 6px}
+  .pw-section-actions .studio-btn{flex:1 1 calc(50% - 8px);min-width:0}
+  .ws-presence-chip{display:none}
+  #load-ov{padding:16px}
+}
+@media (max-width:375px){
+  .studio-title{font-size:20px}
+  .st-tabs{grid-template-columns:1fr 1fr}
+  .fmt-go-btn{margin-left:12px;margin-right:12px;width:calc(100% - 24px)}
+}
+@media (max-width:320px){
+  .studio-hd,.studio-detail-hd{padding-left:12px;padding-right:12px;gap:8px}
+  .studio-btn.primary{padding:9px 10px}
+  .st-tab{font-size:11px;padding:8px 4px}
+}
 .st-stage-rail{display:flex;gap:4px;padding:0 20px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .st-stage-rail::-webkit-scrollbar{display:none}
 .st-stage{flex:0 0 auto;min-width:72px;appearance:none;border:none;background:transparent;color:var(--text3);padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px}
@@ -1317,7 +1363,7 @@ select option,
 .st-tabs{display:flex;gap:6px;padding:4px 20px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .st-tabs::-webkit-scrollbar{display:none}
 .st-tab{appearance:none;border:1px solid var(--border);background:var(--s2);color:var(--text2);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;font-family:var(--fb);cursor:pointer;white-space:nowrap}
-.st-tab.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.st-tab.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .st-section{padding-bottom:4px}
 .st-two-col{display:grid;grid-template-columns:1fr;gap:10px}
 .st-script{min-height:220px}
@@ -1433,9 +1479,9 @@ select option,
 .dir-cmd-mic{width:34px;padding:0}
 .dir-cmd-mic.listening{color:var(--text);border-color:rgba(255,255,255,.28);background:var(--s1)}
 .dir-cmd-go:disabled{opacity:.38;cursor:default}
-.dir-cmd-go.ready{background:#1f9d5a;border-color:#1f9d5a;color:#fff;opacity:1}
+.dir-cmd-go.ready{background:var(--accent);border-color:var(--accent);color:var(--on-accent);opacity:1}
 .dir-cmd-go.executing{background:var(--s2);border-color:var(--border);color:var(--text3);opacity:1}
-.dir-cmd-go.done{background:rgba(31,157,90,.18);border-color:rgba(31,157,90,.35);color:#7ddea8}
+.dir-cmd-go.done{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent)}
 .dir-cmd-go:active:not(:disabled),.dir-cmd-mic:active{transform:scale(.96)}
 .dir-action-card{padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--s2)}
 .dir-action-card.flat{border:0;background:transparent;padding:0}
@@ -1926,7 +1972,7 @@ html.dir-voice-active{overflow:hidden}
  <div class="scan-zone-foot"> <div id="continue-working" class="continue-working" style="display:none"></div> <div id="home-smart" class="home-smart" style="display:none"></div> <div class="director-card" onclick="S.activeProductionId=null;window.__preshootDirectorProduction=null;openDirector()" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"> <div class="director-card-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg></div> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:var(--accent);color:var(--on-accent);padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div> <div style="font-size:11px;color:var(--text2);line-height:1.4">Your AI assistant for filming, editing and beyond</div> </div> <div style="color:var(--text3);display:flex;align-items:center" data-ico="chevronRight" data-ico-size="16"></div> </div> </div> </div>
  </div>
 </div> <!-- ═══ RESULTS ═══ -->
-<div class="screen" id="screen-results"> <div class="res-hd"> <div class="back-btn" onclick="goTab('home')" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <div style="flex:1;min-width:0"> <div class="res-title" id="res-title">Your ideas</div> <div class="res-sub" id="res-sub">6 ideas generated</div> </div> <button class="rescan-btn" onclick="openPicker()">Rescan</button> </div> <div class="scene-strip" id="scene-strip"><div style="width:100%;height:100%;background:var(--s2)"></div></div> <div class="sb"> <div class="ideas-list" id="ideas-list"></div> <button onclick="openShotlistDirector()" style="margin:0 16px 20px;padding:14px;background:var(--text);color:var(--bg);border-radius:10px;font-size:15px;font-weight:600;box-shadow:none;border:1px solid var(--text);font-family:var(--fd)"> <span><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg> Generate Shotlist</span> <span id="shotlist-lock" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:8px;font-weight:800">PRO</span> </button> </div>
+<div class="screen" id="screen-results"> <div class="res-hd"> <div class="back-btn" onclick="goTab('home')" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <div style="flex:1;min-width:0"> <div class="res-title" id="res-title">Your ideas</div> <div class="res-sub" id="res-sub">6 ideas generated</div> </div> <button class="rescan-btn" onclick="openPicker()">Rescan</button> </div> <div class="scene-strip" id="scene-strip"><div style="width:100%;height:100%;background:var(--s2)"></div></div> <div class="sb"> <div class="ideas-list" id="ideas-list"></div> <button onclick="openShotlistDirector()" class="gen-shotlist-btn" style="margin:0 16px 20px;padding:14px;border-radius:10px;font-size:15px;font-weight:600;font-family:var(--fd);width:calc(100% - 32px)"> <span><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg> Generate Shotlist</span> <span id="shotlist-lock" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:8px;font-weight:800">PRO</span> </button> </div>
 </div> <!-- ═══ LIBRARY ═══ -->
 <div class="screen" id="screen-library"> <div class="lib-hd"><div class="lib-title">Library</div><div class="lib-count" id="lib-count">0</div></div> <div class="lib-tabs"><button class="lib-tab active" onclick="libTab('history',this)">History</button> <button class="lib-tab" onclick="libTab('saved',this)">Saved</button> <button class="lib-tab" onclick="libTab('trending',this)">Trending</button> </div> <div class="sb"><div class="lib-grid" id="lib-grid"></div></div>
 </div>
@@ -2112,7 +2158,7 @@ function closePicker(e) { if (e && e.target !== document.getElementById('picker-
 }
 function pickSrc(src) { closePicker(); setTimeout(function(){ var el=document.getElementById(src==='cam'?'cam-in':'gal-in'); el.value=''; el.click(); },400);
 } /* ── IMAGE ── */
-function handleImg(input) { if (!input.files||!input.files[0]) return; var file = input.files[0]; console.log('PreShoot: file',file.type,file.size); showToast('Processing...',''); var reader = new FileReader(); reader.onerror = function(){showToast('Could not read photo','');}; reader.onload = function(e) { var img = new Image(); img.onerror = function(){showToast('Could not decode photo','');}; img.onload = function(){ try { var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; if (!w||!h){showToast('Invalid photo','');return;} var max=250; if(w>max||h>max){var r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);} var cv=document.createElement('canvas'); cv.width=w; cv.height=h; var ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h); var out=cv.toDataURL('image/jpeg',0.5); var b64=out.split(',')[1]; console.log('PreShoot: b64',b64?b64.length:0); if(!b64||b64.length<500){showToast('Photo processing failed','');return;} S.scanImg=out; S.scanB64=b64; S.scanMime='image/jpeg'; openFmtSheet(); } catch(ex){showToast('Photo error: '+ex.message,'');} }; img.src=e.target.result; }; reader.readAsDataURL(file);
+function handleImg(input) { if (!input.files||!input.files[0]) return; var file = input.files[0]; console.log('PreShoot: file',file.type,file.size); showToast('Processing...',''); var tPre=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); var reader = new FileReader(); reader.onerror = function(){showToast('Could not read photo','');}; reader.onload = function(e) { var img = new Image(); img.onerror = function(){showToast('Could not decode photo','');}; img.onload = function(){ try { var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; if (!w||!h){showToast('Invalid photo','');return;} var max=250; if(w>max||h>max){var r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);} var cv=document.createElement('canvas'); cv.width=w; cv.height=h; var ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h); var out=cv.toDataURL('image/jpeg',0.5); var b64=out.split(',')[1]; console.log('PreShoot: b64',b64?b64.length:0); if(!b64||b64.length<500){showToast('Photo processing failed','');return;} S.scanImg=out; S.scanB64=b64; S.scanMime='image/jpeg'; S._scanPreprocessMs=Math.round(((typeof performance!=='undefined'&&performance.now)?performance.now():Date.now())-tPre); openFmtSheet(); } catch(ex){showToast('Photo error: '+ex.message,'');} }; img.src=e.target.result; }; reader.readAsDataURL(file);
 } function handleAvatar(input) { if (!input.files||!input.files[0]) return; var reader=new FileReader(); reader.onload=function(e){ S.profile.avatar=e.target.result; ss('profile',S.profile); renderProf(); var el=document.getElementById('edit-av'); if(el) el.innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'; showToast('Photo updated'); }; reader.readAsDataURL(input.files[0]);
 } /* ── SCAN ── */
 function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -2129,34 +2175,162 @@ function pastIdeas(){ if(!S.prefs.antirep) return []; var out=[]; getHistory().f
 }
 var TRENDS=['POV trending reveal','Day in the life segment','Silent vlog aesthetic','Satisfying before/after','Behind the scenes reveal','Phone found footage style','Slow-motion b-roll','Storytime with text overlay','Reaction zoom-in','Trending audio sync'];
 function trendFmts(){var seed=Math.floor(Date.now()/(86400000*7)),sh=TRENDS.slice();for(var i=sh.length-1;i>0;i--){var j=(seed*(i+1)*2654435761)%(i+1);var t=sh[i];sh[i]=sh[j];sh[j]=t;}return sh.slice(0,3).join(', ');}
-function buildPrompt(){ var n=S.niche, ae=S.aesthetic||{}, gr=S.gear||{}, pf=S.platformFocus||{}; /* Creator context, only include fields that are set */
-var ctx=[]; var niche=n.primaryNiche||n.contentType; if(niche) ctx.push('Niche: '+niche); if(n.secondaryNiche) ctx.push('Also: '+n.secondaryNiche); var plat=pf.primaryPlatform||(pf.platforms&&pf.platforms[0])||n.platform; if(plat) ctx.push('Platform: '+plat); var skill=n.experienceLevel||n.skillLevel; if(skill) ctx.push('Level: '+skill); if(n.editingPace) ctx.push('Edit pace: '+n.editingPace); if(n.videoLength) ctx.push('Length: '+n.videoLength); var goals=Array.isArray(n.goals)?n.goals.join(', '):(n.goals||''); if(goals) ctx.push('Goal: '+goals); if(ae.aesthetics&&ae.aesthetics.length) ctx.push('Style: '+ae.aesthetics.slice(0,3).join(', ')); if(ae.colorPalette&&ae.colorPalette.length) ctx.push('Colour palette: '+ae.colorPalette.join(', ')); if(ae.cameraMovements&&ae.cameraMovements.length) ctx.push('Camera: '+ae.cameraMovements.join(', ')); if(pf.contentStyles&&pf.contentStyles.length) ctx.push('Content prefs: '+pf.contentStyles.join(', ')); var gear=[]; if(gr.camera) gear.push(gr.camera); if(gr.lens) gear.push(gr.lens); if(gr.drone) gear.push(gr.drone); if(gr.gimbal) gear.push(gr.gimbal); if(gear.length) ctx.push('Gear: '+gear.join(', ')); if(gr.editingSoftware&&gr.editingSoftware.length) ctx.push('Software: '+gr.editingSoftware.join(', ')); if(n.filmingLocations) ctx.push('Usual spots: '+n.filmingLocations); var creatorCtx = ctx.length ? 'CREATOR: '+ctx.join(' | ')+'\n' : ''; var avoid = pastIdeas().length ? 'Avoid repeating: '+pastIdeas().slice(0,6).join(', ')+'.\n' : ''; /* Format instructions, tight */
-var fmts={ advert:'FORMAT: Advertisement. Sell via desire, emotion, CTA. Premium, intentional, brand-driven.', ugc:'FORMAT: UGC. Raw, authentic, first-person. No polish. Genuine reaction, personal voice.', educational:'FORMAT: Educational. Teach something valuable. Clear outcome. Tutorial/explainer/tips structure.', viral:'FORMAT: Viral. Engineered for shares and rewatches. Pattern interrupts, surprise, emotional payoff. Use current trending structures for '+(plat||'short-form video')+'.', storytelling:'FORMAT: Storytelling. Full narrative arc, setup, tension, resolution. Emotion and payoff.', trialreel:'FORMAT: Trial Reel. Testing/experiencing something live. Honest, unscripted, real reaction.', meme:'FORMAT: Meme. Comedy-first. Relatable, trending formats, self-aware humour. Tags-a-friend energy.', other:'FORMAT: '+(S.selectedFormatCustom||'Custom, apply user-described format to all ideas.') }; var formatLine = fmts[S.selectedFormat||'viral']; var extraLine = S.selectedFormatExtra ? 'EXTRA CONTEXT FROM CREATOR: '+S.selectedFormatExtra+'\n' : ''; var hookBlock = (window.PreShootHooks && PreShootHooks.buildScanPromptSection) ? PreShootHooks.buildScanPromptSection({ platform: plat, format: S.selectedFormat||'viral', niche: niche||'', goals: goals||'', batchSize: 6 }) : 'Each idea needs a strong 3-second curiosity hook.'; return 'You are an expert social media creative director.\n\n'+ creatorCtx+avoid+formatLine+'\n'+extraLine+'\n'+ 'PHOTO ANALYSIS:\n'+ '1. Identify the PRIMARY SUBJECT, the dominant, intended focus (e.g. "matte black Lamborghini Urus"). Be specific.\n'+ '2. Note lighting, environment, mood, angles as supporting context only.\n'+ '3. ALL 6 ideas must centre on the primary subject. Background elements can enhance composition but never become the focus.\n\n'+ hookBlock+'\n\n'+ 'GENERATE 6 ideas. Each must:\n'+ '- Be specific to what is visible in this exact photo\n'+ '- Match the format locked above\n'+ '- Include Primary Hook + exactly 3 Alternative Hooks + hookFramework + hookWhy (see HOOK ENGINE)\n'+ '- Include exact camera angle, movement, distance\n'+ '- Include editing pace, cuts, colour grade\n'+ '- Include audio direction\n'+ '- Include platform tips for '+(plat||'TikTok/Reels/Shorts')+'\n'+ '- Include 3 hashtags\n'+ '- Include why this format works psychologically (1 sentence)\n'+ '- Include 3 filming steps\n'+ '- ytSearch must be a PRECISE research query for THIS idea (subject+niche+style). Never generic 2-word dumps. Cars must stay automotive; coffee ads stay cafe/commercial; dentist ads stay dental marketing — never lectures.\n'+ '- capcutSearch must name the edit STYLE for CapCut templates (e.g. cinematic cafe promo transitions, automotive speed ramp, gym transformation montage) — not just the topic noun.\n\n'+ 'Reply ONLY as raw JSON (no markdown):\n'+ '{"mainSubject":"","sceneType":"urban/nature/indoor/automotive/architectural/beach","sceneLabel":"",'+ '"ideas":[{"title":"","hook":"","altHooks":["","",""],"hookFramework":"","hookWhy":"","whyItWorks":"","shotAngle":"","editingStyle":"","audio":"","hashtags":["#","#"],"ytSearch":"precise 5-8 word YouTube research query matching THIS idea subject+style (not generic)","capcutSearch":"precise CapCut template keyword matching edit style for THIS idea","trending":false,"difficulty":"Easy/Medium/Hard","filmTime":"","category":"trending/cinematic/pov/educational/storytelling/unexpected"}]}';
-} function startLoad(){ var ov=document.getElementById('load-ov'); if(ov) ov.remove(); var el=document.createElement('div'); el.id='load-ov'; el.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(8,8,16,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(10px)'; el.innerHTML='<div style="width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.06);border-top-color:var(--accent);border-right-color:var(--accent2);animation:spin 1s linear infinite;display:flex;align-items:center;justify-content:center"><div style="width:62px;height:62px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:26px"><svg class="ico-svg" width="26" height="26" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div></div><div style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text)">Scanning...</div><div id="load-step" style="font-size:13px;color:var(--text2);text-align:center;max-width:240px;line-height:1.5">Identifying main subject...</div><div id="load-idea-count" style="display:none;background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--accent)"></div>'; document.body.appendChild(el);
+var _scanInFlight=false;
+var _scanFallback=false;
+var _scanMetrics={};
+function setScanBusy(on){
+  _scanInFlight=!!on;
+  var ring=document.getElementById('scan-ring');
+  if(ring){ ring.classList.toggle('is-busy',!!on); ring.setAttribute('aria-busy', on?'true':'false'); }
+  var go=document.querySelector('.fmt-go-btn');
+  if(go) go.classList.toggle('is-busy',!!on);
+}
+function endScanLock(){
+  if(_scanFallback) return;
+  setScanBusy(false);
+}
+function logScanClientTiming(){
+  try{ console.info('scan_client_timing', JSON.stringify(_scanMetrics||{})); }catch(e){}
+}
+function nowMs(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
+function buildScanSystemPrompt(){
+  return 'You are an expert social media creative director.\n\n'+
+    'PHOTO ANALYSIS:\n'+
+    '1. Identify the PRIMARY SUBJECT, the dominant, intended focus (e.g. "matte black Lamborghini Urus"). Be specific.\n'+
+    '2. Note lighting, environment, mood, angles as supporting context only.\n'+
+    '3. ALL 6 ideas must centre on the primary subject. Background elements can enhance composition but never become the focus.\n\n'+
+    'GENERATE 6 ideas. Each must:\n'+
+    '- Be specific to what is visible in this exact photo\n'+
+    '- Match the format locked in the user message\n'+
+    '- Include Primary Hook + exactly 3 Alternative Hooks + hookFramework + hookWhy (see HOOK ENGINE in the user message)\n'+
+    '- Include exact camera angle, movement, distance\n'+
+    '- Include editing pace, cuts, colour grade\n'+
+    '- Include audio direction\n'+
+    '- Include platform tips for the creator platform\n'+
+    '- Include 3 hashtags\n'+
+    '- Include why this format works psychologically (1 sentence)\n'+
+    '- Include 3 filming steps\n'+
+    '- ytSearch must be a PRECISE research query for THIS idea (subject+niche+style). Never generic 2-word dumps. Cars must stay automotive; coffee ads stay cafe/commercial; dentist ads stay dental marketing — never lectures.\n'+
+    '- capcutSearch must name the edit STYLE for CapCut templates (e.g. cinematic cafe promo transitions, automotive speed ramp, gym transformation montage) — not just the topic noun.\n'+
+    'Keep shotAngle, editingStyle, audio, whyItWorks, hookWhy, and each filming step under 22 words. filmTime like "8m". Do not drop any JSON fields.\n\n'+
+    'Reply ONLY as raw JSON (no markdown):\n'+
+    '{"mainSubject":"","sceneType":"urban/nature/indoor/automotive/architectural/beach","sceneLabel":"",'+
+    '"ideas":[{"title":"","hook":"","altHooks":["","",""],"hookFramework":"","hookWhy":"","whyItWorks":"","shotAngle":"","editingStyle":"","audio":"","hashtags":["#","#"],"ytSearch":"precise 5-8 word YouTube research query matching THIS idea subject+style (not generic)","capcutSearch":"precise CapCut template keyword matching edit style for THIS idea","trending":false,"difficulty":"Easy/Medium/Hard","filmTime":"","category":"trending/cinematic/pov/educational/storytelling/unexpected"}]}';
+}
+function buildScanUserPrompt(){
+  var n=S.niche, ae=S.aesthetic||{}, gr=S.gear||{}, pf=S.platformFocus||{};
+  var ctx=[]; var niche=n.primaryNiche||n.contentType; if(niche) ctx.push('Niche: '+niche); if(n.secondaryNiche) ctx.push('Also: '+n.secondaryNiche); var plat=pf.primaryPlatform||(pf.platforms&&pf.platforms[0])||n.platform; if(plat) ctx.push('Platform: '+plat); var skill=n.experienceLevel||n.skillLevel; if(skill) ctx.push('Level: '+skill); if(n.editingPace) ctx.push('Edit pace: '+n.editingPace); if(n.videoLength) ctx.push('Length: '+n.videoLength); var goals=Array.isArray(n.goals)?n.goals.join(', '):(n.goals||''); if(goals) ctx.push('Goal: '+goals); if(ae.aesthetics&&ae.aesthetics.length) ctx.push('Style: '+ae.aesthetics.slice(0,3).join(', ')); if(ae.colorPalette&&ae.colorPalette.length) ctx.push('Colour palette: '+ae.colorPalette.join(', ')); if(ae.cameraMovements&&ae.cameraMovements.length) ctx.push('Camera: '+ae.cameraMovements.join(', ')); if(pf.contentStyles&&pf.contentStyles.length) ctx.push('Content prefs: '+pf.contentStyles.join(', ')); var gear=[]; if(gr.camera) gear.push(gr.camera); if(gr.lens) gear.push(gr.lens); if(gr.drone) gear.push(gr.drone); if(gr.gimbal) gear.push(gr.gimbal); if(gear.length) ctx.push('Gear: '+gear.join(', ')); if(gr.editingSoftware&&gr.editingSoftware.length) ctx.push('Software: '+gr.editingSoftware.join(', ')); if(n.filmingLocations) ctx.push('Usual spots: '+n.filmingLocations); var creatorCtx = ctx.length ? 'CREATOR: '+ctx.join(' | ')+'\n' : ''; var avoid = pastIdeas().length ? 'Avoid repeating: '+pastIdeas().slice(0,6).join(', ')+'.\n' : '';
+  var fmts={ advert:'FORMAT: Advertisement. Sell via desire, emotion, CTA. Premium, intentional, brand-driven.', ugc:'FORMAT: UGC. Raw, authentic, first-person. No polish. Genuine reaction, personal voice.', educational:'FORMAT: Educational. Teach something valuable. Clear outcome. Tutorial/explainer/tips structure.', viral:'FORMAT: Viral. Engineered for shares and rewatches. Pattern interrupts, surprise, emotional payoff. Use current trending structures for '+(plat||'short-form video')+'.', storytelling:'FORMAT: Storytelling. Full narrative arc, setup, tension, resolution. Emotion and payoff.', trialreel:'FORMAT: Trial Reel. Testing/experiencing something live. Honest, unscripted, real reaction.', meme:'FORMAT: Meme. Comedy-first. Relatable, trending formats, self-aware humour. Tags-a-friend energy.', other:'FORMAT: '+(S.selectedFormatCustom||'Custom, apply user-described format to all ideas.') }; var formatLine = fmts[S.selectedFormat||'viral']; var extraLine = S.selectedFormatExtra ? 'EXTRA CONTEXT FROM CREATOR: '+S.selectedFormatExtra+'\n' : ''; var hookBlock = (window.PreShootHooks && PreShootHooks.buildScanPromptSection) ? PreShootHooks.buildScanPromptSection({ platform: plat, format: S.selectedFormat||'viral', niche: niche||'', goals: goals||'', batchSize: 6 }) : 'Each idea needs a strong 3-second curiosity hook.';
+  return creatorCtx+avoid+formatLine+'\n'+extraLine+'\n'+hookBlock;
+}
+function buildPrompt(){ return buildScanSystemPrompt()+'\n\n'+buildScanUserPrompt(); }
+function scanChatPayload(stream){
+  return {
+    model:'claude-sonnet-4-6',
+    max_tokens:2400,
+    stream:!!stream,
+    timezone:(window.PreShootEntitlements&&PreShootEntitlements.tz)?PreShootEntitlements.tz():undefined,
+    system:[{type:'text',text:buildScanSystemPrompt(),cache_control:{type:'ephemeral'}}],
+    messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:S.scanMime,data:S.scanB64}},
+      {type:'text',text:buildScanUserPrompt()}
+    ]}]
+  };
+}
+function scanFriendlyError(raw){
+  var msg=String(raw||'').trim();
+  if(!msg) return 'Something went wrong while analyzing your image. Please try again.';
+  if(/quota|daily free/i.test(msg)) return msg.slice(0,120);
+  if(/sign in/i.test(msg)) return msg.slice(0,120);
+  if(/network|failed to fetch|typeerror/i.test(msg)) return 'Network error. Check your connection and try again.';
+  if(/stack|supabase|anthropic|api key|ECONN|internal/i.test(msg)) return 'Something went wrong while analyzing your image. Please try again.';
+  return msg.slice(0,120);
+}
+function startLoad(){ var ov=document.getElementById('load-ov'); if(ov) ov.remove(); var el=document.createElement('div'); el.id='load-ov'; el.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(8,8,16,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(10px)'; el.innerHTML='<div style="width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.06);border-top-color:var(--accent);border-right-color:var(--accent2);animation:spin 1s linear infinite;display:flex;align-items:center;justify-content:center"><div style="width:62px;height:62px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:26px"><svg class="ico-svg" width="26" height="26" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div></div><div style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text)">Scanning...</div><div id="load-step" style="font-size:13px;color:var(--text2);text-align:center;max-width:240px;line-height:1.5">Analyzing image</div><div id="load-idea-count" style="display:none;background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--accent)"></div>'; document.body.appendChild(el);
 }
 function setLoadStep(txt){var el=document.getElementById('load-step');if(el)el.textContent=txt;}
 function setLoadCount(n){var el=document.getElementById('load-idea-count');if(el){el.style.display='block';el.textContent=n+' of 6 ideas ready...';}}
-function stopLoad(){ var ov=document.getElementById('load-ov'); if(ov){ov.style.opacity='0';ov.style.transition='opacity .25s';setTimeout(function(){ov.remove();},260);}
-} function extractIdeasFromBuffer(txt){ var ideas=[]; var ai=txt.indexOf('"ideas":['); if(ai===-1) ai=txt.indexOf('"ideas": ['); if(ai===-1) return ideas; var i=txt.indexOf('[',ai)+1,depth=0,start=-1; while(i<txt.length){ var ch=txt[i]; if(ch==='{'){if(depth===0)start=i;depth++;} else if(ch==='}'){depth--;if(depth===0&&start>=0){try{var obj=JSON.parse(txt.slice(start,i+1));if(obj.title)ideas.push(obj);}catch(e){}start=-1;}} i++; } return ideas;
-} function finalParse(textBuffer){ /* If textBuffer is empty, streaming didn't work. Try non-streaming fallback */
-if(!textBuffer||textBuffer.length<20){ console.warn('PreShoot: textBuffer empty, falling back to non-streaming'); stopLoad(); showToast('Retrying...',''); startScanFallback(); return; } try{ /* Find outermost JSON object */
-var s=textBuffer.indexOf('{'); var e=textBuffer.lastIndexOf('}'); if(s===-1||e<=s) throw new Error('no JSON found'); var jsonStr=textBuffer.slice(s,e+1); /* If JSON is truncated, try to close it */
-var parsed; try{ parsed=JSON.parse(jsonStr); }catch(parseErr){ /* Try to find the ideas array even in truncated JSON */
-var ideasFallback=extractIdeasFromBuffer(textBuffer); if(ideasFallback.length>0){ parsed={ideas:ideasFallback,sceneType:'general',sceneLabel:'Your photo',mainSubject:''}; /* Try to get scene info */
-var lm=textBuffer.match(/"sceneLabel"\s*:\s*"([^"]+)"/); if(lm) parsed.sceneLabel=lm[1]; var sm=textBuffer.match(/"sceneType"\s*:\s*"([^"]+)"/); if(sm) parsed.sceneType=sm[1]; var mm=textBuffer.match(/"mainSubject"\s*:\s*"([^"]+)"/); if(mm) parsed.mainSubject=mm[1]; }else{ throw parseErr; } } if(!parsed.ideas||!parsed.ideas.length){showToast('Try again. Point at something interesting','');return;} S.ideas=(window.PreShootHooks&&PreShootHooks.normalizeIdeas)?PreShootHooks.normalizeIdeas(parsed.ideas):parsed.ideas; S.sceneInfo={type:parsed.sceneType||'general',label:parsed.sceneLabel||'Your photo',mainSubject:parsed.mainSubject||''}; if(S.prefs.hist) addHistory(S.ideas,parsed.sceneType,parsed.sceneLabel); if(window.PreShootAnalytics){ PreShootAnalytics.track('scan_completed',{ideas:S.ideas.length}); PreShootAnalytics.track('idea_generated',{count:S.ideas.length,source:'scan'}); PreShootAnalytics.noteIdeaGenerated(); } if(window.PreShootEntitlements&&PreShootEntitlements.refresh) PreShootEntitlements.refresh(); stopLoad(); renderResults(); goTab('results'); renderHome(); }catch(e){ console.error('PreShoot finalParse error:',e.message,'buffer length:',textBuffer.length,'preview:',textBuffer.slice(0,200)); stopLoad(); showToast('Error, try again',''); } 
-} function startScanFallback(){ /* Non-streaming  fallback (original approach) */
-startLoad(); apiFetch('/api/chat',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3200,timezone:(window.PreShootEntitlements&&PreShootEntitlements.tz)?PreShootEntitlements.tz():undefined,messages:[{role:'user',content:[ {type:'image',source:{type:'base64',media_type:S.scanMime,data:S.scanB64}}, {type:'text',text:buildPrompt()} ]}]}) }) .then(function(res){return res.json();}) .then(function(data){ stopLoad(); if(data.error){showToast((data.error.message||'API error').slice(0,70),'');return;} var block=(data.content||[]).find(function(b){return b.type==='text';}); if(!block){showToast('No response. Try again','');return;} finalParse(block.text||''); }) .catch(function(err){ stopLoad(); showToast('Network error. Check connection',''); }); 
-} function startScan(){ if(!requireAuthOrPrompt('Sign in to scan scenes')) return; if(!S.scanB64||S.scanB64.length<500||S.scanB64.length>350000){showToast('Photo issue. Try another','');return;} if(!canScan()){ openPaywall('scans'); return; } if(window.PreShootAnalytics) PreShootAnalytics.track('scan_started'); startLoad(); var textBuffer=''; var sseBuffer=''; var ideasCount=0; apiFetch('/api/chat',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:3200, stream:true, timezone:(window.PreShootEntitlements&&PreShootEntitlements.tz)?PreShootEntitlements.tz():undefined, messages:[{role:'user',content:[ {type:'image',source:{type:'base64',media_type:S.scanMime,data:S.scanB64}}, {type:'text',text:buildPrompt()} ]}] }) }) .then(function(response){ if(!response.ok){ if(window.PreShootEntitlements&&PreShootEntitlements.refresh) PreShootEntitlements.refresh(); return response.json().then(function(d){ stopLoad(); showToast(((d.error&&d.error.message)?d.error.message:'API error '+response.status).slice(0,70),''); }); } var tot=gs('total_scans',0)+1; ss('total_scans',tot); bumpScans(); var reader=response.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(result){ if(result.done){finalParse(textBuffer);return;} sseBuffer+=decoder.decode(result.value,{stream:true}); var lines=sseBuffer.split('\n'); sseBuffer=lines.pop(); for(var i=0;i<lines.length;i++){ var line=lines[i]; if(!line.startsWith('data: ')) continue; var data=line.slice(6).trim(); if(!data||data==='[DONE]') continue; try{ var evt=JSON.parse(data); if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){ textBuffer+=evt.delta.text; /* Show scene label as soon as we have it */
-if(S.sceneInfo.label==='Analysing...'||!S.sceneInfo.label){ var lm=textBuffer.match(/"sceneLabel"\s*:\s*"([^"]+)"/); if(lm){S.sceneInfo.label=lm[1];setLoadStep('Building ideas for '+lm[1]+'...');} } /* Count complete ideas and show progress */
-var found=extractIdeasFromBuffer(textBuffer); if(found.length>ideasCount){ideasCount=found.length;setLoadCount(ideasCount);} } }catch(e){} } return pump(); }); } return pump(); }) .catch(function(err){ stopLoad(); showToast(err.name==='TypeError'?'Network error. Check connection':'Error: '+err.message.slice(0,60),''); }); 
-} /* ── RESULTS ── */
+function stopLoad(){ var ov=document.getElementById('load-ov'); if(ov){ov.style.opacity='0';ov.style.transition='opacity .25s';setTimeout(function(){ov.remove();},260);} endScanLock();
+}
+function extractIdeasFromBuffer(txt){ var ideas=[]; var ai=txt.indexOf('"ideas":['); if(ai===-1) ai=txt.indexOf('"ideas": ['); if(ai===-1) return ideas; var i=txt.indexOf('[',ai)+1,depth=0,start=-1; while(i<txt.length){ var ch=txt[i]; if(ch==='{'){if(depth===0)start=i;depth++;} else if(ch==='}'){depth--;if(depth===0&&start>=0){try{var obj=JSON.parse(txt.slice(start,i+1));if(obj.title)ideas.push(obj);}catch(e){}start=-1;}} i++; } return ideas;
+}
+function finalParse(textBuffer){
+  var tParse=nowMs();
+  if(!textBuffer||textBuffer.length<20){ console.warn('PreShoot: textBuffer empty, falling back to non-streaming'); _scanFallback=true; stopLoad(); setScanBusy(true); showToast('Retrying...',''); startScanFallback(); return; }
+  try{
+    var s=textBuffer.indexOf('{'); var e=textBuffer.lastIndexOf('}'); if(s===-1||e<=s) throw new Error('no JSON found'); var jsonStr=textBuffer.slice(s,e+1);
+    var parsed; try{ parsed=JSON.parse(jsonStr); }catch(parseErr){
+      var ideasFallback=extractIdeasFromBuffer(textBuffer); if(ideasFallback.length>0){ parsed={ideas:ideasFallback,sceneType:'general',sceneLabel:'Your photo',mainSubject:''};
+      var lm=textBuffer.match(/"sceneLabel"\s*:\s*"([^"]+)"/); if(lm) parsed.sceneLabel=lm[1]; var sm=textBuffer.match(/"sceneType"\s*:\s*"([^"]+)"/); if(sm) parsed.sceneType=sm[1]; var mm=textBuffer.match(/"mainSubject"\s*:\s*"([^"]+)"/); if(mm) parsed.mainSubject=mm[1]; }else{ throw parseErr; } }
+    if(!parsed.ideas||!parsed.ideas.length){ _scanFallback=false; stopLoad(); showToast('Try again. Point at something interesting',''); return; }
+    S.ideas=(window.PreShootHooks&&PreShootHooks.normalizeIdeas)?PreShootHooks.normalizeIdeas(parsed.ideas):parsed.ideas; S.sceneInfo={type:parsed.sceneType||'general',label:parsed.sceneLabel||'Your photo',mainSubject:parsed.mainSubject||''}; if(S.prefs.hist) addHistory(S.ideas,parsed.sceneType,parsed.sceneLabel); if(window.PreShootAnalytics){ PreShootAnalytics.track('scan_completed',{ideas:S.ideas.length}); PreShootAnalytics.track('idea_generated',{count:S.ideas.length,source:'scan'}); PreShootAnalytics.noteIdeaGenerated(); } if(window.PreShootEntitlements&&PreShootEntitlements.refresh) PreShootEntitlements.refresh();
+    _scanMetrics.parse_ms=Math.round(nowMs()-tParse);
+    if(_scanMetrics.t0) _scanMetrics.total_ms=Math.round(nowMs()-_scanMetrics.t0);
+    logScanClientTiming();
+    _scanFallback=false; stopLoad(); renderResults(); goTab('results'); renderHome();
+  }catch(e){ console.error('PreShoot finalParse error:',e.message,'buffer length:',textBuffer.length); _scanFallback=false; stopLoad(); showToast('Something went wrong while analyzing your image. Please try again.',''); }
+}
+function startScanFallback(){
+  startLoad(); setLoadStep('Building ideas');
+  var tReq=nowMs();
+  apiFetch('/api/chat',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(scanChatPayload(false)) })
+    .then(function(res){ _scanMetrics.ttfb_ms=Math.round(nowMs()-tReq); return res.json().then(function(data){ return {ok:res.ok,data:data}; }); })
+    .then(function(pack){ _scanFallback=false; if(!pack.ok||(pack.data&&pack.data.error)){ stopLoad(); showToast(scanFriendlyError((pack.data&&pack.data.error&&pack.data.error.message)||'API error'),''); return; } var block=(pack.data.content||[]).find(function(b){return b.type==='text';}); if(!block){ stopLoad(); showToast('Something went wrong while analyzing your image. Please try again.',''); return; } finalParse(block.text||''); })
+    .catch(function(){ _scanFallback=false; stopLoad(); showToast('Something went wrong while analyzing your image. Please try again.',''); });
+}
+function startScan(){
+  if(!requireAuthOrPrompt('Sign in to scan scenes')) return;
+  if(_scanInFlight) return;
+  if(!S.scanB64||S.scanB64.length<500||S.scanB64.length>350000){showToast('Photo issue. Try another','');return;}
+  if(!canScan()){ openPaywall('scans'); return; }
+  setScanBusy(true);
+  _scanFallback=false;
+  _scanMetrics={t0:nowMs(),preprocess_ms:S._scanPreprocessMs||0};
+  if(window.PreShootAnalytics) PreShootAnalytics.track('scan_started');
+  startLoad(); setLoadStep('Analyzing image');
+  var textBuffer=''; var sseBuffer=''; var ideasCount=0; var gotText=false; var tReq=nowMs();
+  apiFetch('/api/chat',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(scanChatPayload(true)) })
+    .then(function(response){
+      _scanMetrics.ttfb_ms=Math.round(nowMs()-tReq);
+      var prepHeader=response.headers&&response.headers.get?response.headers.get('X-Scan-Prep-Ms'):null;
+      if(prepHeader) _scanMetrics.prep_ms=parseInt(prepHeader,10)||0;
+      if(!response.ok){ if(window.PreShootEntitlements&&PreShootEntitlements.refresh) PreShootEntitlements.refresh(); return response.json().then(function(d){ stopLoad(); showToast(scanFriendlyError((d.error&&d.error.message)?d.error.message:'API error'),''); }); }
+      var tot=gs('total_scans',0)+1; ss('total_scans',tot); bumpScans();
+      var reader=response.body.getReader(); var decoder=new TextDecoder();
+      function pump(){ return reader.read().then(function(result){
+        if(result.done){ _scanMetrics.ai_ms=Math.round(nowMs()-tReq); setLoadStep('Almost there'); finalParse(textBuffer); return; }
+        sseBuffer+=decoder.decode(result.value,{stream:true});
+        var lines=sseBuffer.split('\n'); sseBuffer=lines.pop();
+        for(var i=0;i<lines.length;i++){
+          var line=lines[i];
+          if(!line.startsWith('data: ')) continue;
+          var data=line.slice(6).trim();
+          if(!data||data==='[DONE]') continue;
+          try{
+            var evt=JSON.parse(data);
+            if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){
+              textBuffer+=evt.delta.text;
+              if(!gotText){ gotText=true; setLoadStep('Understanding context'); }
+              if(S.sceneInfo.label==='Analysing...'||!S.sceneInfo.label){ var lm=textBuffer.match(/"sceneLabel"\s*:\s*"([^"]+)"/); if(lm){S.sceneInfo.label=lm[1];setLoadStep('Building ideas');} }
+              var found=extractIdeasFromBuffer(textBuffer);
+              if(found.length>ideasCount){ ideasCount=found.length; setLoadCount(ideasCount); if(ideasCount>=5) setLoadStep('Almost there'); else if(ideasCount>=1) setLoadStep('Building ideas'); }
+            }
+          }catch(e){}
+        }
+        return pump();
+      }); }
+      return pump();
+    })
+    .catch(function(){ stopLoad(); showToast('Something went wrong while analyzing your image. Please try again.',''); });
+}
+/* ── RESULTS ── */
 var FMT={trending:'fmt-trending',cinematic:'fmt-cinematic',pov:'fmt-pov',educational:'fmt-educational',storytelling:'fmt-storytelling',unexpected:'fmt-unexpected'};
 function renderResults(){ document.getElementById('res-title').textContent=S.sceneInfo.label||'Your ideas'; document.getElementById('res-sub').textContent=S.ideas.length+' ideas generated'; var strip=document.getElementById('scene-strip'); if(S.scanImg) strip.innerHTML='<img src="'+S.scanImg+'" alt=""><div class="scene-ov"><span class="scene-tag">'+escapeHtml(S.sceneInfo.label||'Photo')+'</span><span class="scene-tag" style="text-transform:capitalize">'+escapeHtml(S.sceneInfo.type||'scene')+'</span></div>'; var h=''; S.ideas.forEach(function(idea,i){ var fc=FMT[idea.category]||'fmt-unexpected'; var inLib=isInLib(idea.title); var diff=idea.difficulty||'Easy'; var dc=diff==='Easy'?'var(--text)':diff==='Hard'?'var(--text)':'var(--text2)'; h+='<div class="ic'+(inLib?' saved':'')+'" onclick="openIdea('+i+',\'results\')">'; h+='<div class="ic-save'+(inLib?' saved':'')+'" onclick="event.stopPropagation();quickSave('+i+')" id="sv'+i+'">'+(typeof ICO!=='undefined'?ICO.html('bookmark',14):'')+'</div>'; h+='<div class="ic-top"><div class="fmt-badge '+fc+'">'+(idea.category||'idea').toUpperCase()+'</div>'; h+='<div class="ic-main"><div class="ic-title">'+escapeHtml(idea.title||'')+'</div>'; h+='<div class="ic-hook">"'+escapeHtml(idea.hook||'')+'"</div>'; if(idea.whyItWorks) h+='<div class="ic-why">'+escapeHtml(idea.whyItWorks)+'</div>'; h+='</div></div>'; h+='<div class="ic-meta"><div class="mc">'+((window.ICO&&ICO.html('clock',12))||'<svg class="ico-svg" width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>')+' '+(idea.filmTime||'5m')+'</div><div class="mc"><span style="color:'+dc+'">●</span> '+diff+'</div><div class="mc"> '+(idea.format||idea.category||'video')+'</div>'; if(idea.trending) h+='<div class="trend-badge"> Trending</div>'; h+='</div></div>'; }); document.getElementById('ideas-list').innerHTML=h; /* Toggle PRO badge on shotlist button */
 var lockEl = document.getElementById('shotlist-lock'); if (lockEl) { lockEl.style.display = (typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro') ? 'none' : 'inline'; } 
 }
 function quickSave(idx){ var idea=S.ideas[idx]; if(!idea) return; var inLib=isInLib(idea.title); if(inLib){removeFromLib(idea.title);showToast('Removed from library');} else{idea.sceneLabel=S.sceneInfo.label||'';idea.sceneType=S.sceneInfo.type||'';saveToLib(idea);showToast('Saved ');} renderResults();
 } /* ── IDEA DETAIL ── */
-function openIdea(idx,src){ S.activeIdea=idx; S.activeSource=src; var ideas=src==='results'?S.ideas:(src==='lib'?getLib():getHistory()[parseInt(src.split('_')[1])].ideas); var item=ideas[idx]; if(!item) return; var inLib=isInLib(item.title); var fc=FMT[item.category]||'fmt-unexpected'; var ytQ=item.ytSearch||(item.format+' video reference'); var ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(ytQ)+'&sp=CAM%253D'; var ccUrl='https://www.capcut.com/template-center?keyword='+encodeURIComponent(item.capcutSearch||item.format||'video'); var h=''; h+='<div class="sh-hd"><div><div class="fmt-badge '+fc+'" style="display:inline-flex;margin-bottom:7px">'+escapeHtml((item.category||'IDEA').toUpperCase())+'</div><div class="sh-title">'+escapeHtml(item.title||'')+'</div></div><div class="sh-x" onclick="shCloseForce()">'+(typeof ICO!=='undefined'?ICO.html('x',14):'×')+'</div></div>'; if(window.PreShootHooks&&PreShootHooks.normalizeIdea) PreShootHooks.normalizeIdea(item); var selIdx=typeof item.selectedHookIndex==='number'?item.selectedHookIndex:0; var primary=item.primaryHook||item.hook||''; var alts=Array.isArray(item.altHooks)?item.altHooks:[]; h+='<div class="sh-sec"><div class="sh-lbl">Opening hook</div><div class="hook-box" id="hook-primary-box">"'+escapeHtml(item.hook||primary||'')+'"</div>'; if(item.hookWhy) h+='<div class="hook-why"><strong style="color:var(--text)">Why this hook works:</strong> '+escapeHtml(item.hookWhy)+'</div>'; if(alts.length){ h+='<div class="hook-alts" id="hook-alts">'; h+='<button type="button" class="hook-alt'+(selIdx===0?' sel':'')+'" onclick="selectIdeaHook(0)"><span class="hook-alt-lbl">Primary</span>'+escapeHtml(primary)+'</button>'; alts.forEach(function(ah,ai){ if(!ah) return; h+='<button type="button" class="hook-alt'+(selIdx===ai+1?' sel':'')+'" onclick="selectIdeaHook('+(ai+1)+')"><span class="hook-alt-lbl">Alternative '+(ai+1)+'</span>'+escapeHtml(ah)+'</button>'; }); h+='</div>'; } h+='</div>'; if(item.whyItWorks) h+='<div class="sh-sec"><div class="sh-lbl">Why this works</div><div class="why-box">'+escapeHtml(item.whyItWorks||'')+'</div></div>'; h+='<div class="sh-sec"><div class="sh-lbl">How to film it</div><div class="shot-box">'+escapeHtml(item.shotAngle||'')+'</div></div>'; if(item.editingStyle) h+='<div class="sh-sec"><div class="sh-lbl">Editing style</div><div style="font-size:14px;line-height:1.6;color:var(--text)">'+escapeHtml(item.editingStyle||'')+'</div></div>'; if(item.platformTips) h+='<div class="sh-sec"><div class="sh-lbl">Platform tips, TikTok vs Reels vs Shorts</div><div style="font-size:13px;line-height:1.7;color:var(--text2)">'+escapeHtml(item.platformTips||'')+'</div></div>'; if(item.hashtags && item.hashtags.length) h+='<div class="sh-sec"><div class="sh-lbl">Hashtags</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+(Array.isArray(item.hashtags)?item.hashtags:String(item.hashtags).split(/\s+/)).map(function(t){return '<span style="background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--accent)">'+escapeHtml(t)+'</span>';}).join('')+'</div></div>'; h+='<div class="sh-sec"><div class="sh-lbl">Audio style</div><div style="font-size:14px;line-height:1.6;color:var(--text)">'+escapeHtml(item.audio||'')+'</div></div>'; h+='<div class="sh-sec"><div class="sh-row"><div style="flex:1"><div class="sh-lbl">Difficulty</div><div style="font-size:15px;font-weight:600;color:var(--text)">'+escapeHtml(item.difficulty||'Easy')+'</div></div><div style="flex:1"><div class="sh-lbl">Film time</div><div style="font-size:15px;font-weight:600;color:var(--text)">'+escapeHtml(item.filmTime||'5 mins')+'</div></div></div></div>'; h+='<div class="sh-actions">'; h+=(window.PreShootResearch&&PreShootResearch.renderResearchShell)?PreShootResearch.renderResearchShell():('<div class="sh-lbl">See real examples</div><a href="'+ytUrl+'" target="_blank" class="yt-btn">YouTube</a><a href="'+ccUrl+'" target="_blank" class="cc-btn">CapCut</a>'); h+='<button class="act-btn dir-shotlist-btn" style="width:100%;margin-bottom:10px;background:var(--text);color:var(--bg);border-color:var(--text)" onclick="event.stopPropagation();openDirectorWithIdea('+idx+',\''+src+'\')">Create Shotlist with Director AI</button>'; h+='<button class="act-btn" style="width:100%;margin-bottom:10px" onclick="event.stopPropagation();PreShootStudioUI.openSendToStudio('+idx+',\''+src+'\')">Send to Studio</button>'; h+='<button class="act-btn" style="width:100%;margin-bottom:10px" onclick="event.stopPropagation();planActiveIdea()">Plan posting date</button>'; h+='<div class="act-row">'; h+='<button class="act-btn'+(inLib?' saved-st':'')+'" id="sh-sv" onclick="toggleShSave()">'+(inLib?' Saved':' Save')+'</button>'; h+='<button class="act-btn" onclick="shareIdea()"> Share</button>'; h+='</div>'; h+='<div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:4px">Was this useful?</div>'; h+='<div class="rate-row"><button class="rate-btn" onclick="rateIdea(true)"> Great idea</button><button class="rate-btn" onclick="rateIdea(false)"> Not for me</button></div>'; h+='</div>'; document.getElementById('sh-body').innerHTML=h; document.getElementById('sh-ov').classList.add('open');
+function openIdea(idx,src){ S.activeIdea=idx; S.activeSource=src; var ideas=src==='results'?S.ideas:(src==='lib'?getLib():getHistory()[parseInt(src.split('_')[1])].ideas); var item=ideas[idx]; if(!item) return; var inLib=isInLib(item.title); var fc=FMT[item.category]||'fmt-unexpected'; var ytQ=item.ytSearch||(item.format+' video reference'); var ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(ytQ)+'&sp=CAM%253D'; var ccUrl='https://www.capcut.com/template-center?keyword='+encodeURIComponent(item.capcutSearch||item.format||'video'); var h=''; h+='<div class="sh-hd"><div><div class="fmt-badge '+fc+'" style="display:inline-flex;margin-bottom:7px">'+escapeHtml((item.category||'IDEA').toUpperCase())+'</div><div class="sh-title">'+escapeHtml(item.title||'')+'</div></div><div class="sh-x" onclick="shCloseForce()">'+(typeof ICO!=='undefined'?ICO.html('x',14):'×')+'</div></div>'; if(window.PreShootHooks&&PreShootHooks.normalizeIdea) PreShootHooks.normalizeIdea(item); var selIdx=typeof item.selectedHookIndex==='number'?item.selectedHookIndex:0; var primary=item.primaryHook||item.hook||''; var alts=Array.isArray(item.altHooks)?item.altHooks:[]; h+='<div class="sh-sec"><div class="sh-lbl">Opening hook</div><div class="hook-box" id="hook-primary-box">"'+escapeHtml(item.hook||primary||'')+'"</div>'; if(item.hookWhy) h+='<div class="hook-why"><strong style="color:var(--text)">Why this hook works:</strong> '+escapeHtml(item.hookWhy)+'</div>'; if(alts.length){ h+='<div class="hook-alts" id="hook-alts">'; h+='<button type="button" class="hook-alt'+(selIdx===0?' sel':'')+'" onclick="selectIdeaHook(0)"><span class="hook-alt-lbl">Primary</span>'+escapeHtml(primary)+'</button>'; alts.forEach(function(ah,ai){ if(!ah) return; h+='<button type="button" class="hook-alt'+(selIdx===ai+1?' sel':'')+'" onclick="selectIdeaHook('+(ai+1)+')"><span class="hook-alt-lbl">Alternative '+(ai+1)+'</span>'+escapeHtml(ah)+'</button>'; }); h+='</div>'; } h+='</div>'; if(item.whyItWorks) h+='<div class="sh-sec"><div class="sh-lbl">Why this works</div><div class="why-box">'+escapeHtml(item.whyItWorks||'')+'</div></div>'; h+='<div class="sh-sec"><div class="sh-lbl">How to film it</div><div class="shot-box">'+escapeHtml(item.shotAngle||'')+'</div></div>'; if(item.editingStyle) h+='<div class="sh-sec"><div class="sh-lbl">Editing style</div><div style="font-size:14px;line-height:1.6;color:var(--text)">'+escapeHtml(item.editingStyle||'')+'</div></div>'; if(item.platformTips) h+='<div class="sh-sec"><div class="sh-lbl">Platform tips, TikTok vs Reels vs Shorts</div><div style="font-size:13px;line-height:1.7;color:var(--text2)">'+escapeHtml(item.platformTips||'')+'</div></div>'; if(item.hashtags && item.hashtags.length) h+='<div class="sh-sec"><div class="sh-lbl">Hashtags</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+(Array.isArray(item.hashtags)?item.hashtags:String(item.hashtags).split(/\s+/)).map(function(t){return '<span style="background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--accent)">'+escapeHtml(t)+'</span>';}).join('')+'</div></div>'; h+='<div class="sh-sec"><div class="sh-lbl">Audio style</div><div style="font-size:14px;line-height:1.6;color:var(--text)">'+escapeHtml(item.audio||'')+'</div></div>'; h+='<div class="sh-sec"><div class="sh-row"><div style="flex:1"><div class="sh-lbl">Difficulty</div><div style="font-size:15px;font-weight:600;color:var(--text)">'+escapeHtml(item.difficulty||'Easy')+'</div></div><div style="flex:1"><div class="sh-lbl">Film time</div><div style="font-size:15px;font-weight:600;color:var(--text)">'+escapeHtml(item.filmTime||'5 mins')+'</div></div></div></div>'; h+='<div class="sh-actions">'; h+=(window.PreShootResearch&&PreShootResearch.renderResearchShell)?PreShootResearch.renderResearchShell():('<div class="sh-lbl">See real examples</div><a href="'+ytUrl+'" target="_blank" class="yt-btn">YouTube</a><a href="'+ccUrl+'" target="_blank" class="cc-btn">CapCut</a>'); h+='<button class="act-btn dir-shotlist-btn" style="width:100%;margin-bottom:10px;background:var(--accent);color:var(--on-accent);border-color:var(--accent)" onclick="event.stopPropagation();openDirectorWithIdea('+idx+',\''+src+'\')">Create Shotlist with Director AI</button>'; h+='<button class="act-btn" style="width:100%;margin-bottom:10px" onclick="event.stopPropagation();PreShootStudioUI.openSendToStudio('+idx+',\''+src+'\')">Send to Studio</button>'; h+='<button class="act-btn" style="width:100%;margin-bottom:10px" onclick="event.stopPropagation();planActiveIdea()">Plan posting date</button>'; h+='<div class="act-row">'; h+='<button class="act-btn'+(inLib?' saved-st':'')+'" id="sh-sv" onclick="toggleShSave()">'+(inLib?' Saved':' Save')+'</button>'; h+='<button class="act-btn" onclick="shareIdea()"> Share</button>'; h+='</div>'; h+='<div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:4px">Was this useful?</div>'; h+='<div class="rate-row"><button class="rate-btn" onclick="rateIdea(true)"> Great idea</button><button class="rate-btn" onclick="rateIdea(false)"> Not for me</button></div>'; h+='</div>'; document.getElementById('sh-body').innerHTML=h; document.getElementById('sh-ov').classList.add('open');
 }
 function shClose(e){if(e&&e.target!==document.getElementById('sh-ov'))return;shCloseForce();}
 function shCloseForce(){document.getElementById('sh-ov').classList.remove('open');}
@@ -2269,6 +2443,7 @@ function syncAccentTokens(c){
   r.style.setProperty('--accent-border','rgba('+rr+','+gg+','+bb+',.45)');
   r.style.setProperty('--accent-glow','rgba('+rr+','+gg+','+bb+',.28)');
   r.style.setProperty('--accent-contrast',contrast);
+  r.style.setProperty('--accent-text',hex);
   r.style.setProperty('--border-hover',hex);
   r.style.setProperty('--on-accent',contrast);
   if(window.PreShootOrb&&PreShootOrb.setAccent)PreShootOrb.setAccent(hex);
@@ -2572,7 +2747,7 @@ document.querySelectorAll('.fmt-btn').forEach(function(btn) { btn.classList.remo
 var wrap = document.getElementById('fmt-other-wrap'); if (key === 'other') { wrap.style.display = 'block'; setTimeout(function() { document.getElementById('fmt-other-inp').focus(); }, 100); } else { wrap.style.display = 'none'; } /* Always show extra details box with context-aware placeholder */
 var extraWrap = document.getElementById('fmt-extra-wrap'); var extraInp = document.getElementById('fmt-extra-inp'); var placeholders = { advert: 'e.g. We sell luxury skincare. Target audience is women 25-40. Key message: results in 7 days. Product is the serum in the photo.', ugc: 'e.g. I want to review this product honestly. It\'s a protein powder I\'ve been using for 3 weeks. I want it to feel real, not scripted.', educational: 'e.g. Teaching beginner photographers how to use natural light. My audience is hobbyists with entry-level cameras.', viral: 'e.g. I want something that makes people comment "tag someone who needs this." Audience is gym-goers 18-30.', storytelling: 'e.g. I want to tell the story of how I found this location. Emotional, cinematic, personal journey angle.', trialreel: 'e.g. First time using this lens. I want to show honest before/after footage and share my raw reaction.', meme: 'e.g. Poke fun at the struggle of being a content creator. My audience will relate to trying too hard for the perfect shot.', other: '' }; if (extraInp) { extraInp.placeholder = placeholders[key] || 'Add any extra context to help the AI, product details, audience, message, specific angle...'; } extraWrap.style.display = 'block'; 
 } function confirmFormat() { if (!S.selectedFormat) { showToast('Pick a format first', ''); return; } if (S.selectedFormat === 'other') { var customText = document.getElementById('fmt-other-inp').value.trim(); if (!customText) { showToast('Describe your video format', ''); document.getElementById('fmt-other-inp').focus(); return; } S.selectedFormatCustom = customText; } /* Capture extra  details (optional for all formats) */
-var extraInp = document.getElementById('fmt-extra-inp'); S.selectedFormatExtra = extraInp ? extraInp.value.trim() : ''; closeFmtSheet(); setTimeout(function() { startScan(); }, 400); 
+var extraInp = document.getElementById('fmt-extra-inp'); S.selectedFormatExtra = extraInp ? extraInp.value.trim() : ''; closeFmtSheet(); startScan(); 
 } function showInfoTip(key) { var info = FORMAT_INFO[key]; if (!info) return; document.getElementById('info-tip-ico').innerHTML = info.ico; document.getElementById('info-tip-title').textContent = info.title; document.getElementById('info-tip-body').textContent = info.body; document.getElementById('info-tip-ex').innerHTML = info.example; document.getElementById('info-tip-ov').style.display = 'flex';
 } function closeInfoTip() { document.getElementById('info-tip-ov').style.display = 'none';
 }
