@@ -268,7 +268,8 @@
       text: String(input.text || ''),
       shotId: input.shotId || null,
       shotOrder: typeof input.shotOrder === 'number' ? input.shotOrder : null,
-      kind: String(input.kind || '')
+      kind: String(input.kind || ''),
+      visualNote: String(input.visualNote || '')
     };
   }
 
@@ -1962,6 +1963,184 @@
     };
   }
 
+  var SCRIPT_SECTION_RE = /^(HOOK|SETUP|PAYOFF|CTA|CLOSE|INTRO|OUTRO|OPENING|ENDING|SCENE(?:\s+\d+)?)\s*$/i;
+  var SCRIPT_SPOKEN_TAG_RE = /^\[(?:ON[\s-]?CAMERA|TO[\s-]?CAMERA|VOICEOVER|VOICE[\s-]?OVER|V\.?O\.?|DIALOGUE|NARRATION|SPEAKER|TALENT)\]\s*$/i;
+  var SCRIPT_PROD_TAG_RE = /^\[(?:VISUAL|SHOT|CAMERA|B-?ROLL|B[\s-]?ROLL|INSERT|GFX|GRAPHIC|TEXT(?:\s+ON\s+SCREEN)?|BROLL)\]\s*$/i;
+  var SCRIPT_PROD_LABEL_RE = /^(?:Type|Subject|Camera|Support|Movement|Distance|Depth of Field|Duration|Lighting|Lens|Framing|Angle|Gear|Location|Props|Composition|Audio|Transition|Notes|Script Reference|Shot Type|Focal Length|DOF)\s*:/i;
+
+  function stripWrappingQuotes(text) {
+    var t = String(text || '').trim();
+    if (
+      (t.charAt(0) === '"' && t.charAt(t.length - 1) === '"') ||
+      (t.charAt(0) === '\u201c' && t.charAt(t.length - 1) === '\u201d')
+    ) {
+      return t.slice(1, -1).trim();
+    }
+    return t;
+  }
+
+  function isHeavyProductionLine(line) {
+    var t = String(line || '').trim();
+    if (!t) return false;
+    if (/^["\u201c]/.test(t) && /["\u201d]$/.test(t)) return false;
+    var hits = 0;
+    if (/\b(?:sony\s*fx\s*\d+|dji\s*rs\s*\d*|tripod|iphone\s*1[0-9]|canon\s*r\d|red\s*komodo|gimbal)\b/i.test(t)) {
+      hits += 1;
+    }
+    if (/\b(?:extreme\s+close-?up|close-?up|wide shot|medium shot|establishing shot|\becu\b)\b/i.test(t)) {
+      hits += 1;
+    }
+    if (/\b(?:slow\s+)?push-?in|dolly|orbit|locked off|tilt up|pan left|pan right\b/i.test(t)) hits += 1;
+    if (/\b(?:depth of field|bokeh|shallow)\b/i.test(t)) hits += 1;
+    if (/\b\d+\s*cm\s*(?:→|->|to)\s*\d+\s*cm\b/i.test(t)) hits += 1;
+    if (/\b(?:24|35|50|85)\s*mm\b/i.test(t) && /\b(?:lens|equivalent|focal)\b/i.test(t)) hits += 1;
+    if (SCRIPT_PROD_LABEL_RE.test(t)) hits += 2;
+    return hits >= 2;
+  }
+
+  function scriptContainsProductionLeak(text) {
+    var t = String(text || '');
+    if (/\[(?:VISUAL|SHOT|CAMERA|B-?ROLL)\]/i.test(t)) return true;
+    if (SCRIPT_PROD_LABEL_RE.test(t)) return true;
+    var lines = t.split(/\n/);
+    for (var i = 0; i < lines.length; i++) {
+      if (isHeavyProductionLine(lines[i])) return true;
+    }
+    return false;
+  }
+
+  function spokenBeatsFromSeparated(separated) {
+    return ((separated && separated.beats) || []).filter(function (b) {
+      return !!(b && (b.spoken || b.header));
+    });
+  }
+
+  function coalesceOrphanVisualBeats(beats) {
+    var out = [];
+    (beats || []).forEach(function (beat) {
+      var visualOnly = beat && !beat.spoken && !beat.header && beat.visual;
+      if (visualOnly) {
+        if (out.length) {
+          out[out.length - 1].visual = [out[out.length - 1].visual, beat.visual].filter(Boolean).join('\n');
+        } else {
+          out.push(beat);
+        }
+        return;
+      }
+      if (out.length && !out[out.length - 1].spoken && !out[out.length - 1].header && out[out.length - 1].visual) {
+        beat.visual = [out[out.length - 1].visual, beat.visual].filter(Boolean).join('\n');
+        out[out.length - 1] = beat;
+        return;
+      }
+      out.push(beat);
+    });
+    return out;
+  }
+
+  function separateScriptFromProduction(text) {
+    var raw = String(text || '').replace(/\r\n/g, '\n').trim();
+    var beats = [];
+    var current = { header: '', spokenTag: '', spoken: [], visual: [] };
+    var mode = 'script';
+
+    function flush() {
+      var spoken = current.spoken.join('\n').trim();
+      var visual = current.visual.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      if (!spoken && !visual && !current.header) return;
+      beats.push({
+        header: current.header,
+        spokenTag: current.spokenTag,
+        spoken: spoken,
+        visual: visual
+      });
+      current = { header: '', spokenTag: '', spoken: [], visual: [] };
+      mode = 'script';
+    }
+
+    raw.split('\n').forEach(function (line) {
+      var trimmed = String(line || '').trim();
+      if (!trimmed) {
+        if (mode === 'visual' && current.visual.length) current.visual.push('');
+        return;
+      }
+      if (SCRIPT_SECTION_RE.test(trimmed)) {
+        flush();
+        current.header = /^SCENE/i.test(trimmed) ? trimmed : trimmed.toUpperCase();
+        mode = 'script';
+        return;
+      }
+      if (SCRIPT_PROD_TAG_RE.test(trimmed)) {
+        mode = 'visual';
+        return;
+      }
+      if (SCRIPT_SPOKEN_TAG_RE.test(trimmed)) {
+        mode = 'script';
+        if (/VOICE/i.test(trimmed)) current.spokenTag = '[VOICEOVER]';
+        else if (/ON|TO/i.test(trimmed) && /CAMERA/i.test(trimmed)) current.spokenTag = '[ON CAMERA]';
+        else if (/DIALOGUE/i.test(trimmed)) current.spokenTag = '[DIALOGUE]';
+        else if (/NARRATION/i.test(trimmed)) current.spokenTag = '[NARRATION]';
+        else current.spokenTag = trimmed.toUpperCase();
+        return;
+      }
+      if (SCRIPT_PROD_LABEL_RE.test(trimmed)) {
+        mode = 'visual';
+        current.visual.push(trimmed);
+        return;
+      }
+      if (mode === 'visual') {
+        current.visual.push(trimmed);
+        return;
+      }
+      if (isHeavyProductionLine(trimmed)) {
+        mode = 'visual';
+        current.visual.push(trimmed);
+        return;
+      }
+      current.spoken.push(stripWrappingQuotes(trimmed));
+    });
+    flush();
+    beats = coalesceOrphanVisualBeats(beats);
+
+    var scriptParts = [];
+    beats.forEach(function (beat) {
+      if (!beat.spoken && !beat.header) return;
+      var block = [];
+      if (beat.header) block.push(beat.header);
+      if (beat.spokenTag && beat.spoken) block.push(beat.spokenTag);
+      if (beat.spoken) block.push(beat.spoken);
+      if (block.length) scriptParts.push(block.join('\n'));
+    });
+
+    var scriptBody = scriptParts.join('\n\n').trim();
+    var hadLeak =
+      scriptContainsProductionLeak(text) ||
+      beats.some(function (b) {
+        return !!b.visual;
+      });
+    if (scriptContainsProductionLeak(scriptBody)) {
+      scriptBody = scriptBody
+        .split('\n')
+        .filter(function (ln) {
+          var t = ln.trim();
+          if (!t) return true;
+          if (SCRIPT_PROD_TAG_RE.test(t) || SCRIPT_PROD_LABEL_RE.test(t)) return false;
+          return !isHeavyProductionLine(t);
+        })
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    return {
+      scriptBody: scriptBody,
+      beats: beats,
+      hadProductionLeak: hadLeak,
+      extractedShotCount: beats.filter(function (b) {
+        return !!b.visual;
+      }).length
+    };
+  }
+
   function hasRealScript(ws, idea) {
     var text = getScriptPlainText(ws || {});
     if (!text) return false;
@@ -1985,12 +2164,137 @@
     return index === 1 ? 'Setup' : 'Beat ' + (index + 1);
   }
 
-  function inferShotFraming(lineText, index) {
-    var t = String(lineText || '').toLowerCase();
-    if (/\bclose.?up\b|\bproduct\b|\bdetail\b/.test(t)) return 'Close-up';
-    if (/\bwide\b|\bestablish\b|\bscene\b/.test(t)) return 'Wide';
+  function inferShotFraming(visualText, index) {
+    var t = String(visualText || '').toLowerCase();
+    if (/extreme\s+close/.test(t) || /\becu\b/.test(t)) return 'Extreme close-up';
+    if (/close.?up/.test(t)) return 'Close-up';
+    if (/\bwide\b|\bestablish/.test(t)) return 'Wide';
+    if (/medium/.test(t)) return 'Medium shot';
     if (index === 0) return 'Medium close-up';
     return 'Medium shot';
+  }
+
+  function creatorGearString() {
+    var g = (global.S && global.S.gear) || {};
+    return [g.camera, g.gimbal, g.lens].filter(Boolean).join(' · ');
+  }
+
+  function parseVisualIntoShotFields(visual, spoken, index, total) {
+    var t = String(visual || '');
+    var framing = inferShotFraming(t, index);
+    if (!t && framing === 'Medium close-up' && index === 0) {
+      /* keep default hook framing */
+    } else if (!t) {
+      framing = inferShotFraming('', index);
+    }
+    var movement = '';
+    if (/slow\s+push-?in/i.test(t)) movement = 'Slow push-in';
+    else if (/push-?in/i.test(t)) movement = 'Push-in';
+    else if (/\bhold\b/i.test(t) && /beat/i.test(t)) movement = 'Hold for one beat';
+    else if (/\borbit\b/i.test(t)) movement = 'Soft orbit';
+    else if (/\bdolly\b/i.test(t)) movement = 'Dolly';
+    else if (/\bhold\b|locked/i.test(t)) movement = 'Hold';
+    var dist = t.match(/(\d+\s*cm)\s*(?:→|->|to)\s*(\d+\s*cm)/i);
+    if (dist && movement) {
+      movement += ' from ' + dist[1].replace(/\s+/g, '') + ' to ' + dist[2].replace(/\s+/g, '');
+    } else if (dist) {
+      movement = 'From ' + dist[1] + ' to ' + dist[2];
+    }
+    var gearParts = [];
+    var cam = t.match(/sony\s*fx\s*\d+[a-z]?/i);
+    if (cam) gearParts.push(cam[0].replace(/\s+/g, ' ').replace(/fx\s+/i, 'FX'));
+    var support = t.match(/dji\s*rs\s*4\s*pro|dji\s*rs4\s*pro|dji\s*rs\s*\d+/i);
+    if (support) gearParts.push(support[0].replace(/\s+/g, ' '));
+    var lighting = '';
+    if (/shallow/i.test(t) && /depth|bokeh|dof/i.test(t)) lighting = 'Shallow depth of field';
+    else if (/depth of field/i.test(t)) lighting = 'Controlled depth of field';
+    var spokenClean = stripWrappingQuotes(spoken);
+    return {
+      framing: t ? framing : inferShotFraming('', index),
+      cameraMovement: movement,
+      gear: gearParts.join(' · '),
+      lighting: lighting,
+      notes: t.trim(),
+      audio: spokenClean,
+      advancedDetail: dist ? 'Distance: ' + dist[1] + ' → ' + dist[2] : '',
+      purpose: inferShotPurpose(spokenClean, index, total)
+    };
+  }
+
+  function mergeExtractedVisualsIntoWorkspace(ws, separated, opts) {
+    opts = opts || {};
+    if (!ws || !separated) return ws;
+    var mode = opts.mode || 'replace';
+    var beats = spokenBeatsFromSeparated(separated);
+    var lines = (ws.script && ws.script.lines) || [];
+    var offset = mode === 'append' || mode === 'patch_ending' ? Math.max(0, lines.length - beats.length) : 0;
+    lines.forEach(function (line, i) {
+      var beat = beats[i - offset];
+      if (beat && beat.visual) line.visualNote = beat.visual;
+    });
+    var hasVisual =
+      beats.some(function (b) {
+        return !!(b && b.visual);
+      }) ||
+      lines.some(function (l) {
+        return !!(l && l.visualNote);
+      });
+    if (!hasVisual) return ws;
+    var existing = Array.isArray(ws.shotList) ? ws.shotList : [];
+    if (!existing.length) {
+      var shots = [];
+      lines.forEach(function (line, i) {
+        var beat = beats[i - offset] || {};
+        var spoken = String(line.text || beat.spoken || '').trim();
+        var parsed = parseVisualIntoShotFields(beat.visual || line.visualNote || '', spoken, i, lines.length);
+        var shot = createShot({
+          order: i + 1,
+          purpose: parsed.purpose || inferShotPurpose(spoken, i, lines.length),
+          durationSec: Math.min(8, Math.max(2, Math.round(spoken.length / 28) || 3)),
+          framing: parsed.framing || inferShotFraming(line.visualNote || '', i),
+          cameraAngle: i === 0 ? 'Eye level' : '',
+          cameraMovement: parsed.cameraMovement || (i === 0 ? 'Hold / micro push-in' : 'Hold'),
+          lens: '',
+          gear: parsed.gear || creatorGearString(),
+          lighting: parsed.lighting || '',
+          audio: spoken.slice(0, 180),
+          notes: parsed.notes || ('Script reference: “' + spoken.slice(0, 140) + '”'),
+          beginnerTip: 'Match this shot to the linked script beat before you roll.',
+          advancedDetail: parsed.advancedDetail || '',
+          scriptLineId: line.id
+        });
+        line.shotId = shot.id;
+        line.shotOrder = shot.order;
+        shots.push(shot);
+      });
+      ws.shotList = shots;
+      return ws;
+    }
+    existing.forEach(function (shot, i) {
+      var line = lines[i];
+      var beat = beats[i - offset] || {};
+      var visual = (line && line.visualNote) || beat.visual || '';
+      if (!visual) return;
+      var spoken = (line && line.text) || beat.spoken || '';
+      var parsed = parseVisualIntoShotFields(visual, spoken, i, existing.length);
+      if (!shot.framing && parsed.framing) shot.framing = parsed.framing;
+      if (!shot.cameraMovement && parsed.cameraMovement) shot.cameraMovement = parsed.cameraMovement;
+      if (!shot.gear && parsed.gear) shot.gear = parsed.gear;
+      if (!shot.lighting && parsed.lighting) shot.lighting = parsed.lighting;
+      if (!shot.audio && spoken) shot.audio = String(spoken).slice(0, 180);
+      if (parsed.notes) {
+        if (!shot.notes) shot.notes = parsed.notes;
+        else if (shot.notes.indexOf(parsed.notes) < 0) {
+          shot.advancedDetail = (shot.advancedDetail ? shot.advancedDetail + '\n' : '') + parsed.notes;
+        }
+      }
+      if (line && !shot.scriptLineId) shot.scriptLineId = line.id;
+      if (line && !line.shotId) {
+        line.shotId = shot.id;
+        line.shotOrder = shot.order;
+      }
+    });
+    return ws;
   }
 
   function buildShotListFromScript(productionId, opts) {
@@ -2014,19 +2318,24 @@
     if (lines.length) {
       lines.forEach(function (line, i) {
         var text = String(line.text || '').trim();
+        var visual = String(line.visualNote || '');
+        var parsed = parseVisualIntoShotFields(visual, text, i, lines.length);
         var shot = createShot({
           order: i + 1,
-          purpose: inferShotPurpose(text, i, lines.length),
+          purpose: parsed.purpose || inferShotPurpose(text, i, lines.length),
           durationSec: Math.min(8, Math.max(2, Math.round(text.length / 28) || 3)),
-          framing: inferShotFraming(text, i),
+          framing: parsed.framing || inferShotFraming(visual, i),
           cameraAngle: i === 0 ? 'Eye level' : '',
-          cameraMovement: i === 0 ? 'Hold / micro push-in' : i === lines.length - 1 ? 'Hold' : 'Slow move or locked',
+          cameraMovement:
+            parsed.cameraMovement ||
+            (i === 0 ? 'Hold / micro push-in' : i === lines.length - 1 ? 'Hold' : 'Slow move or locked'),
           lens: '',
-          gear: ((global.S && global.S.gear && global.S.gear.camera) || '') + '',
-          lighting: '',
+          gear: parsed.gear || creatorGearString(),
+          lighting: parsed.lighting || '',
           audio: text.slice(0, 180),
-          notes: 'Covers script section ' + String(i + 1).padStart(2, '0'),
+          notes: parsed.notes || ('Script reference: “' + text.slice(0, 140) + '”'),
           beginnerTip: 'Match this shot to the linked script beat before you roll.',
+          advancedDetail: parsed.advancedDetail || '',
           scriptLineId: line.id
         });
         line.shotId = shot.id;
@@ -2122,11 +2431,18 @@
     return String(script.body || '').trim();
   }
 
-  function applyScriptPlainText(ws, text, mode) {
+  function applyScriptPlainText(ws, text, mode, opts) {
     ws = ws || defaultWorkspace();
     ws.script = ws.script || { body: '', lines: [] };
+    opts = opts || {};
+    var incoming = String(text || '').trim();
+    var separated = null;
+    if (opts.sanitize) {
+      separated = separateScriptFromProduction(incoming);
+      incoming = separated.scriptBody;
+    }
     var prev = getScriptPlainText(ws);
-    var next = String(text || '').trim();
+    var next = incoming;
     mode = mode || 'replace';
     if (mode === 'append') {
       if (prev && next) {
@@ -2156,18 +2472,30 @@
       : [];
     if (!chunks.length && next) chunks = [next];
     var oldLines = Array.isArray(ws.script.lines) ? ws.script.lines : [];
+    var visualNotes = Array.isArray(opts.visualNotes) ? opts.visualNotes : null;
+    var sepBeats = spokenBeatsFromSeparated(separated);
+    var noteOffset =
+      mode === 'append' || mode === 'patch_ending' ? Math.max(0, chunks.length - sepBeats.length) : 0;
     ws.script.lines = chunks.map(function (chunk, i) {
       var prevLine = oldLines[i];
+      var visualNote = '';
+      if (visualNotes && visualNotes[i]) visualNote = visualNotes[i];
+      else if (sepBeats[i - noteOffset] && sepBeats[i - noteOffset].visual) {
+        visualNote = sepBeats[i - noteOffset].visual;
+      } else if (prevLine && prevLine.visualNote) {
+        visualNote = prevLine.visualNote;
+      }
       return createScriptLine({
         id: prevLine && prevLine.id ? prevLine.id : undefined,
         order: i + 1,
         text: chunk,
         shotId: prevLine && prevLine.shotId ? prevLine.shotId : null,
         shotOrder: prevLine && prevLine.shotOrder ? prevLine.shotOrder : i + 1,
-        kind: prevLine && prevLine.kind ? prevLine.kind : ''
+        kind: prevLine && prevLine.kind ? prevLine.kind : '',
+        visualNote: visualNote
       });
     });
-    return { previous: prev, next: next, workspace: ws };
+    return { previous: prev, next: next, workspace: ws, separated: separated };
   }
 
   function confirmMessage(action, payload) {
@@ -2319,7 +2647,27 @@
                 })
                 .filter(Boolean)
                 .join('\n\n');
-        var applied = applyScriptPlainText(prodScript.workspace, textIn, modeScript);
+        var separated = separateScriptFromProduction(textIn);
+        if (separated.hadProductionLeak && !separated.scriptBody.trim()) {
+          return {
+            ok: false,
+            error: 'malformed_script',
+            message: 'Director mixed production notes into the script. Retry Generate Script.'
+          };
+        }
+        var visualNotes =
+          payload.visualNotes && payload.visualNotes.length
+            ? payload.visualNotes
+            : spokenBeatsFromSeparated(separated).map(function (b) {
+                return b.visual || '';
+              });
+        var applied = applyScriptPlainText(prodScript.workspace, separated.scriptBody || textIn, modeScript, {
+          sanitize: false,
+          visualNotes: visualNotes
+        });
+        mergeExtractedVisualsIntoWorkspace(applied.workspace, separated, {
+          mode: modeScript
+        });
         var saved = updateProduction(payload.productionId, { workspace: applied.workspace });
         return {
           ok: !!saved,
@@ -2327,7 +2675,9 @@
             productionId: payload.productionId,
             mode: modeScript,
             previous: applied.previous,
-            next: applied.next
+            next: applied.next,
+            sanitized: separated.hadProductionLeak,
+            extractedShotCount: separated.extractedShotCount
           },
           message: modeScript === 'replace' ? 'Script replaced' : 'Script updated'
         };
@@ -2602,6 +2952,9 @@
     buildWorkspaceFromIdea: buildWorkspaceFromIdea,
     buildShotListFromScript: buildShotListFromScript,
     hasRealScript: hasRealScript,
+    separateScriptFromProduction: separateScriptFromProduction,
+    scriptContainsProductionLeak: scriptContainsProductionLeak,
+    parseVisualIntoShotFields: parseVisualIntoShotFields,
     createShot: createShot,
     createScriptLine: createScriptLine,
     createRefItem: createRefItem,

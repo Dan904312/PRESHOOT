@@ -280,6 +280,8 @@
         lines.push('CURRENT_SCRIPT:\n' + String(scriptText).slice(0, 1800));
       }
     }
+    lines.push('SCRIPT vs SHOT LIST: Script = spoken words only. Shot list = how it is filmed.');
+    lines.push('Never put [VISUAL], camera, gear, framing, movement, or lighting inside update_script body.');
     lines.push('Script actions: update_script (modes: append|patch_hook|patch_ending|replace)');
     if (live.skillLevel) lines.push('Skill: ' + live.skillLevel);
     if (live.platform) lines.push('Platform: ' + live.platform);
@@ -1291,6 +1293,13 @@
     if (target === 'script') {
       var lines = (ws.script && ws.script.lines) || [];
       var body = (ws.script && ws.script.body) || '';
+      if (!lines.length && !body) {
+        return {
+          ok: false,
+          error: 'no_script',
+          message: 'Write or generate a script first. An idea description is not a script.'
+        };
+      }
       if (mode === 'shorter') {
         if (lines.length) {
           lines = lines.map(function (l) {
@@ -1308,12 +1317,11 @@
             })
             .join('\n');
         } else {
-          var seedLine = Studio.createScriptLine({
-            order: 1,
-            text: (idea.hook || ov.summary || 'Open on the strongest visual.').slice(0, 90),
-            shotId: (ws.shotList[0] && ws.shotList[0].id) || null
-          });
-          ws.script.lines = [seedLine];
+          return {
+            ok: false,
+            error: 'no_script',
+            message: 'Write or generate a script first. An idea description is not a script.'
+          };
         }
         Studio.updateProduction(productionId, { workspace: ws });
         rememberTurn({

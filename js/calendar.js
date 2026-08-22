@@ -87,8 +87,54 @@
     return {
       current: st.current || 0,
       longest: st.longest || 0,
-      days: Array.isArray(st.days) ? st.days : []
+      days: Array.isArray(st.days) ? st.days : [],
+      todayComplete: st.todayComplete === true
     };
+  }
+
+  function streakActivity() {
+    var ent = global.S && S.entitlement;
+    var list = (ent && ent.streak && ent.streak.activity) || [];
+    return Array.isArray(list) ? list : [];
+  }
+
+  function activityOn(iso) {
+    var row = streakActivity().filter(function (a) {
+      return a && a.date === iso;
+    })[0];
+    return row || { date: iso, types: [], labels: [] };
+  }
+
+  function catalogDays() {
+    var ent = global.S && S.entitlement;
+    var cat = (ent && ent.streak && ent.streak.catalog) || [];
+    var set = {};
+    (Array.isArray(cat) ? cat : []).forEach(function (c) {
+      if (c && c.days) set[c.days] = true;
+    });
+    if (!Object.keys(set).length) {
+      [3, 7, 10, 30, 60, 100].forEach(function (d) {
+        set[d] = true;
+      });
+    }
+    return set;
+  }
+
+  function runEnding(iso) {
+    var set = streakDays();
+    if (!set[iso]) return 0;
+    var n = 0;
+    var cursor = iso;
+    while (set[cursor]) {
+      n += 1;
+      cursor = addDays(cursor, -1);
+    }
+    return n;
+  }
+
+  function isMilestoneDay(iso) {
+    var n = runEnding(iso);
+    return !!(n && catalogDays()[n]);
   }
 
   function localDateFromTs(ts) {
@@ -250,13 +296,17 @@
 
   function markers(iso) {
     var list = eventsOn(iso);
+    var personal = activityOn(iso);
     return {
       planned: list.some(function (e) {
         return e.status !== 'posted' && e.status !== 'skipped' && (e.type === 'post' || e.type === 'production' || e.type === 'other');
       }),
       posted: list.some(function (e) { return e.status === 'posted'; }),
-      scanned: list.some(function (e) { return e.type === 'scan' || e.type === 'idea'; }),
-      streak: !!streakDays()[iso]
+      scanned: list.some(function (e) { return e.type === 'scan' || e.type === 'idea'; }) || (personal.types || []).indexOf('scan') >= 0,
+      streak: !!streakDays()[iso],
+      milestone: isMilestoneDay(iso),
+      personalTypes: personal.types || [],
+      personalLabels: personal.labels || []
     };
   }
 
@@ -301,6 +351,7 @@
       if (iso === today) cls += ' is-today';
       if (iso === selectedDate) cls += ' is-sel';
       if (m.streak) cls += ' is-streak';
+      if (m.milestone) cls += ' is-milestone';
       html +=
         '<button type="button" class="' +
         cls +
@@ -311,7 +362,7 @@
         '</span><span class="plan-week-n">' +
         parseInt(iso.slice(8), 10) +
         '</span><span class="plan-week-mark">' +
-        (m.streak ? '🔥' : m.posted ? '✓' : m.planned ? '●' : '') +
+        (m.milestone ? '🎯' : m.streak ? '🔥' : m.posted ? '✓' : m.planned ? '●' : '') +
         '</span></button>';
     }
     html += '</div>';
@@ -346,6 +397,7 @@
       if (iso === today) cls += ' is-today';
       if (iso === selectedDate) cls += ' is-sel';
       if (m.streak) cls += ' is-streak';
+      if (m.milestone) cls += ' is-milestone';
       html +=
         '<button type="button" class="' +
         cls +
@@ -358,6 +410,7 @@
       if (m.posted) html += '<i class="dot posted" title="Posted"></i>';
       if (m.scanned) html += '<i class="dot scanned" title="Scan / idea"></i>';
       if (m.streak) html += '<i class="dot streak" title="Streak"></i>';
+      if (m.milestone) html += '<i class="dot milestone" title="Milestone"></i>';
       html += '</span></button>';
     }
     html += '</div></div>';
@@ -366,7 +419,12 @@
 
   function renderStats() {
     var p = progress();
-    var fire = p.currentStreak ? '🔥 ' + p.currentStreak + ' day streak' : 'No active streak';
+    var st = streakNums();
+    var fire = p.currentStreak
+      ? '🔥 ' + p.currentStreak + ' day streak'
+      : 'No active streak';
+    if (p.currentStreak && st.todayComplete) fire += ' · on fire';
+    else if (p.currentStreak) fire += ' · keep going';
     var html = '<div class="plan-stats">';
     [
       [fire, 'Personal streak'],
@@ -406,12 +464,19 @@
     html += '<div class="plan-day-sub">';
     var m = markers(iso);
     var bits = [];
-    if (m.planned) bits.push('● Planned');
+    if (m.milestone) bits.push('🎯 Milestone');
+    if (m.streak) bits.push('🔥 Streak Day');
     if (m.posted) bits.push('✓ Posted');
-    if (m.streak) bits.push('🔥 Streak (personal)');
-    if (m.scanned) bits.push('Scan / idea');
+    if (m.planned) bits.push('● Planned');
     html += esc(bits.join(' · ') || 'No activity yet');
     html += '</div></div>';
+    if (m.personalLabels && m.personalLabels.length) {
+      html += '<div class="plan-day-acts"><div class="plan-day-acts-k">Your activity</div>';
+      m.personalLabels.forEach(function (label) {
+        html += '<div class="plan-day-act">✓ ' + esc(label) + '</div>';
+      });
+      html += '</div>';
+    }
     if (!list.length) {
       html += '<div class="plan-empty">Nothing planned for this day.</div>';
     } else {

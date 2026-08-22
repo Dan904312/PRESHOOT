@@ -23,6 +23,9 @@
       var wid = PreShootWorkspace.workspaceIdForDirector();
       if (wid) body.workspace_id = wid;
     }
+    if (global.PreShootEntitlements && PreShootEntitlements.tz) {
+      body.timezone = PreShootEntitlements.tz();
+    }
     return body;
   }
 
@@ -40,6 +43,12 @@
 
   function toast(msg) {
     if (typeof global.showToast === 'function') global.showToast(msg);
+  }
+
+  function noteStreak(kind) {
+    if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
+      PreShootEntitlements.recordActivity(kind);
+    }
   }
 
   function relativeTime(ts) {
@@ -876,7 +885,7 @@
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Script</div>';
-    h += '<div class="pw-section-sub">Spoken and visual beats — not the idea description</div>';
+    h += '<div class="pw-section-sub">What is said — dialogue, voiceover, narration. Not camera or visuals.</div>';
     if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
       h += PreShootWorkspaceComments.commentChipHtml(
         productionId,
@@ -3078,7 +3087,10 @@
               mode +
               '","body":"..."}]]\n' +
               modeHint +
-              '\nDo NOT say Done/Updated/Finished in plain text. Do NOT claim success. The app executes the mutation.',
+              '\nSCRIPT RULES: body is spoken words only (dialogue / VO / narration). ' +
+              'Section labels and [ON CAMERA] / [VOICEOVER] are allowed. ' +
+              'Never put [VISUAL], [SHOT], [CAMERA], [B-ROLL], gear, framing, movement, lighting, or production notes in the script body.\n' +
+              'Do NOT say Done/Updated/Finished in plain text. Do NOT claim success. The app executes the mutation.',
             messages: [
               {
                 role: 'user',
@@ -3089,7 +3101,7 @@
                   userMsg +
                   '\n\nEXISTING SCRIPT (preserve unless replace):\n"""\n' +
                   (existing || '(empty)') +
-                  '\n"""\n\nEmit [[SCRIPT:{...}]] only. Body must be the script text for the chosen mode.'
+                  '\n"""\n\nEmit [[SCRIPT:{...}]] only. Body must be spoken script text for the chosen mode — never camera or visual directions.'
               }
             ]
           })
@@ -3166,6 +3178,34 @@
           applyMode = mode === 'patch_hook' || mode === 'patch_ending' ? mode : 'append';
         }
         if (mode === 'replace') applyMode = 'replace';
+        var bodyIn = String(patch.body).trim();
+        var visualNotes = null;
+        if (Studio().separateScriptFromProduction) {
+          var sep = Studio().separateScriptFromProduction(bodyIn);
+          if (sep && sep.hadProductionLeak && !String(sep.scriptBody || '').trim()) {
+            var leakMsg = 'Director mixed camera notes into the script. Retry generation.';
+            setDirectorStatus('error', leakMsg);
+            setDirectorPanel(
+              '<div class="dir-cmd-status-card kind-error">' +
+                '<div class="dir-cmd-status-text">' +
+                esc(leakMsg) +
+                '</div></div>' +
+                '<button type="button" class="studio-btn ghost sm" style="margin-top:8px" onclick="PreShootStudioUI.retryLastScriptAi()">Retry</button>'
+            );
+            setDirectorGoState('idle');
+            return;
+          }
+          if (sep && sep.scriptBody) {
+            visualNotes = (sep.beats || [])
+              .filter(function (b) {
+                return b && (b.spoken || b.header);
+              })
+              .map(function (b) {
+                return b.visual || '';
+              });
+            bodyIn = sep.scriptBody;
+          }
+        }
         setDirectorStatus('thinking', 'Ready to execute');
         _lastScriptAi = {
           productionId: productionId,
@@ -3177,12 +3217,14 @@
           {
             productionId: productionId,
             mode: applyMode,
-            body: String(patch.body).trim(),
-            verifySnippet: String(patch.body).trim().slice(0, 80),
+            body: bodyIn,
+            visualNotes: visualNotes,
+            verifySnippet: bodyIn.slice(0, 80),
             previousLength: existing.length
           },
           { tool: 'script', mutates: true, object: { type: 'script', id: productionId } }
         );
+        noteStreak('script');
       })
       .catch(function (err) {
         var net =
@@ -3915,11 +3957,16 @@
     }
     var niche = (global.S && global.S.niche) || {};
     var prompt =
-      'Write an executable shooting script for this production. Do NOT copy the idea description, strategy, or why-it-works text.\n' +
-      'Return the FULL script only.\n\n' +
+      'Write ONLY the spoken script for this production. Script and shot list are separate documents.\n' +
+      'The Script contains what is SAID. Do NOT write how it is filmed.\n' +
+      'Do NOT copy the idea description, strategy, or why-it-works text.\n' +
+      'Return the FULL spoken script only.\n\n' +
+      'Allowed: HOOK / SETUP / PAYOFF / CTA labels, speaker names, [ON CAMERA], [VOICEOVER], [NARRATION], spoken lines.\n' +
+      'Forbidden inside the Script: [VISUAL], [SHOT], [CAMERA], [B-ROLL], camera bodies, gimbals, lenses, framing, movement, lighting, B-roll, equipment, depth of field, or any production instruction.\n' +
+      'Those belong in the Shot List, which you must NOT generate here.\n\n' +
       'Required shape (blank line between beats):\n' +
-      'HOOK\n[ON CAMERA]\n"spoken line"\n[VISUAL]\nWhat we see.\n\n' +
-      'SETUP\n[VOICEOVER] or [ON CAMERA]\n...\n\nPAYOFF\n...\n\nCTA\n"..."\n\n' +
+      'HOOK\n[ON CAMERA]\nYou don\'t learn faster by studying more.\nYou learn faster by teaching.\n\n' +
+      'SETUP\n[VOICEOVER] or [ON CAMERA]\nspoken lines only\n\nPAYOFF\nspoken lines only\n\nCTA\nspoken lines only\n\n' +
       'Context — concept only, not script:\n' +
       'Title: ' + (idea.title || prod.name || '') + '\n' +
       'Hook idea: ' + (idea.hook || '') + '\n' +
@@ -3968,6 +4015,7 @@
       return;
     }
     toast('Shot list built from script');
+    noteStreak('shotlist');
     if (global.S && global.S.studioView) global.S.studioView.section = 'shots';
     renderContinueCard();
     renderStudio();
@@ -4733,6 +4781,7 @@
       PreShootAnalytics.track('project_created', { id: String(p.id || '').slice(0, 40) });
     }
     toast('Project created');
+    noteStreak('project');
     openProject(p.id);
   }
 
@@ -5134,6 +5183,7 @@
     patch[field] = value;
     Studio().updateProduction(productionId, patch);
     renderContinueCard();
+    noteStreak('save');
   }
 
   function moveProductionPrompt(productionId) {

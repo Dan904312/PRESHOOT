@@ -101,10 +101,6 @@
       var n = pad2(i + 1);
       var shot = shotForLine(ws, line);
       out.push('SCENE ' + n + (shot && shot.purpose ? ' — ' + shot.purpose.toUpperCase() : ''));
-      if (shot) {
-        if (shot.framing) out.push('[CAMERA]\n' + shot.framing + (shot.cameraAngle ? ' — ' + shot.cameraAngle : '') + (shot.cameraMovement ? '. ' + shot.cameraMovement : ''));
-        if (shot.notes) out.push('[VISUAL]\n' + shot.notes);
-      }
       out.push('[DIALOGUE]\n' + (line.text || '').trim());
       out.push('');
     });
@@ -137,6 +133,9 @@
       out.push('SHOT ' + n);
       if (linked) {
         out.push('SCRIPT: Scene ' + pad2(linked.index + 1) + (shot.purpose ? ' / ' + shot.purpose : ''));
+        if (linked.line && linked.line.text) {
+          out.push('SCRIPT REFERENCE:\n' + String(linked.line.text).trim());
+        }
       } else if (shot.scriptLineId) {
         out.push('SCRIPT: ' + shot.scriptLineId);
       }
