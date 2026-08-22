@@ -384,9 +384,11 @@ test('SQL streak kinds include plan/post', () => {
   assert.ok(sql.includes("'plan', 'post'"));
 });
 
-test('admin no longer labels estimates as API cost spend', () => {
-  assert.ok(adminHtml.includes('$ spend (deferred)'));
-  assert.ok(!adminHtml.includes('>API cost</div>'));
+test('admin shows estimated API cost with five-decimal precision', () => {
+  assert.ok(adminHtml.includes('function moneyApi'));
+  assert.ok(adminHtml.includes('>API cost</div>'));
+  assert.ok(adminHtml.includes('are estimates, not invoices'));
+  assert.ok(!adminHtml.includes('$ spend (deferred)'));
 });
 
 test('addDaysIso helper used by week math', () => {

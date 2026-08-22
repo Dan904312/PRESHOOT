@@ -141,7 +141,7 @@ test('AI endpoints log ai_request without prompt bodies', () => {
   const research = fs.readFileSync(path.join(root, 'api/research.js'), 'utf8');
   assert.ok(dir.includes('trackProductEventServer'));
   assert.ok(dir.includes("ai_request"));
-  assert.ok(dir.includes('estimateAiCostUsd'));
+  assert.ok(dir.includes('estimateAiCostFromUsage'));
   assert.ok(chat.includes("ai_request"));
   assert.ok(research.includes("ai_request"));
   assert.ok(!dir.includes('prompt:'));

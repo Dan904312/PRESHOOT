@@ -86,8 +86,8 @@ test('longest streak is preserved across a skip', () => {
   assert.strictEqual(s.longest, 3);
 });
 
-test('milestones include 3/7/14/30/60/100', () => {
-  assert.deepStrictEqual(STREAK_MILESTONES, [3, 7, 14, 30, 60, 100]);
+test('milestones include 3/7/10/30/60/100', () => {
+  assert.deepStrictEqual(STREAK_MILESTONES, [3, 7, 10, 30, 60, 100]);
 });
 
 test('timezone sanitizer rejects injection and unknown zones', () => {

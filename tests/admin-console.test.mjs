@@ -6,9 +6,17 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { estimateAiCostUsd, lookupPricing, USAGE_EVENT_TYPES } from '../lib/ai-pricing.js';
+import {
+  estimateAiCostUsd,
+  estimateAiCostFromUsage,
+  lookupPricing,
+  formatApiCostUsd,
+  parseAnthropicStreamUsage,
+  USAGE_EVENT_TYPES
+} from '../lib/ai-pricing.js';
 import { emailProviderStatus } from '../lib/email.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
+import { estimatedProfit, mergeDailySeries, buildUtcDayKeys } from '../lib/admin-console.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0;
@@ -72,10 +80,50 @@ test('pricing is centralized and token-based', () => {
   assert.strictEqual(estimateAiCostUsd('claude-sonnet-4-6', 1e6, 1e6), 18);
   const haiku = estimateAiCostUsd('claude-haiku-4-5-20251001', 1e6, 0);
   assert.strictEqual(haiku, 0.8);
+  const tiny = estimateAiCostUsd('claude-sonnet-4-6', 140, 0);
+  assert.ok(tiny > 0 && tiny < 0.01);
+  assert.strictEqual(formatApiCostUsd(tiny), '$' + tiny.toFixed(5));
+  assert.strictEqual(formatApiCostUsd(0.00001), '$0.00001');
+  assert.ok(!formatApiCostUsd(0.00042).endsWith('0.00'));
+  assert.ok(formatApiCostUsd(1.24).includes('1.24000'));
+  const cached = estimateAiCostFromUsage('claude-sonnet-4-6', {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_input_tokens: 1e6
+  });
+  assert.strictEqual(cached, 0.3);
+  const streamed = parseAnthropicStreamUsage(
+    'data: {"type":"message_start","message":{"usage":{"input_tokens":12,"cache_read_input_tokens":100}}}\n' +
+      'data: {"type":"message_delta","usage":{"output_tokens":8}}'
+  );
+  assert.strictEqual(streamed.input_tokens, 12);
+  assert.strictEqual(streamed.output_tokens, 8);
+  assert.strictEqual(streamed.cache_read_tokens, 100);
   assert.ok(USAGE_EVENT_TYPES.includes('scan'));
   assert.ok(USAGE_EVENT_TYPES.includes('director_request'));
   assert.ok(!chat.includes('input_cost_per_million'));
   assert.ok(!director.includes('input_cost_per_million'));
+});
+
+test('estimated profit and daily series do not invent history', () => {
+  const pos = estimatedProfit(100, 10);
+  assert.strictEqual(pos.profit, 90);
+  assert.strictEqual(pos.margin, 90);
+  const neg = estimatedProfit(0, 10);
+  assert.strictEqual(neg.profit, -10);
+  assert.strictEqual(neg.margin, null);
+  const keys = buildUtcDayKeys(3, '2026-08-22T12:00:00.000Z');
+  assert.deepStrictEqual(keys, ['2026-08-20', '2026-08-21', '2026-08-22']);
+  const series = mergeDailySeries(keys, {
+    scans: { '2026-08-22': 2 },
+    dau: { '2026-08-22': 1 },
+    signups: {},
+    revenue: { '2026-08-22': 9 },
+    api_cost: { '2026-08-22': 0.00042 }
+  });
+  assert.strictEqual(series[0].scans, 0);
+  assert.strictEqual(series[2].scans, 2);
+  assert.strictEqual(series[2].profit, estimatedProfit(9, 0.00042).profit);
 });
 
 test('usage ledger skips failed events and omits prompts', () => {
@@ -166,6 +214,11 @@ test('admin UI is an operations console without emoji nav', () => {
   assert.ok(html.includes('ov-activated'));
   assert.ok(html.includes('Usage tracking available from'));
   assert.ok(html.includes('Historical usage was not recorded'));
+  assert.ok(html.includes('function moneyApi'));
+  assert.ok(html.includes('daily_analytics'));
+  assert.ok(html.includes('Estimated profit'));
+  assert.ok(!html.includes("set('ov-ai-cost', '—')"));
+  assert.ok(!html.includes("set('us-cost', '—')"));
   assert.ok(!html.includes('nav-ico'));
   assert.ok(!/📊|👥|✨|🚪|🎟/.test(html));
   assert.ok(html.includes('Suspend account'));
@@ -190,8 +243,21 @@ test('privacy and terms mention operational tracking honestly', () => {
   assert.ok(privacy.includes('Operational usage metrics'));
   assert.ok(privacy.includes('24 months'));
   assert.ok(privacy.includes('does not claim ISO'));
+  assert.ok(privacy.includes('does not retrieve scan images'));
   assert.ok(terms.includes('cannot use authenticated PreShoot APIs'));
   assert.ok(terms.includes('does not, by itself, grant a paid plan'));
+  assert.ok(terms.includes('do not automatically ban'));
+});
+
+test('admin APIs stay session-gated and daily analytics is server-side', () => {
+  assert.ok(admin.includes("case 'daily_analytics'"));
+  assert.ok(admin.includes('estimated_profit'));
+  assert.ok(admin.includes("action: 'user_viewed'"));
+  assert.ok(admin.includes('requireAdminSession'));
+  assert.ok(sql.includes('REVOKE ALL ON TABLE usage_events FROM anon, authenticated'));
+  const analyticsSql = fs.readFileSync(path.join(root, 'supabase_admin_analytics.sql'), 'utf8');
+  assert.ok(analyticsSql.includes('admin_daily_usage'));
+  assert.ok(analyticsSql.includes('GRANT EXECUTE ON FUNCTION admin_daily_usage'));
 });
 
 console.log('\nAdmin console results:', passed, 'passed,', failed, 'failed\n');
