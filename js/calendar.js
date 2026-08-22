@@ -16,6 +16,10 @@
   var selectedDate = null;
   var editingId = null;
 
+  function ico(name, size) {
+    return global.ICO && typeof ICO.html === 'function' ? ICO.html(name, size) : '';
+  }
+
   function Studio() {
     return global.PreShootStudio;
   }
@@ -362,7 +366,7 @@
         '</span><span class="plan-week-n">' +
         parseInt(iso.slice(8), 10) +
         '</span><span class="plan-week-mark">' +
-        (m.milestone ? '🎯' : m.streak ? '🔥' : m.posted ? '✓' : m.planned ? '●' : '') +
+        (m.milestone ? ico('target', 12) : m.streak ? ico('flame', 12) : m.posted ? ico('check', 12) : m.planned ? '<span class="plan-dot-planned" aria-hidden="true"></span>' : '') +
         '</span></button>';
     }
     html += '</div>';
@@ -421,7 +425,7 @@
     var p = progress();
     var st = streakNums();
     var fire = p.currentStreak
-      ? '🔥 ' + p.currentStreak + ' day streak'
+      ? String(p.currentStreak) + ' day streak'
       : 'No active streak';
     if (p.currentStreak && st.todayComplete) fire += ' · on fire';
     else if (p.currentStreak) fire += ' · keep going';
@@ -464,16 +468,16 @@
     html += '<div class="plan-day-sub">';
     var m = markers(iso);
     var bits = [];
-    if (m.milestone) bits.push('🎯 Milestone');
-    if (m.streak) bits.push('🔥 Streak Day');
-    if (m.posted) bits.push('✓ Posted');
-    if (m.planned) bits.push('● Planned');
-    html += esc(bits.join(' · ') || 'No activity yet');
+    if (m.milestone) bits.push(ico('target', 12) + ' Milestone');
+    if (m.streak) bits.push(ico('flame', 12) + ' Streak Day');
+    if (m.posted) bits.push(ico('check', 12) + ' Posted');
+    if (m.planned) bits.push('<span class="plan-dot-planned" aria-hidden="true"></span> Planned');
+    html += bits.join('<span aria-hidden="true"> · </span>') || 'No activity yet';
     html += '</div></div>';
     if (m.personalLabels && m.personalLabels.length) {
       html += '<div class="plan-day-acts"><div class="plan-day-acts-k">Your activity</div>';
       m.personalLabels.forEach(function (label) {
-        html += '<div class="plan-day-act">✓ ' + esc(label) + '</div>';
+        html += '<div class="plan-day-act">' + ico('check', 12) + ' ' + esc(label) + '</div>';
       });
       html += '</div>';
     }
@@ -680,7 +684,11 @@
     html += renderWeekStrip();
     html += renderMonthGrid();
     html +=
-      '<div class="plan-legend"><span>● Planned</span><span>✓ Posted</span><span>🔥 Streak</span></div>';
+      '<div class="plan-legend"><span><span class="plan-dot-planned" aria-hidden="true"></span> Planned</span><span>' +
+      ico('check', 12) +
+      ' Posted</span><span>' +
+      ico('flame', 12) +
+      ' Streak</span></div>';
     html += '<div class="plan-day-panel">' + renderDayList(selectedDate || todayIso()) + '</div>';
     root.innerHTML = html;
     fillDaySheet();

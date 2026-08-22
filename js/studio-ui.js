@@ -14,6 +14,80 @@
       .replace(/"/g, '&quot;');
   }
 
+  function ico(name, size) {
+    return global.ICO && typeof ICO.html === 'function' ? ICO.html(name, size) : '';
+  }
+
+  var _dirFullStore = {};
+  var _dirFullSeq = 0;
+  function storeDirFull(text) {
+    var id = 'df' + (++_dirFullSeq);
+    _dirFullStore[id] = String(text || '');
+    if (_dirFullSeq > 80) delete _dirFullStore['df' + (_dirFullSeq - 80)];
+    return id;
+  }
+  function dirTextIsLong(text) {
+    var t = String(text || '');
+    return t.length > 280 || t.split('\n').length > 5;
+  }
+  function viewDirectorFullMessage(id) {
+    var text = _dirFullStore[id] || '';
+    if (typeof global.openDirFullMessage === 'function') global.openDirFullMessage(text);
+  }
+  function directorExpandableHtml(kind, text) {
+    var full = String(text || '');
+    var long = dirTextIsLong(full);
+    var id = storeDirFull(full);
+    return (
+      '<div class="dir-cmd-status-card kind-' +
+      esc(kind || 'clarify') +
+      '">' +
+      '<div class="dir-cmd-status-text' +
+      (long ? ' is-compact' : '') +
+      '">' +
+      esc(full) +
+      '</div>' +
+      (long
+        ? '<button type="button" class="dir-view-full" onclick="PreShootStudioUI.viewDirectorFullMessage(\'' +
+          id +
+          '\')">View full message</button>'
+        : '') +
+      '</div>'
+    );
+  }
+  function conciseDoneMessage(result, fallback) {
+    var action =
+      (result &&
+        (result.action ||
+          (result.proposal && result.proposal.action) ||
+          (result.result && result.result.action))) ||
+      '';
+    var map = {
+      rebuild_shot_list: 'Done — shot list updated.',
+      generate_sections: 'Done — added to Studio.',
+      update_script: 'Done — script generated.',
+      create_project: 'Done — project created.',
+      create_production: 'Done — production created.',
+      rename_production: 'Done — renamed.',
+      rename_project: 'Done — renamed.',
+      move_production: 'Done — moved.',
+      archive_production: 'Done — archived.',
+      archive_project: 'Done — archived.',
+      update_status: 'Done — status updated.',
+      set_primary_platform: 'Done — platform updated.'
+    };
+    if (map[action]) return map[action];
+    var section = result && result.section;
+    var raw = String((result && result.message) || fallback || '').replace(/\s+/g, ' ').trim();
+    var lower = raw.toLowerCase();
+    if (section === 'shots' || /shot list/.test(lower)) return 'Done — shot list updated.';
+    if (/script/.test(lower) && /generat|updat|rewrit|draft/.test(lower)) return 'Done — script generated.';
+    if (/section/.test(lower)) return 'Done — added to Studio.';
+    if (!raw) return 'Done.';
+    if (raw.length <= 72) return /^done\b/i.test(raw) ? raw : 'Done — ' + raw.replace(/[.]+$/, '') + '.';
+    return 'Done.';
+  }
+
   function directorRequestBody(extra) {
     var body = Object.assign({}, extra || {});
     if (
@@ -592,7 +666,9 @@
           '<button type="button" class="pw-suggest-item" onclick="PreShootStudioUI.handleOverviewSuggestion(' +
           idx +
           ')">' +
-          '<span class="pw-suggest-ico" aria-hidden="true">✦</span>' +
+          '<span class="pw-suggest-ico" aria-hidden="true">' +
+          ico('sparkles', 14) +
+          '</span>' +
           '<span class="pw-suggest-text">' +
           esc(s.text) +
           '</span>' +
@@ -2020,11 +2096,20 @@
         '</strong></div>';
       var previewBody = String(payload.body || '').trim();
       if (previewBody) {
+        var previewId = storeDirFull(previewBody);
+        var previewLong = dirTextIsLong(previewBody);
         rows +=
-          '<div class="dir-action-msg" style="max-height:120px;overflow:auto;white-space:pre-wrap">' +
-          esc(previewBody.slice(0, 500)) +
-          (previewBody.length > 500 ? '…' : '') +
+          '<div class="dir-action-msg' +
+          (previewLong ? ' is-compact' : '') +
+          '" style="white-space:pre-wrap">' +
+          esc(previewBody) +
           '</div>';
+        if (previewLong) {
+          rows +=
+            '<button type="button" class="dir-view-full" onclick="PreShootStudioUI.viewDirectorFullMessage(\'' +
+            previewId +
+            '\')">View full message</button>';
+        }
       } else if (message) {
         rows += '<div class="dir-action-msg">' + esc(message) + '</div>';
       }
@@ -2035,7 +2120,7 @@
       status === 'executing'
         ? 'Executing…'
         : status === 'done'
-          ? 'Completed ✓'
+          ? 'Done'
           : status === 'error'
             ? 'Failed'
             : 'Waiting for confirmation';
@@ -2063,8 +2148,12 @@
       if (kind === 'thinking') label = 'Thinking…';
       else if (kind === 'listening') label = 'Listening…';
       else if (kind === 'executing') label = 'Updating…';
-      else if (kind === 'done') label = 'Done';
+      else if (kind === 'done') label = 'Done.';
       else if (kind === 'error') label = 'Something went wrong';
+    }
+    if ((kind === 'done' || kind === 'error') && dirTextIsLong(label)) {
+      setDirectorPanel(directorExpandableHtml(kind, label));
+      return;
     }
     setDirectorPanel(
       '<div class="dir-cmd-status-card kind-' +
@@ -2452,7 +2541,7 @@
         renderStudio();
         setTimeout(function () {
           setDirectorPanel(
-            '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Completed ✓</div></div>'
+            '<div class="dir-cmd-status-card kind-done"><div class="dir-cmd-status-text">Done</div></div>'
           );
           setDirectorGoState('done');
           setTimeout(function () {
@@ -2699,13 +2788,6 @@
     handleDirectorCommandResult(result);
   }
 
-  function shortActionMessage(msg, fallback) {
-    var t = String(msg || '').replace(/\s+/g, ' ').trim();
-    if (!t) return fallback || 'Done';
-    if (t.length > 90) t = t.slice(0, 87).replace(/\s+\S*$/, '') + '…';
-    return t;
-  }
-
   function handleDirectorCommandResult(result) {
     if (!result) {
       setDirectorStatus('error', 'No response from Director. Try again.');
@@ -2810,7 +2892,7 @@
             return;
           }
           setDirectorGoState('done');
-          setDirectorStatus('done', shortActionMessage(result.message, 'Done'));
+          setDirectorStatus('done', conciseDoneMessage(result, 'Done.'));
           if (result.section && global.S && global.S.studioView && global.S.studioView.productionId) {
             global.S.studioView.section = result.section;
           }
@@ -2827,7 +2909,7 @@
             renderContinueCard();
             renderStudio();
             setTimeout(function () {
-              setDirectorStatus('done', shortActionMessage(result.message, 'Done ✓'));
+              setDirectorStatus('done', conciseDoneMessage(result, 'Done.'));
               setDirectorGoState('done');
               setTimeout(function () {
                 setDirectorGoState('idle');
@@ -2883,17 +2965,12 @@
       return;
     }
     if (result.kind === 'reply') {
-      setDirectorPanel(
-        '<div class="dir-cmd-status-card kind-clarify">' +
-          '<div class="dir-cmd-status-text">' +
-          esc(shortActionMessage(result.text, 'OK')) +
-          '</div></div>'
-      );
+      setDirectorPanel(directorExpandableHtml('clarify', result.text || 'OK'));
       setDirectorGoState('idle');
       return;
     }
     if (result.kind === 'error') {
-      setDirectorStatus('error', shortActionMessage(result.message, 'Something went wrong'));
+      setDirectorStatus('error', result.message || 'Something went wrong');
       setDirectorGoState('idle');
       return;
     }
@@ -2989,12 +3066,7 @@
           return;
         }
         /* Advice only — never claim mutation success / Done */
-        setDirectorPanel(
-          '<div class="dir-cmd-status-card kind-clarify">' +
-            '<div class="dir-cmd-status-text">' +
-            esc(shortActionMessage(text, fallback)) +
-            '</div></div>'
-        );
+        setDirectorPanel(directorExpandableHtml('clarify', text || fallback));
         setDirectorGoState('idle');
       })
       .catch(function (err) {
@@ -4176,7 +4248,9 @@
     smart.style.display = 'block';
     smart.innerHTML =
       '<button type="button" class="home-suggest-compact" onclick="PreShootStudioUI.openSuggestedNext()">' +
-      '<span class="home-suggest-ico" aria-hidden="true">✦</span>' +
+      '<span class="home-suggest-ico" aria-hidden="true">' +
+      ico('sparkles', 14) +
+      '</span>' +
       '<div class="home-suggest-compact-body">' +
       '<div class="continue-kicker">Suggested Next</div>' +
       '<div class="home-suggest-compact-title">' +
@@ -4420,7 +4494,7 @@
       renderContinueCard();
       renderStudio();
       setTimeout(function () {
-        setDirectorStatus('done', 'Done ✓');
+        setDirectorStatus('done', 'Done.');
         setDirectorGoState('done');
         setTimeout(function () {
           setDirectorGoState('idle');
@@ -5297,7 +5371,7 @@
     archiveProductionPrompt: archiveProductionPrompt,
     directorPlaceholder: directorPlaceholder,
     openDirectorForProduction: openDirectorForProduction,
-    submitDirectorCommand: submitDirectorCommand,
+    viewDirectorFullMessage: viewDirectorFullMessage,
     onDirectorInputChange: onDirectorInputChange,
     toggleDirectorVoice: toggleDirectorVoice,
     chooseDirectorClarify: chooseDirectorClarify,

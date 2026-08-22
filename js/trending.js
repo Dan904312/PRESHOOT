@@ -128,8 +128,12 @@
     return html;
   }
 
-  function section(title, items, productionId) {
-    var html = '<div class="trend-sec"><div class="trend-sec-hd">' + esc(title) + '</div>';
+  function ico(name, size) {
+    return global.ICO && typeof ICO.html === 'function' ? ICO.html(name, size) : '';
+  }
+
+  function section(title, items, productionId, rawTitle) {
+    var html = '<div class="trend-sec"><div class="trend-sec-hd">' + (rawTitle ? title : esc(title)) + '</div>';
     if (!items.length) {
       html += '<div class="trend-empty">No public items in this section right now.</div></div>';
       return html;
@@ -211,7 +215,7 @@
       html +=
         '<div class="trend-empty">Public trend sources did not return data. Nothing here is simulated.</div>';
     }
-    html += section('🔥 Trending now', items.slice(0, 8), productionId);
+    html += section((ico('flame', 14) + ' Trending now'), items.slice(0, 8), productionId, true);
     html += section('Videos', videos, productionId);
     html += section('Music', music, productionId);
     html += section('Hashtags', tags, productionId);

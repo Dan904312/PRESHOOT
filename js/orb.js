@@ -20,9 +20,7 @@ var FRAG = /* glsl */ `
 
   uniform float iTime;
   uniform vec3 iResolution;
-  uniform vec3 uColor1;
-  uniform vec3 uColor2;
-  uniform vec3 uColor3;
+  uniform float hue;
   uniform float hover;
   uniform float rot;
   uniform float hoverIntensity;
@@ -95,6 +93,9 @@ var FRAG = /* glsl */ `
     return vec4(colorIn.rgb / (a + 1e-5), a);
   }
 
+  const vec3 baseColor1 = vec3(0.611765, 0.262745, 0.996078);
+  const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
+  const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
   const float innerRadius = 0.6;
   const float noiseScale = 0.65;
 
@@ -107,9 +108,9 @@ var FRAG = /* glsl */ `
   }
 
   vec4 draw(vec2 uv) {
-    vec3 color1 = uColor1;
-    vec3 color2 = uColor2;
-    vec3 color3 = uColor3;
+    vec3 color1 = adjustHue(baseColor1, hue);
+    vec3 color2 = adjustHue(baseColor2, hue);
+    vec3 color3 = adjustHue(baseColor3, hue);
 
     float ang = atan(uv.y, uv.x);
     float len = length(uv);
@@ -133,7 +134,7 @@ var FRAG = /* glsl */ `
 
     vec3 col = mix(color1, color2, cl);
     col = mix(color3, col, v0);
-    col = (col + v1 * color1) * v2 * v3;
+    col = (col + v1) * v2 * v3;
     col = clamp(col, 0.0, 1.0);
 
     return extractAlpha(col);
@@ -162,66 +163,10 @@ var FRAG = /* glsl */ `
   }
 `;
 
-function hexToRgb(hex) {
-  if (!hex || typeof hex !== 'string') return [0.29, 0.62, 1];
-  var h = hex.replace('#', '').trim();
-  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-  if (h.length !== 6) return [0.29, 0.62, 1];
-  return [
-    parseInt(h.slice(0, 2), 16) / 255,
-    parseInt(h.slice(2, 4), 16) / 255,
-    parseInt(h.slice(4, 6), 16) / 255
-  ];
-}
-
-function rgbToHsl(r, g, b) {
-  var max = Math.max(r, g, b);
-  var min = Math.min(r, g, b);
-  var h = 0;
-  var s = 0;
-  var l = (max + min) / 2;
-  var d = max - min;
-  if (d > 1e-6) {
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (max === r) h = ((g - b) / d) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60;
-    if (h < 0) h += 360;
-  }
-  return [h, s, l];
-}
-
-function hue2rgb(p, q, t) {
-  if (t < 0) t += 1;
-  if (t > 1) t -= 1;
-  if (t < 1 / 6) return p + (q - p) * 6 * t;
-  if (t < 1 / 2) return q;
-  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-  return p;
-}
-
-function hslToRgb(h, s, l) {
-  h = ((h % 360) + 360) % 360;
-  if (s < 0.04) return [l, l, l];
-  var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  var p = 2 * l - q;
-  var hn = h / 360;
-  return [hue2rgb(p, q, hn + 1 / 3), hue2rgb(p, q, hn), hue2rgb(p, q, hn - 1 / 3)];
-}
-
-function colorsFromAccent(hex) {
-  var c = hexToRgb(hex);
-  var hsl = rgbToHsl(c[0], c[1], c[2]);
-  var sat = Math.min(1, Math.max(0.42, hsl[1] * 1.08));
-  var light = Math.min(0.72, Math.max(0.38, hsl[2]));
-  var c1 = hslToRgb(hsl[0], sat, light);
-  var c2 = hslToRgb(hsl[0] + 28, Math.min(1, sat * 0.92), Math.min(0.82, light + 0.14));
-  var c3 = hslToRgb(hsl[0] - 22, Math.min(1, sat * 1.05), Math.max(0.16, light * 0.45));
-  return { c1: c1, c2: c2, c3: c3 };
-}
-
-var lastScanAccent = '#4A9EFF';
+/* Shader baseColor1 RGB(0.612, 0.263, 0.996) ≈ HSL hue 269°.
+   The `hue` uniform is a RELATIVE rotation from that base — not an absolute HSL hue.
+   Passing absolute accent hue (e.g. blue 212°) was rotating purple into green/yellow. */
+var ORB_BASE_HUE = 269;
 
 function hexToAbsoluteHue(hex) {
   if (!hex || typeof hex !== 'string') return 212; /* #4A9EFF */
@@ -245,23 +190,14 @@ function hexToAbsoluteHue(hex) {
 }
 
 function hexToHue(hex) {
-  return hexToAbsoluteHue(hex);
-}
-
-function applyAccentUniforms(program, hex) {
-  if (!program || !program.uniforms) return;
-  var cols = colorsFromAccent(hex);
-  if (program.uniforms.uColor1) program.uniforms.uColor1.value.set(cols.c1[0], cols.c1[1], cols.c1[2]);
-  if (program.uniforms.uColor2) program.uniforms.uColor2.value.set(cols.c2[0], cols.c2[1], cols.c2[2]);
-  if (program.uniforms.uColor3) program.uniforms.uColor3.value.set(cols.c3[0], cols.c3[1], cols.c3[2]);
+  return hexToAbsoluteHue(hex) - ORB_BASE_HUE;
 }
 
 function createOrb(container, options) {
   options = options || {};
   if (!container) return null;
 
-  var accentHex = options.accent || lastScanAccent || '#4A9EFF';
-  var cols = colorsFromAccent(accentHex);
+  var hue = options.hue != null ? options.hue : hexToHue('#4A9EFF');
   var hoverIntensity = options.hoverIntensity != null ? options.hoverIntensity : 0.6;
   var rotateOnHover = options.rotateOnHover !== false;
   var forceHoverState = !!options.forceHoverState;
@@ -304,9 +240,7 @@ function createOrb(container, options) {
         iResolution: {
           value: new Vec3(gl.canvas.width, gl.canvas.height, 1)
         },
-        uColor1: { value: new Vec3(cols.c1[0], cols.c1[1], cols.c1[2]) },
-        uColor2: { value: new Vec3(cols.c2[0], cols.c2[1], cols.c2[2]) },
-        uColor3: { value: new Vec3(cols.c3[0], cols.c3[1], cols.c3[2]) },
+        hue: { value: hue },
         hover: { value: 0 },
         rot: { value: 0 },
         hoverIntensity: { value: hoverIntensity }
@@ -363,6 +297,7 @@ function createOrb(container, options) {
     var dt = (t - lastTime) * 0.001;
     lastTime = t;
     program.uniforms.iTime.value = t * 0.001;
+    program.uniforms.hue.value = hue;
     program.uniforms.hoverIntensity.value = hoverIntensity;
 
     var effectiveHover = forceHoverState ? 1 : targetHover;
@@ -389,12 +324,7 @@ function createOrb(container, options) {
 
   return {
     setHue: function (v) {
-      /* Legacy: treat numeric hue as unused; prefer setAccent(hex). */
-      if (typeof v === 'string') applyAccentUniforms(program, v);
-    },
-    setAccent: function (hex) {
-      lastScanAccent = hex || lastScanAccent;
-      applyAccentUniforms(program, lastScanAccent);
+      hue = v;
     },
     setHoverIntensity: function (v) {
       hoverIntensity = v;
@@ -440,11 +370,9 @@ function mountScanOrb() {
     scanOrbInstance = null;
   }
 
-  var fromWindow = typeof window !== 'undefined' && window.S && window.S.accent;
-  var accent = fromWindow || lastScanAccent || '#4A9EFF';
-  lastScanAccent = accent;
+  var accent = (typeof S !== 'undefined' && S.accent) ? S.accent : '#4A9EFF';
   scanOrbInstance = createOrb(mount, {
-    accent: accent,
+    hue: hexToHue(accent),
     hoverIntensity: 0.6,
     rotateOnHover: true,
     forceHoverState: false,
@@ -463,12 +391,7 @@ function syncScanOrbVisibility() {
 }
 
 function setScanOrbHueFromAccent(hex) {
-  lastScanAccent = hex || lastScanAccent;
-  if (scanOrbInstance && scanOrbInstance.setAccent) {
-    scanOrbInstance.setAccent(lastScanAccent);
-  } else if (!scanOrbInstance) {
-    mountScanOrb();
-  }
+  if (scanOrbInstance) scanOrbInstance.setHue(hexToHue(hex));
 }
 
 window.PreShootOrb = {

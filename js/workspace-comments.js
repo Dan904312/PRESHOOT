@@ -13,6 +13,9 @@
     members: []
   };
 
+  function ico(name, size) {
+    return global.ICO && typeof ICO.html === 'function' ? ICO.html(name, size) : '';
+  }
   function Ctx() {
     return global.PreShootWorkspace;
   }
@@ -70,7 +73,7 @@
     var ctx = Ctx().getContext();
     var cache = (ctx.commentCache && ctx.commentCache[productionId]) || {};
     var n = countForTarget(cache.comments, targetType, targetId);
-    var text = n ? '💬 ' + n : '💬';
+    var text = n ? ico('chat', 14) + ' ' + n : ico('chat', 14);
     return (
       '<button type="button" class="ws-comment-chip" title="' +
       esc(label || 'Comments') +

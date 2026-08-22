@@ -122,9 +122,10 @@
     var cal = renderCalendarHtml(now.getFullYear(), now.getMonth(), daysSet(ent), todayIso());
     var current = streak.current || 0;
     var todayDone = streak.todayComplete === true;
+    var flame = global.ICO && ICO.html ? ICO.html('flame', 18) : '';
     var headline = current
-      ? '🔥 ' + current + ' day streak'
-      : 'No active streak';
+      ? flame + '<span>' + esc(current + ' day streak') + '</span>'
+      : esc('No active streak');
     var sub = current
       ? current + ' day' + (current !== 1 ? 's' : '') + ' in a row'
       : 'Complete a Scan, plan, or Studio action to start.';
@@ -164,7 +165,7 @@
           '</div>' +
         '</div>' +
         '<div class="streak-card-hd">' +
-        esc(headline) +
+        headline +
         '</div>' +
         '<div class="streak-card-sub">' +
         esc(sub) +

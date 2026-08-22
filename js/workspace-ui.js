@@ -5,6 +5,9 @@
 (function (global) {
   'use strict';
 
+  function ico(name, size) {
+    return global.ICO && typeof ICO.html === 'function' ? ICO.html(name, size) : '';
+  }
   function Ctx() {
     return global.PreShootWorkspace;
   }
@@ -448,7 +451,7 @@
       '" onclick="PreShootWorkspaceUI.choosePersonal()">' +
       '<div class="ws-list-main"><div class="ws-list-title">Personal</div>' +
       '<div class="ws-list-sub">Your private Studio</div></div>' +
-      (personalActive ? '<div class="ws-list-check">✓</div>' : '') +
+      (personalActive ? '<div class="ws-list-check">' + ico('check', 16) + '</div>' : '') +
       '</button>';
     h += '</div>';
 
@@ -471,7 +474,7 @@
         '<div class="ws-list-sub">' +
         esc(roleLabel(w.role)) +
         '</div></div>' +
-        (active ? '<div class="ws-list-check">✓</div>' : '') +
+        (active ? '<div class="ws-list-check">' + ico('check', 16) + '</div>' : '') +
         '</button>';
     });
     h += '</div>';
