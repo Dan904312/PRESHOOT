@@ -127,6 +127,33 @@ test('application HTML/JS UI has no literal emoji characters', () => {
   });
 });
 
+test('Studio Director submit is exported and failures are visible', () => {
+  assert.ok(studioUiSrc.includes('submitDirectorCommand: submitDirectorCommand'));
+  assert.ok(studioUiSrc.includes("onclick=\"PreShootStudioUI.submitDirectorCommand()\""));
+  assert.ok(studioUiSrc.includes('Director couldn’t respond. Please try again.'));
+  assert.ok(studioUiSrc.includes('function directorReplyText'));
+  assert.ok(studioUiSrc.includes('function readDirectorResponse'));
+  assert.ok(studioUiSrc.includes("setDirectorStatus('thinking', 'Director is still working…')"));
+});
+
+test('Home scan stack is centered, not pinned to the foot', () => {
+  assert.ok(appSrc.includes('#screen-home .scan-zone-main{'));
+  const start = appSrc.indexOf('#screen-home .scan-zone-main{');
+  const block = appSrc.slice(start, start + 220);
+  assert.ok(block.includes('justify-content:center'));
+  assert.ok(!block.includes('justify-content:flex-end'));
+  assert.ok(appSrc.includes('class="scan-orb"'));
+  assert.ok(orbSrc.includes('col = (col + v1) * v2 * v3'));
+});
+
+test('Full Director chat resets streaming and shows a friendly empty/error reply', () => {
+  assert.ok(appSrc.includes('Director is still responding'));
+  assert.ok(appSrc.includes('if(!String(fullText||\'\').trim())'));
+  assert.ok(appSrc.includes("applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.')"));
+  assert.ok(appSrc.includes('workspaceIdForDirector'));
+  assert.ok(appSrc.includes('stream: true'));
+});
+
 test('Hobby still has exactly 12 api functions', () => {
   assert.strictEqual(apiFiles.length, 12);
 });
