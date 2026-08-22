@@ -34,14 +34,31 @@ import {
   startOfUtcMonth,
   moneyUsd,
   spendThresholds,
-  probeUsageLedger
+  probeUsageLedger,
+  estimatedProfit,
+  buildUtcDayKeys,
+  mergeDailySeries,
+  fetchDailyUsageRpc,
+  fetchDailyUsageFromTable,
+  usageRowsToDailyMaps,
+  utcDateKey,
+  suspiciousSignals
 } from '../lib/admin-console.js';
 
 function rangeSince(range) {
   if (range === 'today') return startOfUtcDay();
   if (range === '7') return isoDaysAgo(7);
   if (range === '30') return isoDaysAgo(30);
+  if (range === '90') return isoDaysAgo(90);
   return null;
+}
+
+function rangeDayCount(range) {
+  if (range === 'today') return 1;
+  if (range === '7') return 7;
+  if (range === '90') return 90;
+  if (range === 'all') return 180;
+  return 30;
 }
 
 function isProSub(sub) {
@@ -169,8 +186,11 @@ export default async function handler(req, res) {
         const newToday = users.filter(u => u.first_seen && u.first_seen.slice(0, 10) === todayStr).length;
         const newThisWeek = users.filter(u => u.first_seen && new Date(u.first_seen) >= weekAgo).length;
         const newThisMonth = users.filter(u => u.first_seen && new Date(u.first_seen) >= monthAgo).length;
+        const ninetyAgo = new Date(now); ninetyAgo.setUTCDate(ninetyAgo.getUTCDate() - 90);
+        const newThis90 = users.filter(u => u.first_seen && new Date(u.first_seen) >= ninetyAgo).length;
         const activeToday = users.filter(u => u.last_seen && u.last_seen.slice(0, 10) === todayStr).length;
         const activeThisWeek = users.filter(u => u.last_seen && new Date(u.last_seen) >= weekAgo).length;
+        const activeThis90 = users.filter(u => u.last_seen && new Date(u.last_seen) >= ninetyAgo).length;
         const suspendedAccounts = users.filter(u => u.account_status === 'suspended').length;
 
         const activeSubs = subs.filter(d => isProSub(d));
@@ -188,6 +208,18 @@ export default async function handler(req, res) {
         const totalRevenue = revenueEvents.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
         const revenueThisMonth = revenueEvents.filter(e => new Date(e.created_at) >= monthAgo).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
         const revenueToday = revenueEvents.filter(e => e.created_at && e.created_at.slice(0, 10) === todayStr).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+        const revenueThisWeek = revenueEvents.filter(e => e.created_at && new Date(e.created_at) >= weekAgo).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+        const revenueThis90 = revenueEvents.filter(e => e.created_at && new Date(e.created_at) >= ninetyAgo).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+        const rangeRevenue =
+          (range || '30') === 'today'
+            ? revenueToday
+            : (range || '30') === '7'
+              ? revenueThisWeek
+              : (range || '30') === '90'
+                ? revenueThis90
+                : (range || '30') === 'all'
+                  ? totalRevenue
+                  : revenueThisMonth;
 
         const conversionRate = totalUsers > 0 ? ((activeSubs.length / totalUsers) * 100).toFixed(1) : '0.0';
         const churnedCount = cancelled + revoked;
@@ -198,11 +230,15 @@ export default async function handler(req, res) {
         const aggRange = aggregateRollup(rollRange);
         const aggToday = aggregateRollup(rollToday);
         const aggMonth = aggregateRollup(rollMonth);
+        const rangeCost = (range || '30') === 'all' ? aggAll.cost : aggRange.cost;
+        const profit = estimatedProfit(rangeRevenue, rangeCost);
         const alerts = costAlerts(aggToday.cost, aggMonth.cost, aggMonth.byUser);
 
         return res.status(200).json({
-          totalUsers, newToday, newThisWeek, newThisMonth,
-          activeToday, activeThisWeek,
+          totalUsers, newToday, newThisWeek, newThisMonth, newThis90,
+          activeToday, activeThisWeek, activeThis90,
+          revenueThisWeek, revenueThis90, revenue_range: moneyUsd(rangeRevenue),
+          estimated_profit: profit,
           freeUsers: totalUsers - activeSubs.length,
           proUsers: activeSubs.length,
           monthly, yearly, promo: promoCount, cancelled, revoked, past_due: pastDue,
@@ -229,6 +265,10 @@ export default async function handler(req, res) {
             api_cost_all_time: moneyUsd(aggAll.cost),
             api_cost_today: moneyUsd(aggToday.cost),
             api_cost_month: moneyUsd(aggMonth.cost),
+            avg_cost_per_scan: aggRange.scans > 0 ? moneyUsd(aggRange.cost / aggRange.scans) : null,
+            avg_cost_per_active_user: (range || '30') === 'today' && activeToday > 0
+              ? moneyUsd(aggRange.cost / activeToday)
+              : null,
             failed_requests: errors.failed,
             rate_limited: errors.rate_limited,
             server_errors: errors.server
@@ -275,6 +315,93 @@ export default async function handler(req, res) {
         return res.status(200).json({
           labels: Object.keys(buckets),
           values: Object.values(buckets).map(v => Math.round(v * 100) / 100)
+        });
+      }
+
+      case 'daily_analytics': {
+        const trackingStarted = await fetchSetting('usage_tracking_started_at');
+        const days = rangeDayCount(range || days || '30');
+        let since = rangeSince(range || (days === 7 ? '7' : days === 90 ? '90' : days === 1 ? 'today' : '30'));
+        if (range === 'all' || (!range && parseInt(days, 10) > 90)) since = isoDaysAgo(180);
+        if (trackingStarted) {
+          const trackMs = new Date(trackingStarted).getTime();
+          if (Number.isFinite(trackMs) && (!since || new Date(since).getTime() < trackMs)) {
+            since = new Date(trackMs).toISOString();
+          }
+        }
+        const keys = buildUtcDayKeys(days);
+        const clipped = trackingStarted
+          ? keys.filter((k) => k >= String(trackingStarted).slice(0, 10))
+          : keys;
+        const useKeys = clipped.length ? clipped : keys;
+
+        const rpc = await fetchDailyUsageRpc(since);
+        let usageMaps;
+        if (rpc && rpc.length && rpc[0] && rpc[0].day != null) {
+          const scans = {};
+          const ai = {};
+          const dau = {};
+          const api_cost = {};
+          rpc.forEach((row) => {
+            const key = utcDateKey(row.day);
+            if (!key) return;
+            scans[key] = parseInt(row.scans, 10) || 0;
+            ai[key] = parseInt(row.ai_requests, 10) || 0;
+            dau[key] = parseInt(row.active_users, 10) || 0;
+            api_cost[key] = parseFloat(row.cost_sum) || 0;
+          });
+          usageMaps = { scans, ai, dau, api_cost };
+        } else {
+          usageMaps = usageRowsToDailyMaps(await fetchDailyUsageFromTable(since));
+        }
+
+        const [userRows, payRows] = await Promise.all([
+          jsonArr(
+            `${SUPA_URL}/rest/v1/users?select=first_seen` +
+              (since ? `&first_seen=gte.${encodeURIComponent(since)}` : '') +
+              `&limit=4000`
+          ),
+          jsonArr(
+            `${SUPA_URL}/rest/v1/subscription_events?select=created_at,amount,event_type` +
+              (since ? `&created_at=gte.${encodeURIComponent(since)}` : '') +
+              `&limit=4000`
+          )
+        ]);
+        const signups = {};
+        userRows.forEach((u) => {
+          const key = utcDateKey(u.first_seen);
+          if (key) signups[key] = (signups[key] || 0) + 1;
+        });
+        const revenue = {};
+        payRows.forEach((e) => {
+          if ((e.event_type === 'checkout.completed' || e.event_type === 'payment.succeeded') && e.amount) {
+            const key = utcDateKey(e.created_at);
+            if (key) revenue[key] = (revenue[key] || 0) + parseFloat(e.amount);
+          }
+        });
+        const series = mergeDailySeries(useKeys, {
+          scans: usageMaps.scans,
+          ai: usageMaps.ai,
+          dau: usageMaps.dau,
+          signups,
+          revenue,
+          api_cost: usageMaps.api_cost
+        });
+        let dod = null;
+        if (series.length >= 2) {
+          const a = series[series.length - 2];
+          const b = series[series.length - 1];
+          dod = { prev: a.api_cost, today: b.api_cost };
+        }
+        return res.status(200).json({
+          usage_tracking_started_at: trackingStarted,
+          range: range || String(days),
+          series,
+          labels: series.map((p) => p.day),
+          cost_alerts: costAlerts(dod ? dod.today : 0, 0, {}, dod ? { dod } : {}),
+          note: trackingStarted
+            ? 'Series start at the first day usage tracking was enabled. Earlier days are omitted, not reconstructed as zero.'
+            : 'Usage tracking has not started. Run supabase_admin_console.sql. This series is not historical reconstruction.'
         });
       }
 
@@ -443,6 +570,19 @@ export default async function handler(req, res) {
         const revenue = events
           .filter((e) => (e.event_type === 'checkout.completed' || e.event_type === 'payment.succeeded') && e.amount)
           .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+        const contribution = estimatedProfit(revenue, uAll.cost);
+        const scanDays = {};
+        usageRows.forEach((row) => {
+          if (row.event_type !== 'scan') return;
+          const key = utcDateKey(row.created_at);
+          if (key) scanDays[key] = (scanDays[key] || 0) + 1;
+        });
+        await writeAdminAudit({
+          action: 'user_viewed',
+          targetUserId: uid,
+          ip,
+          metadata: { result: user ? 'ok' : 'not_found' }
+        });
         return res.status(200).json({
           user: user
             ? {
@@ -483,6 +623,11 @@ export default async function handler(req, res) {
           breakdown: Object.values(userBreakdown).sort((a, b) => b.cost - a.cost),
           workspaces,
           revenue: moneyUsd(revenue),
+          estimated_contribution: contribution,
+          scans_over_time: Object.keys(scanDays)
+            .sort()
+            .slice(-30)
+            .map((day) => ({ day, scans: scanDays[day] })),
           billing_events: events.map((e) => ({
             event_type: e.event_type,
             amount: e.amount || null,
@@ -512,6 +657,7 @@ export default async function handler(req, res) {
         ]);
         const agg = aggregateRollup(roll);
         const aggAll = aggregateRollup(rollAll);
+        const usersInRange = Object.keys(agg.byUser).filter((id) => id !== '_').length;
         return res.status(200).json({
           usage_tracking_started_at: trackingStarted,
           range: range || '30',
@@ -520,6 +666,8 @@ export default async function handler(req, res) {
           research: agg.research,
           ai_requests: agg.ai,
           api_cost: moneyUsd(agg.cost),
+          avg_cost_per_scan: agg.scans > 0 ? moneyUsd(agg.cost / agg.scans) : null,
+          avg_cost_per_active_user: usersInRange > 0 ? moneyUsd(agg.cost / usersInRange) : null,
           all_time: {
             scans: aggAll.scans,
             director: aggAll.director,
@@ -826,6 +974,16 @@ export default async function handler(req, res) {
           /login|token|user/i.test(String(e.payload_type || '')) &&
           /fail|error|unauthor/i.test(String(e.payload_type || ''))
         );
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const recentSignups = await jsonArr(
+          `${SUPA_URL}/rest/v1/users?select=user_id&first_seen=gte.${encodeURIComponent(hourAgo)}&limit=200`
+        );
+        const signals = suspiciousSignals({
+          signupsLastHour: recentSignups.length,
+          errors,
+          highUsage: flags,
+          failedInvites: 0
+        });
         return res.status(200).json({
           usage_tracking_started_at: trackingStarted,
           suspended_accounts: suspended,
@@ -834,7 +992,9 @@ export default async function handler(req, res) {
           failed_login_signals: failedLogins,
           errors_7d: errors,
           high_usage: flags,
-          note: 'Auth history is sourced from Supabase Auth audit entries when available. This is not a SIEM.'
+          signup_last_hour: recentSignups.length,
+          signals,
+          note: 'Auth history is sourced from Supabase Auth audit entries when available. This is not a SIEM. Flags are review-only and do not ban accounts. Invite-failure counts are not shown unless that event is recorded. Admin cannot read scan images, ideas, Studio documents, or Director conversations from these endpoints.'
         });
       }
 
