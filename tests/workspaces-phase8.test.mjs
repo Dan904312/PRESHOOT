@@ -117,6 +117,9 @@ await test('switchTo lets later selection win and hides old Studio immediately',
   assert.ok(uiSrc.includes('is-ws-switching'));
   assert.ok(appSrc.includes('ws-switch-overlay'));
   assert.ok(ctxSrc.includes('Do not refreshStudioUI'));
+  const complete = ctxSrc.slice(ctxSrc.indexOf('function completeSwitch'), ctxSrc.indexOf('function failSwitch'));
+  assert.ok(complete.indexOf('refreshStudioUI()') < complete.indexOf('hideSwitchOverlay'));
+  assert.ok(uiSrc.includes("root.innerHTML = ''"));
 });
 
 await test('load failures stay on overlay instead of showing the previous Studio', () => {
@@ -140,13 +143,17 @@ await test('accent CSS variables and primary buttons follow the user colour', ()
   assert.ok(appSrc.includes('--accent-contrast'));
   assert.ok(appSrc.includes('.studio-btn.primary{background:var(--accent)'));
   assert.ok(appSrc.includes('color:#e5484d') || appSrc.includes('#e5484d'));
-  assert.ok(appSrc.includes("r.style.setProperty('--accent-contrast'"));
+  assert.ok(appSrc.includes("r.style.setProperty('--accent-text'"));
+  assert.ok(appSrc.includes('studio-more-btn'));
+  assert.ok(appSrc.includes('--accent-text'));
 });
 
 await test('scan orb uses accent RGB uniforms instead of hardcoded cyan/green', () => {
   assert.ok(orbSrc.includes('uColor1'));
   assert.ok(orbSrc.includes('colorsFromAccent'));
-  assert.ok(orbSrc.includes('setAccent'));
+  assert.ok(orbSrc.includes('window.S'));
+  assert.ok(orbSrc.includes('hslToRgb'));
+  assert.ok(orbSrc.includes('v1 * color1'));
   assert.ok(!orbSrc.includes('0.298039'));
   assert.ok(!orbSrc.includes('0.760784'));
   assert.ok(!orbSrc.includes('vec3(0.611765'));
