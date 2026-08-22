@@ -148,6 +148,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <button class="active" onclick="setOvRange('today',this)">Today</button>
           <button onclick="setOvRange('7',this)">7 days</button>
           <button onclick="setOvRange('30',this)">30 days</button>
+          <button onclick="setOvRange('90',this)">90 days</button>
           <button onclick="setOvRange('all',this)">All time</button>
         </div>
       </div>
@@ -158,13 +159,39 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="metric"><div class="v" id="ov-active">—</div><div class="l">Active (range)</div></div>
         <div class="metric"><div class="v" id="ov-scans">—</div><div class="l">Scans</div></div>
         <div class="metric"><div class="v" id="ov-ai">—</div><div class="l">AI requests</div></div>
-        <div class="metric"><div class="v" id="ov-ai-cost">—</div><div class="l">$ spend (deferred)</div></div>
+        <div class="metric"><div class="v" id="ov-ai-cost">—</div><div class="l">API cost</div></div>
         <div class="metric"><div class="v" id="ov-rev-range">—</div><div class="l">Revenue</div></div>
+        <div class="metric"><div class="v" id="ov-profit">—</div><div class="l">Estimated profit</div></div>
+        <div class="metric"><div class="v" id="ov-margin">—</div><div class="l">Profit margin</div></div>
         <div class="metric"><div class="v" id="ov-failed">—</div><div class="l">Failed requests</div></div>
         <div class="metric bad"><div class="v" id="ov-suspended">—</div><div class="l">Suspended</div></div>
         <div class="metric"><div class="v" id="ov-mrr">—</div><div class="l">MRR</div></div>
         <div class="metric"><div class="v" id="ov-pro">—</div><div class="l">Pro</div></div>
         <div class="metric"><div class="v" id="ov-activated">—</div><div class="l">Activated (30d)</div></div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-hd">
+          <h2>Daily usage</h2>
+          <div class="toolbar">
+            <div class="seg" id="daily-range">
+              <button onclick="setDailyRange('7',this)">7d</button>
+              <button class="active" onclick="setDailyRange('30',this)">30d</button>
+              <button onclick="setDailyRange('90',this)">90d</button>
+              <button onclick="setDailyRange('all',this)">All time</button>
+            </div>
+            <div class="seg" id="daily-series">
+              <button class="active" data-series="scans" onclick="toggleSeries(this)">Scans</button>
+              <button class="active" data-series="dau" onclick="toggleSeries(this)">DAU</button>
+              <button class="active" data-series="signups" onclick="toggleSeries(this)">Signups</button>
+              <button data-series="api_cost" onclick="toggleSeries(this)">API cost</button>
+              <button data-series="revenue" onclick="toggleSeries(this)">Revenue</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-bd">
+          <div class="notice" id="daily-note" style="margin-bottom:10px">Loading daily series…</div>
+          <div class="chart" id="chart-daily" style="height:200px"><div class="chart-empty"><span class="spinner"></span></div></div>
+        </div>
       </div>
       <div class="row">
         <div class="card">
@@ -234,12 +261,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="page-hd">
         <div>
           <h1>Usage</h1>
-          <p>Successful AI operations only. Token totals and request counts are shown from the usage ledger. Dollar figures are an internal rate-card estimate, not provider invoices, and are deferred as billing truth.</p>
+          <p>Successful AI operations only. Costs use the central Anthropic rate card (including cache tokens when present) and are estimates, not invoices.</p>
         </div>
         <div class="seg" id="usage-range">
           <button onclick="setUsageRange('today',this)">Today</button>
           <button onclick="setUsageRange('7',this)">7 days</button>
           <button class="active" onclick="setUsageRange('30',this)">30 days</button>
+          <button onclick="setUsageRange('90',this)">90 days</button>
           <button onclick="setUsageRange('all',this)">All time</button>
         </div>
       </div>
@@ -248,13 +276,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="metric"><div class="v" id="us-scans">—</div><div class="l">Scans</div></div>
         <div class="metric"><div class="v" id="us-dir">—</div><div class="l">Director</div></div>
         <div class="metric"><div class="v" id="us-ai">—</div><div class="l">AI requests</div></div>
-        <div class="metric"><div class="v" id="us-cost">—</div><div class="l">$ spend (deferred)</div></div>
+        <div class="metric"><div class="v" id="us-cost">—</div><div class="l">API cost</div></div>
+        <div class="metric"><div class="v" id="us-avg-scan">—</div><div class="l">Avg / scan</div></div>
+        <div class="metric"><div class="v" id="us-avg-user">—</div><div class="l">Avg / active user</div></div>
       </div>
       <div class="card">
         <div class="card-hd"><h2>Usage by provider / model / operation</h2></div>
         <table>
-          <thead><tr><th>Provider</th><th>Model</th><th>Operation</th><th>Count</th></tr></thead>
-          <tbody id="usage-break"><tr><td colspan="4" class="empty">No tracked usage yet</td></tr></tbody>
+          <thead><tr><th>Provider</th><th>Model</th><th>Operation</th><th>Count</th><th>API cost</th></tr></thead>
+          <tbody id="usage-break"><tr><td colspan="5" class="empty">No tracked usage yet</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -271,6 +301,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="metric"><div class="v" id="ov-rev-month">—</div><div class="l">This month</div></div>
         <div class="metric"><div class="v" id="ov-arr">—</div><div class="l">ARR (projected)</div></div>
         <div class="metric"><div class="v" id="ov-conversion">—</div><div class="l">Conversion</div></div>
+        <div class="metric"><div class="v" id="rev-profit">—</div><div class="l">Est. profit (all-time)</div></div>
+        <div class="metric"><div class="v" id="rev-api">—</div><div class="l">API cost (all-time)</div></div>
       </div>
       <div class="card" style="margin-bottom:12px">
         <div class="card-hd"><h2>Billing events</h2><button class="btn" onclick="loadEvents()">Refresh</button></div>
@@ -300,7 +332,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="metric"><div class="v" id="sec-429">—</div><div class="l">429s (7d)</div></div>
         <div class="metric"><div class="v" id="sec-5xx">—</div><div class="l">5xx (7d)</div></div>
         <div class="metric warn"><div class="v" id="sec-high">—</div><div class="l">High-usage flags</div></div>
+        <div class="metric"><div class="v" id="sec-signals">—</div><div class="l">Review signals</div></div>
       </div>
+      <div class="notice" id="sec-signals-list">No review signals.</div>
       <div class="row">
         <div class="card">
           <div class="card-hd"><h2>Suspended</h2></div>
@@ -423,8 +457,11 @@ var MSG_USERS = [];
 var SELECTED = {};
 var searchTimer = null;
 var userFilter = { plan: 'all', status: 'all' };
-var ovRange = '30';
+var ovRange = 'today';
 var usageRange = '30';
+var dailyRange = '30';
+var dailyOn = { scans: true, dau: true, signups: true, api_cost: false, revenue: false };
+var DAILY = null;
 var TRACKING = null;
 
 function doLogin() {
@@ -492,6 +529,7 @@ function showPage(name, btn) {
 }
 function boot() {
   loadOverviewStats();
+  loadDailyAnalytics();
   loadChart('signups', 30);
   loadChart('revenue', 30);
   api('product_overview', {}).then(function (d) {
@@ -501,6 +539,12 @@ function boot() {
 }
 function $(id) { return document.getElementById(id); }
 function money(n) { return '$' + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyApi(n) {
+  var x = Number(n);
+  if (!Number.isFinite(x)) return '$0.00000';
+  var sign = x < 0 ? '-' : '';
+  return sign + '$' + Math.abs(x).toFixed(5);
+}
 function set(id, v) { var el = $(id); if (el) el.textContent = v; }
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function fmtDate(ds) { if (!ds) return '—'; var d = new Date(ds); return isNaN(d) ? '—' : d.toLocaleString(); }
@@ -538,12 +582,22 @@ function loadOverviewStats() {
     }
     set('ov-total-users', d.totalUsers || 0);
     var u = d.usage || {};
-    set('ov-new', ovRange === 'today' ? (d.newToday || 0) : ovRange === '7' ? (d.newThisWeek || 0) : ovRange === '30' ? (d.newThisMonth || 0) : (d.totalUsers || 0));
-    set('ov-active', ovRange === 'today' ? (d.activeToday || 0) : (d.activeThisWeek || 0));
+    set('ov-new', ovRange === 'today' ? (d.newToday || 0) : ovRange === '7' ? (d.newThisWeek || 0) : ovRange === '90' ? (d.newThis90 || 0) : ovRange === '30' ? (d.newThisMonth || 0) : (d.totalUsers || 0));
+    set('ov-active', ovRange === 'today' ? (d.activeToday || 0) : ovRange === '90' ? (d.activeThis90 || 0) : (d.activeThisWeek || 0));
     set('ov-scans', ovRange === 'all' ? (u.scans_all_time || 0) : (u.scans || 0));
     set('ov-ai', ovRange === 'all' ? (u.ai_all_time || 0) : (u.ai_requests || 0));
-    set('ov-ai-cost', '—');
-    set('ov-rev-range', ovRange === 'today' ? money(d.revenueToday) : ovRange === 'all' ? money(d.totalRevenue) : money(d.revenueThisMonth));
+    var cost = ovRange === 'all' ? u.api_cost_all_time : ovRange === 'today' ? u.api_cost_today : u.api_cost;
+    set('ov-ai-cost', moneyApi(cost));
+    var rev = ovRange === 'today' ? d.revenueToday : ovRange === '7' ? d.revenueThisWeek : ovRange === '90' ? d.revenueThis90 : ovRange === 'all' ? d.totalRevenue : d.revenueThisMonth;
+    set('ov-rev-range', money(rev));
+    var ep = d.estimated_profit || {};
+    var profitEl = $('ov-profit');
+    set('ov-profit', money(ep.profit));
+    if (profitEl) {
+      profitEl.parentElement.classList.toggle('bad', Number(ep.profit) < 0);
+      profitEl.parentElement.classList.toggle('ok', Number(ep.profit) > 0);
+    }
+    set('ov-margin', ep.margin == null ? '—' : ep.margin + '%');
     set('ov-failed', u.failed_requests || 0);
     set('ov-suspended', d.suspendedAccounts || 0);
     set('ov-mrr', money(d.mrr));
@@ -552,9 +606,73 @@ function loadOverviewStats() {
     set('ov-rev-month', money(d.revenueThisMonth));
     set('ov-arr', money(d.arr));
     set('ov-conversion', (d.conversionRate || 0) + '%');
+    set('rev-api', moneyApi(u.api_cost_all_time));
+    var allProfit = (Number(d.totalRevenue) || 0) - (Number(u.api_cost_all_time) || 0);
+    set('rev-profit', money(allProfit));
+    var rp = $('rev-profit');
+    if (rp) {
+      rp.parentElement.classList.toggle('bad', allProfit < 0);
+      rp.parentElement.classList.toggle('ok', allProfit > 0);
+    }
     var alerts = (d.cost_alerts && d.cost_alerts.alerts) || [];
     $('ov-alerts').textContent = alerts.length ? alerts.map(function (a) { return a.message; }).join(' · ') : 'No cost threshold alerts. Optional: ADMIN_DAILY_SPEND_WARN, ADMIN_MONTHLY_SPEND_WARN, ADMIN_USER_SPEND_WARN.';
   });
+}
+function setDailyRange(r, btn) {
+  dailyRange = r;
+  btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadDailyAnalytics();
+}
+function toggleSeries(btn) {
+  var id = btn.getAttribute('data-series');
+  dailyOn[id] = !dailyOn[id];
+  btn.classList.toggle('active', dailyOn[id]);
+  if (DAILY) drawDailyChart(DAILY);
+}
+function loadDailyAnalytics() {
+  api('daily_analytics', { range: dailyRange }).then(function (d) {
+    if (!d || d.error) return;
+    DAILY = d;
+    set('daily-note', d.note || trackingCopy(d.usage_tracking_started_at || TRACKING));
+    drawDailyChart(d);
+  });
+}
+function drawDailyChart(d) {
+  var wrap = $('chart-daily');
+  if (!wrap) return;
+  var series = d.series || [];
+  var colors = { scans: '#7C4DFF', dau: '#60a5fa', signups: '#34d399', api_cost: '#fbbf24', revenue: '#f472b6' };
+  var keys = Object.keys(dailyOn).filter(function (k) { return dailyOn[k]; });
+  if (!series.length || !keys.length) {
+    wrap.innerHTML = '<div class="chart-empty">No tracked points in this window</div>';
+    return;
+  }
+  var hasData = series.some(function (p) {
+    return keys.some(function (k) { return Number(p[k]) > 0; });
+  });
+  if (!hasData) {
+    wrap.innerHTML = '<div class="chart-empty">No tracked activity after usage recording began</div>';
+    return;
+  }
+  var W = wrap.clientWidth || 640, H = 200, pL = 8, pR = 8, pT = 10, pB = 18;
+  var cW = W - pL - pR, cH = H - pT - pB;
+  var n = series.length;
+  var sx = n > 1 ? cW / (n - 1) : 0;
+  var maxV = 1;
+  keys.forEach(function (k) {
+    series.forEach(function (p) { if (Number(p[k]) > maxV) maxV = Number(p[k]); });
+  });
+  var svg = '<svg width="100%" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">';
+  keys.forEach(function (k) {
+    var pts = series.map(function (p, i) {
+      return [pL + i * sx, pT + cH - (Number(p[k]) / maxV) * cH];
+    });
+    var pd = pts.map(function (pt, i) { return (i ? 'L' : 'M') + pt[0].toFixed(1) + ',' + pt[1].toFixed(1); }).join(' ');
+    svg += '<path d="' + pd + '" fill="none" stroke="' + (colors[k] || '#fff') + '" stroke-width="2"/>';
+  });
+  svg += '</svg>';
+  wrap.innerHTML = svg;
 }
 function setRange(type, days, btn) {
   btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
@@ -653,17 +771,28 @@ function renderUserDetail(d) {
   html += '<dt>Onboarding</dt><dd>' + (u.onboarding_completed ? 'Completed' : 'Incomplete') + '</dd>';
   html += '<dt>Trial</dt><dd>Director ' + esc(u.director_trial_ends_at ? fmtDate(u.director_trial_ends_at) : '—') + '</dd>';
   html += '<dt>Revenue</dt><dd>' + money(d.revenue) + '</dd>';
+  html += '<dt>API cost</dt><dd>' + moneyApi(usage.api_cost) + '</dd>';
+  var cm = d.estimated_contribution || {};
+  html += '<dt>Est. contribution</dt><dd>' + money(cm.profit) + (cm.margin == null ? '' : ' · ' + cm.margin + '%') + '</dd>';
   html += '</dl>';
   html += '<div class="metrics" style="grid-template-columns:repeat(2,1fr)">';
   html += '<div class="metric"><div class="v">' + (usage.scans || 0) + '</div><div class="l">Scans</div></div>';
   html += '<div class="metric"><div class="v">' + (usage.director_requests || 0) + '</div><div class="l">Director</div></div>';
   html += '<div class="metric"><div class="v">' + (usage.ai_requests || 0) + '</div><div class="l">AI requests</div></div>';
+  html += '<div class="metric"><div class="v">' + moneyApi(usage.api_cost) + '</div><div class="l">API cost</div></div>';
   html += '</div>';
-  html += '<h2 style="font-size:13px;margin:8px 0">Usage breakdown</h2><table><thead><tr><th>Provider</th><th>Model</th><th>Operation</th><th>Count</th></tr></thead><tbody>';
+  if (d.scans_over_time && d.scans_over_time.length) {
+    html += '<h2 style="font-size:13px;margin:8px 0">Recent scan days</h2><table><thead><tr><th>Day</th><th>Scans</th></tr></thead><tbody>';
+    html += d.scans_over_time.map(function (r) {
+      return '<tr><td>' + esc(r.day) + '</td><td>' + r.scans + '</td></tr>';
+    }).join('');
+    html += '</tbody></table>';
+  }
+  html += '<h2 style="font-size:13px;margin:8px 0">Usage breakdown</h2><table><thead><tr><th>Provider</th><th>Model</th><th>Operation</th><th>Count</th><th>API cost</th></tr></thead><tbody>';
   var br = d.breakdown || [];
   html += br.length ? br.map(function (r) {
-    return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td></tr>';
-  }).join('') : '<tr><td colspan="4" class="empty">No tracked operations</td></tr>';
+    return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td><td>' + moneyApi(r.cost) + '</td></tr>';
+  }).join('') : '<tr><td colspan="5" class="empty">No tracked operations</td></tr>';
   html += '</tbody></table>';
   html += '<h2 style="font-size:13px;margin:16px 0 8px">Workspaces</h2><table><thead><tr><th>Name</th><th>Role</th><th>Kind</th></tr></thead><tbody>';
   html += (d.workspaces && d.workspaces.length) ? d.workspaces.map(function (w) {
@@ -723,11 +852,13 @@ function loadUsage() {
     set('us-scans', d.scans || 0);
     set('us-dir', d.director || 0);
     set('us-ai', d.ai_requests || 0);
-    set('us-cost', '—');
+    set('us-cost', moneyApi(d.api_cost));
+    set('us-avg-scan', d.avg_cost_per_scan == null ? '—' : moneyApi(d.avg_cost_per_scan));
+    set('us-avg-user', d.avg_cost_per_active_user == null ? '—' : moneyApi(d.avg_cost_per_active_user));
     var rows = d.breakdown || [];
     $('usage-break').innerHTML = rows.length ? rows.map(function (r) {
-      return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td></tr>';
-    }).join('') : '<tr><td colspan="4" class="empty">No tracked usage in this window</td></tr>';
+      return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td><td>' + moneyApi(r.cost) + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="empty">No tracked usage in this window</td></tr>';
   });
 }
 
@@ -756,6 +887,11 @@ function loadSecurity() {
     set('sec-429', (d.errors_7d && d.errors_7d.rate_limited) || 0);
     set('sec-5xx', (d.errors_7d && d.errors_7d.server) || 0);
     set('sec-high', (d.high_usage || []).length);
+    var sig = d.signals || [];
+    set('sec-signals', sig.length);
+    $('sec-signals-list').textContent = sig.length
+      ? sig.map(function (s) { return s.message; }).join(' · ')
+      : (d.note || 'No review signals. Flags are review-only.');
     $('sec-suspended-list').innerHTML = sus.length ? sus.map(function (u) {
       return '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>' + esc(u.email || u.user_id) + '</strong><div class="mono">' + esc(u.account_status_reason || '') + ' · ' + esc(fmtDate(u.account_status_at)) + ' · ' + esc(u.account_status_by || '') + '</div></div>';
     }).join('') : 'None';

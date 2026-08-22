@@ -32,7 +32,7 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
   <a class="back" href="/">← Back to PreShoot</a>
   <div class="logo">Pre<span>Shoot</span></div>
   <h1>Privacy Policy</h1>
-  <div class="updated">Last Updated: August 18, 2026</div>
+  <div class="updated">Last Updated: August 22, 2026</div>
 
   <p>Welcome to PreShoot ("PreShoot", "we", "our", or "us"). This Privacy Policy explains how we collect, use, store, and protect your information when you use our website, web application, and related services.</p>
   <p>By using PreShoot, you agree to the collection and use of information in accordance with this Privacy Policy.</p>
@@ -62,12 +62,15 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
   <p>After usage tracking is enabled, PreShoot records limited operational telemetry so we can operate the product, estimate AI provider cost, prevent abuse, and administer accounts. This may include:</p>
   <ul>
     <li>Successful scan, Director, and other billable AI operation counts</li>
-    <li>AI provider name, model identifier, token or unit counts, and an estimated cost</li>
+    <li>AI provider name, model identifier, token or unit counts (including cache tokens when the provider returns them), and an estimated cost</li>
     <li>Request identifiers and coarse metadata (for example, whether a request was streamed)</li>
+    <li>Daily aggregates used for operations: active users, signups, successful scans, recorded revenue events, and estimated API cost</li>
     <li>Account security events such as suspension and restoration</li>
-    <li>Administrative audit logs of operator actions</li>
+    <li>Administrative audit logs of operator actions (including when an operator opens an account record)</li>
     <li>Transactional or operational emails if an email delivery provider is connected, including recipient, subject, send time, and delivery status</li>
   </ul>
+  <p>These records are usage metadata. They are used to operate the product, estimate AI provider cost, review unusual activity, and administer accounts. They are not a copy of what you scanned or generated.</p>
+  <p>The Admin console can see account fields, plan status, and usage metadata. It does not retrieve scan images, generated ideas, Studio documents, personal history, or Director conversation contents from the usage ledger. Those materials remain in the user or workspace data stores used to provide the product. PreShoot staff do not have a dedicated Admin viewer for that content.</p>
   <p>We do not store API keys, passwords, or access tokens in these logs. We do not store full Director conversation contents in the usage ledger. Prompt text is not written to the usage ledger.</p>
   <p>If a feature is not enabled (for example, no email provider is configured), that data is not collected as a delivered message. Failed send attempts may still be logged as failed so operators are not shown a false “sent” status.</p>
 
@@ -183,7 +186,7 @@ hr{border:none;border-top:1px solid var(--border);margin:32px 0}
   <hr>
 
   <h2>11. Contact</h2>
-  <p>For privacy-related questions or requests, please contact: <strong>danielvisualmedia@gmail.com</strong></p>
+  <p>For privacy-related questions or requests, please contact: <strong>support@preshot.app</strong></p>
 </div>
 </body>
 </html>
