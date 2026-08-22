@@ -64,21 +64,21 @@
 <script src="/js/workspace-sync.js?v=361"></script>
 <script src="/js/workspace-changes.js?v=361"></script>
 <script src="/js/workspace-context.js?v=363"></script>
-<script src="/js/workspace-ui.js?v=363"></script>
+<script src="/js/workspace-ui.js?v=385"></script>
 <script src="/js/workspace-realtime.js?v=360"></script>
-<script src="/js/workspace-comments.js?v=360"></script>
+<script src="/js/workspace-comments.js?v=385"></script>
 <script src="/js/analytics.js?v=360"></script>
 <script src="/js/entitlements.js?v=382"></script>
-<script src="/js/streak.js?v=382"></script>
-<script src="/js/calendar.js?v=382"></script>
-<script src="/js/trending.js?v=381"></script>
+<script src="/js/streak.js?v=385"></script>
+<script src="/js/calendar.js?v=385"></script>
+<script src="/js/trending.js?v=385"></script>
 <script src="/js/director-voice.js?v=360"></script>
-<script src="/js/studio-ui.js?v=384"></script>
+<script src="/js/studio-ui.js?v=385"></script>
 <script src="/js/studio-export.js?v=383"></script>
 <script src="/js/studio-keyboard.js?v=302"></script>
 <script src="/js/director-os.js?v=383"></script>
 <script src="/js/onboard.js"></script>
-<script type="module" src="/js/orb.js?v=384"></script>
+<script type="module" src="/js/orb.js?v=385"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -294,7 +294,7 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .home-logo span{color:var(--text);background:none;-webkit-text-fill-color:var(--text)}
 .streak-pill{display:flex;align-items:center;gap:5px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:500;color:var(--text2);backdrop-filter:none}
 .scan-zone-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--home-gap,12px);width:100%;min-height:0}.scan-zone-foot{display:flex;flex-direction:column;align-items:center;gap:var(--home-gap,12px);width:100%;flex-shrink:0;padding-bottom:2px}.scan-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:var(--home-gap-sm,8px) var(--pad-x) 0;gap:var(--home-gap,12px);position:relative;z-index:1;min-height:0;width:100%;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-.scan-ring{width:clamp(128px,34vw,176px);height:clamp(128px,34vw,176px);flex-shrink:0;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;animation:none;cursor:pointer;box-shadow:none;color:#fff;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent}.scan-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;z-index:0;background:radial-gradient(circle at 38% 34%,var(--accent),var(--accent-hover) 52%,transparent 74%)}.scan-orb canvas{display:block;width:100%!important;height:100%!important}.scan-ring-cam,.scan-ring .ico-svg{position:relative;z-index:1;width:32%;height:32%;color:#fff!important;stroke:#fff!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none}
+.scan-ring{width:clamp(128px,34vw,176px);height:clamp(128px,34vw,176px);flex-shrink:0;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;animation:none;cursor:pointer;box-shadow:none;color:#fff;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent}.scan-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;z-index:0}.scan-orb canvas{display:block;width:100%!important;height:100%!important}.scan-ring-cam,.scan-ring .ico-svg{position:relative;z-index:1;width:32%;height:32%;color:#fff!important;stroke:#fff!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none}
 .scan-ring.is-busy{pointer-events:none;opacity:.7}
 .fmt-go-btn.is-busy{pointer-events:none;opacity:.55}
 .scan-lbl{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:-.5px;text-align:center;color:var(--text);margin-bottom:2px}
@@ -673,7 +673,7 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .reward-sub{font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:18px}
 .reward-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
 .reward-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--accent-border);background:var(--accent-soft);border-radius:14px;font-size:14px;font-weight:600}
-.reward-item span{color:var(--accent);font-size:16px;line-height:1}
+.reward-item span{color:var(--accent);font-size:16px;line-height:1;display:inline-flex;align-items:center}
 .reward-cta{width:100%;padding:14px;border:none;border-radius:14px;background:var(--accent);color:var(--accent-contrast);font-family:var(--fd);font-size:15px;font-weight:700;cursor:pointer}
 
 .streak-card{margin:0 20px 16px;padding:16px;border:1px solid var(--border);background:var(--s1);border-radius:18px}
@@ -683,7 +683,8 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .streak-card-nums strong{color:var(--text);font-weight:700}
 .streak-card-sep{margin:0 6px;color:var(--text3)}
 .streak-card-note{margin-top:10px;font-size:11px;color:var(--text3);line-height:1.4}
-.streak-card-hd{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+.streak-card-hd{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.streak-card-hd .ico-svg{flex-shrink:0}
 .streak-card-sub{font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.45}
 .streak-next{padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--s2);margin-bottom:12px}
 .streak-next-k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
@@ -720,7 +721,8 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .plan-week-day.is-streak{box-shadow:inset 0 0 0 1px var(--accent-dim)}
 .plan-week-dow{font-size:9px;letter-spacing:.4px;text-transform:uppercase}
 .plan-week-n{font-size:14px;font-weight:700;color:var(--text)}
-.plan-week-mark{font-size:11px;min-height:14px}
+.plan-week-mark{font-size:11px;min-height:14px;display:flex;align-items:center;justify-content:center}
+.plan-week-mark .ico-svg{width:12px;height:12px}
 .plan-cal{padding:8px var(--pad-x) 4px}
 .plan-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .plan-cal-hd{font-family:var(--fd);font-size:16px;font-weight:700}
@@ -738,7 +740,10 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .plan-cal-dots .dot.posted{background:var(--text)}
 .plan-cal-dots .dot.scanned{background:var(--text2)}
 .plan-cal-dots .dot.streak{background:#ff7a18}
-.plan-legend{display:flex;gap:12px;padding:4px var(--pad-x) 8px;font-size:11px;color:var(--text3)}
+.plan-legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:4px var(--pad-x) 8px;font-size:11px;color:var(--text3)}
+.plan-legend span{display:inline-flex;align-items:center;gap:4px}
+.plan-legend .ico-svg{width:12px;height:12px}
+.plan-dot-planned{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
 .plan-day-panel{padding:0 var(--pad-x) 24px}
 .plan-day-title{font-family:var(--fd);font-size:16px;font-weight:700}
 .plan-day-sub{font-size:12px;color:var(--text2);margin:4px 0 12px}
@@ -946,7 +951,13 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 #screen-director.active{display:flex}
 .dir-hd,.dir-pills-wrap,.dir-composer{flex-shrink:0}
 .dir-msgs{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px;display:flex;flex-direction:column;gap:12px;user-select:text;-webkit-user-select:text}
-.dir-msgs .dir-bubble,.dir-msgs .dir-msg{user-select:text;-webkit-user-select:text}
+.dir-msg-row{display:flex;gap:10px;align-items:flex-start;min-width:0;max-width:100%}
+.dir-msgs .dir-bubble,.dir-msgs .dir-msg{user-select:text;-webkit-user-select:text;min-width:0;max-width:min(78%,100%);overflow-wrap:anywhere;word-break:break-word}
+.dir-bubble-body{overflow-wrap:anywhere;word-break:break-word}
+.dir-bubble-body.is-compact,.dir-cmd-status-text.is-compact,.dir-action-msg.is-compact{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:6;overflow:hidden}
+.dir-view-full{display:block;margin-top:8px;padding:0;border:0;background:none;color:var(--accent);font:inherit;font-size:12px;font-weight:700;font-family:var(--fd);cursor:pointer;text-align:left}
+.dir-view-full:active{opacity:.7}
+#dir-full-msg-body{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-height:min(60vh,480px);overflow-y:auto;font-size:14px;line-height:1.65;color:var(--text)}
 .dir-composer{position:relative;z-index:5;padding:10px 14px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);display:flex;gap:9px;align-items:flex-end;background:var(--s1)}
 .dir-pills-wrap{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
 @media(pointer:fine){
@@ -1163,7 +1174,7 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .ws-list-main{flex:1;min-width:0}
 .ws-list-title{font-size:14px;font-weight:700;font-family:var(--fd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ws-list-sub{font-size:12px;color:var(--text2);margin-top:2px}
-.ws-list-check{color:var(--accent);font-weight:700}
+.ws-list-check{color:var(--accent);font-weight:700;display:flex;align-items:center}
 .ws-empty,.ws-loading{padding:16px 4px;font-size:13px;color:var(--text3)}
 .ws-member-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .ws-role-select,.ws-invite-form .field-inp{font-size:13px}
@@ -1515,7 +1526,9 @@ select option,
 .dir-cmd-status-card.kind-executing .dir-cmd-status-pulse{animation-duration:.7s}
 .dir-cmd-status-card.kind-error .dir-cmd-status-text{color:#f0a0a0}
 .dir-cmd-status-card.kind-done .dir-cmd-status-text{color:#7ddea8}
-.dir-cmd-status-text{font-size:13px;font-weight:650;color:var(--text);line-height:1.4}
+.dir-cmd-status-text{font-size:13px;font-weight:650;color:var(--text);line-height:1.4;min-width:0;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}
+.dir-cmd-status-card{flex-wrap:wrap;align-items:flex-start}
+.dir-cmd-status-card .dir-view-full{width:100%;margin-top:6px}
 @keyframes dirStatusPulse{0%,100%{transform:scale(.85);opacity:.35}50%{transform:scale(1.15);opacity:1}}
 .dir-cmd-hint{font-size:12px;color:var(--text3);margin-top:8px}
 .dir-cmd-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
@@ -2109,7 +2122,16 @@ html.dir-voice-active{overflow:hidden}
 <div class="modal-ov" id="gear-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Gear & Setup</div><div class="modal-x" onclick="closeM('gear-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" style="overflow-y:auto;max-height:70vh"> <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Tell the AI exactly what equipment you have. Ideas will be tailored to what you can actually shoot with.</div> <!-- Camera Body --> <div class="pers-sec"> <div class="pers-sec-title">Camera Body</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="camera" data-ico-size="18"></div> <input class="gear-field" id="gear-camera" placeholder="e.g. Sony A7IV, Canon R5, iPhone 15 Pro"> </div> </div> <!-- Lens --> <div class="pers-sec"> <div class="pers-sec-title">Lens / Focal Length</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="lens" data-ico-size="18"></div> <input class="gear-field" id="gear-lens" placeholder="e.g. 24-70mm f/2.8, 50mm f/1.8"> </div> </div> <!-- Drone --> <div class="pers-sec"> <div class="pers-sec-title">Drone (if any)</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="drone" data-ico-size="18"></div> <input class="gear-field" id="gear-drone" placeholder="e.g. DJI Mini 4 Pro, Mavic 3"> </div> </div> <!-- Microphone --> <div class="pers-sec"> <div class="pers-sec-title">Microphone</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="mic" data-ico-size="18"></div> <input class="gear-field" id="gear-mic" placeholder="e.g. Rode VideoMic, Wireless Go II"> </div> </div> <!-- Lighting --> <div class="pers-sec"> <div class="pers-sec-title">Lighting Setup</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="light" data-ico-size="18"></div> <input class="gear-field" id="gear-lights" placeholder="e.g. Aputure 120D, Godox SL60W, Natural only"> </div> </div> <!-- Stabilizer/Gimbal --> <div class="pers-sec"> <div class="pers-sec-title">Stabilizer / Gimbal</div> <div class="gear-input"> <div class="gear-ico" data-gear-ico="gimbal" data-ico-size="18"></div> <input class="gear-field" id="gear-gimbal" placeholder="e.g. DJI RS4, Zhiyun Crane, Handheld only"> </div> </div> <!-- Editing Software --> <div class="pers-sec"> <div class="pers-sec-title">Editing Software</div> <div class="chip-grid" id="editing-software-chips"> <div class="chip" onclick="toggleChip(this,'editing-software')">CapCut</div> <div class="chip" onclick="toggleChip(this,'editing-software')">Premiere Pro</div> <div class="chip" onclick="toggleChip(this,'editing-software')">Final Cut Pro</div> <div class="chip" onclick="toggleChip(this,'editing-software')">DaVinci Resolve</div> <div class="chip" onclick="toggleChip(this,'editing-software')">After Effects</div> <div class="chip" onclick="toggleChip(this,'editing-software')">iMovie</div> </div> </div> <!-- Editing Device --> <div class="pers-sec"> <div class="pers-sec-title">Editing Device</div> <div class="chip-grid" id="editing-device-chips"> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Phone Only</div> <div class="chip selected" onclick="setSingleChip(this,'editing-device')"> Laptop</div> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Desktop PC</div> <div class="chip" onclick="setSingleChip(this,'editing-device')"> Mac</div> </div> </div> <!-- Shooting Environment --> <div class="pers-sec"> <div class="pers-sec-title">Typical Shooting Environment</div> <div class="chip-grid" id="shooting-env-chips"> <div class="chip" onclick="toggleChip(this,'shooting-env')">Indoor/Studio</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Urban/Street</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Outdoor/Nature</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Gym/Fitness</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Automotive</div> <div class="chip" onclick="toggleChip(this,'shooting-env')">Corporate/Office</div> </div> </div> <button onclick="saveGear()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Gear & Setup</button> </div> </div>
 </div>
 <!-- STUDIO MODALS -->
-<div class="modal-ov" id="reward-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="pw-body reward-sheet"> <div class="reward-kicker">You're ready to create</div> <div class="reward-title">Welcome to PreShoot.</div> <div class="reward-sub">You've unlocked:</div> <div class="reward-list"> <div class="reward-item"><span>✦</span> 3 free scans</div> <div class="reward-item"><span>✦</span> 24 hours of Director</div> <div class="reward-item"><span>✦</span> 24 hours of full Studio access</div> </div> <button type="button" class="reward-cta" onclick="PreShootEntitlements.startCreating()">Start creating →</button> </div> </div> </div>
+<div class="modal-ov" id="dir-full-msg-modal">
+  <div class="modal-sheet" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-hd"><div class="modal-ttl">Director message</div><div class="modal-x" onclick="closeM('dir-full-msg-modal')" aria-label="Close"><svg class="ico-svg" width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div>
+    <div class="modal-body" style="padding:0 20px 24px">
+      <div id="dir-full-msg-body"></div>
+    </div>
+  </div>
+</div>
+<div class="modal-ov" id="reward-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="pw-body reward-sheet"> <div class="reward-kicker">You're ready to create</div> <div class="reward-title">Welcome to PreShoot.</div> <div class="reward-sub">You've unlocked:</div> <div class="reward-list"> <div class="reward-item"><span aria-hidden="true"><svg class="ico-svg" width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></span> 3 free scans</div> <div class="reward-item"><span aria-hidden="true"><svg class="ico-svg" width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></span> 24 hours of Director</div> <div class="reward-item"><span aria-hidden="true"><svg class="ico-svg" width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></span> 24 hours of full Studio access</div> </div> <button type="button" class="reward-cta" onclick="PreShootEntitlements.startCreating()">Start creating →</button> </div> </div> </div>
 <div class="modal-ov" id="streak-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Creator streak</div><div class="modal-x" onclick="closeM('streak-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" id="streak-sheet-body"></div> </div> </div>
 <div class="modal-ov" id="plan-day-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Day</div><div class="modal-x" onclick="closeM('plan-day-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" id="plan-day-body"></div> </div> </div>
 <div class="modal-ov" id="plan-form-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl" id="plan-form-ttl">Plan content</div><div class="modal-x" onclick="closeM('plan-form-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" id="plan-form-body"></div> </div> </div>
@@ -2923,8 +2945,12 @@ function getActiveDirConv(){ return S.activeDirConvId ? getDirConv(S.activeDirCo
 } function openDirDrawer(){ renderDirConvList(); var ov=document.getElementById('dir-drawer-ov'); var dr=document.getElementById('dir-drawer'); if(!ov||!dr) return; ov.style.display='block'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ ov.style.opacity='1'; dr.style.transform='translateX(0)'; }); });
 } function closeDirDrawer(){ var ov=document.getElementById('dir-drawer-ov'); var dr=document.getElementById('dir-drawer'); if(!ov||!dr) return; ov.style.opacity='0'; dr.style.transform='translateX(-100%)'; setTimeout(function(){ if(ov.style.opacity==='0') ov.style.display='none'; },360);
 } function showDirGreeting(){ var n=S.niche; var g; if(n&&n.contentType){ g='Hey. '+n.contentType+' creator'+(n.platform?' on '+n.platform:'')+'. Profile loaded. What are we working on?'; } else { g='Hey. I am PreShoot Director. Set up your creator profile in Menu for fully personalised advice. What do you need?'; } addDirMsg('ai',g,false);
-} function addDirMsg(role,text,save){ if(save===undefined) save=false; var msgs=document.getElementById('dir-msgs'); if(!msgs) return null; var wrap=document.createElement('div'); wrap.style.cssText='display:flex;gap:10px;align-items:flex-start'+(role==='user'?';flex-direction:row-reverse':''); var av=document.createElement('div'); av.style.cssText='width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;'+(role==='ai'?'background:var(--accent-dim);color:var(--accent);font-family:var(--fd)':'background:rgba(255,255,255,.08);color:var(--text3)'); av.textContent=role==='ai'?'D':(S.profile.name?S.profile.name[0].toUpperCase():'U'); var bub=document.createElement('div'); bub.style.cssText='max-width:78%;padding:11px 14px;font-size:14px;line-height:1.65;word-break:break-word;'+(role==='ai'?'background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px 14px 14px 14px;color:var(--text)':'background:var(--accent-soft);border:1px solid var(--accent-dim);color:var(--text);border-radius:14px 4px 14px 14px'); var display=role==='ai'?cleanDirectorText(text):String(text||''); bub.textContent=''; display.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); wrap.appendChild(av); wrap.appendChild(bub); msgs.appendChild(wrap); msgs.scrollTop=msgs.scrollHeight; if(save) saveMsgToConv(role, display); return bub;
-} function addDirStreamBubble(){ var msgs=document.getElementById('dir-msgs'); if(!msgs) return null; var wrap=document.createElement('div'); wrap.style.cssText='display:flex;gap:10px;align-items:flex-start'; var av=document.createElement('div'); av.style.cssText='width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--accent-dim);color:var(--accent);font-family:var(--fd)'; av.textContent='D'; var bub=document.createElement('div'); bub.style.cssText='max-width:78%;padding:11px 14px;font-size:14px;line-height:1.65;word-break:break-word;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px 14px 14px 14px;color:var(--text);min-width:48px'; bub.innerHTML='<span style="display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px"></span>'; wrap.appendChild(av); wrap.appendChild(bub); msgs.appendChild(wrap); msgs.scrollTop=msgs.scrollHeight; return bub;
+} function dirTextIsLong(text){ var t=String(text||''); return t.length>280 || t.split('\n').length>6; }
+function fillDirTextNode(el,text){ el.textContent=''; String(text||'').split('\n').forEach(function(line,i){ if(i) el.appendChild(document.createElement('br')); el.appendChild(document.createTextNode(line)); }); }
+function openDirFullMessage(text){ var body=document.getElementById('dir-full-msg-body'); if(body) fillDirTextNode(body, text); if(typeof openM==='function') openM('dir-full-msg-modal'); }
+function applyDirBubbleContent(bub,text){ if(!bub) return; var full=String(text||''); bub._dirFull=full; bub.classList.add('dir-bubble'); var compact=dirTextIsLong(full); bub.innerHTML=''; var body=document.createElement('div'); body.className='dir-bubble-body'+(compact?' is-compact':''); fillDirTextNode(body, full); bub.appendChild(body); if(compact){ var btn=document.createElement('button'); btn.type='button'; btn.className='dir-view-full'; btn.textContent='View full message'; btn.addEventListener('click',function(){ openDirFullMessage(bub._dirFull); }); bub.appendChild(btn); } }
+function addDirMsg(role,text,save){ if(save===undefined) save=false; var msgs=document.getElementById('dir-msgs'); if(!msgs) return null; var wrap=document.createElement('div'); wrap.className='dir-msg-row'; wrap.style.cssText='display:flex;gap:10px;align-items:flex-start;min-width:0;max-width:100%'+(role==='user'?';flex-direction:row-reverse':''); var av=document.createElement('div'); av.style.cssText='width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;'+(role==='ai'?'background:var(--accent-dim);color:var(--accent);font-family:var(--fd)':'background:rgba(255,255,255,.08);color:var(--text3)'); av.textContent=role==='ai'?'D':(S.profile.name?S.profile.name[0].toUpperCase():'U'); var bub=document.createElement('div'); bub.className='dir-bubble'; bub.style.cssText='max-width:min(78%,100%);min-width:0;padding:11px 14px;font-size:14px;line-height:1.65;overflow-wrap:anywhere;word-break:break-word;'+(role==='ai'?'background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px 14px 14px 14px;color:var(--text)':'background:var(--accent-soft);border:1px solid var(--accent-dim);color:var(--text);border-radius:14px 4px 14px 14px'); var display=role==='ai'?cleanDirectorText(text):String(text||''); if(role==='ai') applyDirBubbleContent(bub, display); else fillDirTextNode(bub, display); wrap.appendChild(av); wrap.appendChild(bub); msgs.appendChild(wrap); msgs.scrollTop=msgs.scrollHeight; if(save) saveMsgToConv(role, display); return bub;
+} function addDirStreamBubble(){ var msgs=document.getElementById('dir-msgs'); if(!msgs) return null; var wrap=document.createElement('div'); wrap.className='dir-msg-row'; wrap.style.cssText='display:flex;gap:10px;align-items:flex-start;min-width:0;max-width:100%'; var av=document.createElement('div'); av.style.cssText='width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--accent-dim);color:var(--accent);font-family:var(--fd)'; av.textContent='D'; var bub=document.createElement('div'); bub.className='dir-bubble'; bub.style.cssText='max-width:min(78%,100%);min-width:0;padding:11px 14px;font-size:14px;line-height:1.65;overflow-wrap:anywhere;word-break:break-word;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px 14px 14px 14px;color:var(--text)'; bub.innerHTML='<span style="display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px"></span>'; wrap.appendChild(av); wrap.appendChild(bub); msgs.appendChild(wrap); msgs.scrollTop=msgs.scrollHeight; return bub;
 } var _dirStreaming=false; function sendDirector(){ if(_dirStreaming) return; var inp=document.getElementById('dir-input'); var msg=inp?inp.value.trim():''; if(!msg) return; if(window.PreShootAnalytics) PreShootAnalytics.track('director_action_requested',{path:'chat'}); var dt=gs('dir_today',{date:'',count:0}); var today=new Date().toDateString(); if(dt.date!==today) dt={date:today,count:0}; if(dt.count>=50){showToast('50 message daily limit reached');return;} dt.count++; ss('dir_today',dt); inp.value=''; inp.style.height='42px'; var btn=document.getElementById('dir-send-btn'); if(btn) btn.style.opacity='.4'; _dirStreaming=true; addDirMsg('user',msg,true); /* ── Build conversation  history (user/assistant only) ── */
 var conv=getActiveDirConv(); var history=[]; if(conv&&conv.messages&&conv.messages.length){ history=conv.messages.slice(-14).map(function(m){return {role:m.role,content:m.content};}); } /* Remove any trailing user turn, we append the fresh message below */
 while(history.length && history[history.length-1].role==='user') history.pop(); history.push({role:'user',content:msg}); /* ── Build creator context (separate from system prompt) ── // This is passed to /api/director which appends it to the system prompt server-side. // FUTURE: this can be replaced with a Supabase profile fetch from the server. */
@@ -2940,16 +2966,13 @@ if (window.PreShootDirectorOS && PreShootDirectorOS.matchIntent) {
   } catch (e) { window.__preshootPendingDirectorIntent = null; }
 }
 var pendingImg=S.dirPendingImage||null; S.dirPendingImage=null; var bub=addDirStreamBubble(); var fullText=''; var sseBuf=''; /* ── Call /api/director, NOT /api/chat ── // director.js injects the Director™ system prompt server-side. // chat.js is left untouched for scan analysis. */
-apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify((function(){ var _b={ messages: history, context: context, stream: true, image: pendingImg||undefined }; if(window.PreShootWorkspace&&PreShootWorkspace.workspaceIdForDirector){ var _w=PreShootWorkspace.workspaceIdForDirector(); if(_w)_b.workspace_id=_w; } return _b; })()) }) .then(function(res){ if(!res.ok){ return res.json().then(function(d){ if(bub) bub.textContent=(d.error&&d.error.message)||'Error'; _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ var _displayFull = cleanDirectorText(fullText); if(bub){ bub.textContent=''; _displayFull.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); }
+apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify((function(){ var _b={ messages: history, context: context, stream: true, image: pendingImg||undefined }; if(window.PreShootWorkspace&&PreShootWorkspace.workspaceIdForDirector){ var _w=PreShootWorkspace.workspaceIdForDirector(); if(_w)_b.workspace_id=_w; } return _b; })()) }) .then(function(res){ if(!res.ok){ return res.json().then(function(d){ if(bub) bub.textContent=(d.error&&d.error.message)||'Error'; _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ var _displayFull = cleanDirectorText(fullText); if(bub) applyDirBubbleContent(bub, _displayFull);
 if (window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply) {
   try {
     var _act = PreShootDirectorOS.parseActionFromReply(fullText);
     if (_act) {
       _displayFull = scrubDirectorMutationClaims(PreShootDirectorOS.stripActionMarker(fullText) || fullText);
-      if (bub) {
-        bub.textContent = '';
-        _displayFull.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); });
-      }
+      if (bub) applyDirBubbleContent(bub, _displayFull);
       setTimeout(function(){ PreShootDirectorOS.proposeToUI(_act); }, 120);
       window.__preshootPendingDirectorIntent = null;
       if (window.PreShootAnalytics) PreShootAnalytics.track('director_used', { path: 'chat_action' });
