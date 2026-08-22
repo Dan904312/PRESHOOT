@@ -235,10 +235,151 @@ test('source: confirmSend no longer blindly createProduction', () => {
 
 test('source: generate script uses Director, not idea copy', () => {
   const ui = fs.readFileSync(path.join(root, 'js/studio-ui.js'), 'utf8');
+  const gen = ui.slice(ui.indexOf('function generateScript'), ui.indexOf('function generateShotList'));
   assert.ok(ui.includes('function generateScript'));
   assert.ok(ui.includes('Do NOT copy the idea description'));
   assert.ok(ui.includes('requestScriptAiEdit'));
   assert.ok(ui.includes('Replace the current script'));
+  assert.ok(gen.includes('spoken'));
+  assert.ok(!/\[VISUAL\]\\nWhat we see/.test(gen), 'Generate Script prompt must not ask for [VISUAL] blocks');
+  assert.ok(/Forbidden[\s\S]*\[VISUAL\]/.test(gen));
+  assert.ok(ui.includes('function generateShotList'));
+});
+
+test('source: Director system prompt separates script from shot list', () => {
+  const director = fs.readFileSync(path.join(root, 'api/director.js'), 'utf8');
+  assert.ok(director.includes('SCRIPT VS SHOT LIST'));
+  assert.ok(director.includes('NEVER include [VISUAL]'));
+  const os = fs.readFileSync(path.join(root, 'js/director-os.js'), 'utf8');
+  assert.ok(os.includes('SCRIPT vs SHOT LIST'));
+  assert.ok(os.includes('An idea description is not a script'));
+});
+
+const MIXED_HOOK =
+  'HOOK\n[ON CAMERA]\n"You don\'t learn faster by studying more. You learn faster by teaching."\n[VISUAL]\nExtreme close-up on phone screen showing app UI. Sony FX3 on DJI RS4 PRO. Slow push-in from 30cm to 15cm. Shallow depth of field, background dissolves into bokeh. Hold on screen for one beat after line lands.';
+
+test('separateScriptFromProduction keeps spoken lines and extracts visuals', () => {
+  const g = loadStudio();
+  const St = g.PreShootStudio;
+  const sep = St.separateScriptFromProduction(MIXED_HOOK);
+  assert.ok(/learn faster by studying/.test(sep.scriptBody));
+  assert.ok(/learn faster by teaching/.test(sep.scriptBody));
+  assert.ok(!/\[VISUAL\]/.test(sep.scriptBody));
+  assert.ok(!/Sony FX3/i.test(sep.scriptBody));
+  assert.ok(!/DJI/i.test(sep.scriptBody));
+  assert.ok(!/push-in/i.test(sep.scriptBody));
+  assert.ok(!/depth of field/i.test(sep.scriptBody));
+  assert.ok(sep.hadProductionLeak);
+  assert.ok(sep.extractedShotCount >= 1);
+  const visual = (sep.beats || []).map((b) => b.visual).join(' ');
+  assert.ok(/Extreme close-up/i.test(visual));
+  assert.ok(/Sony FX3/i.test(visual));
+});
+
+test('AI update_script sanitizes mixed output into script + shot list', () => {
+  const g = loadStudio();
+  const St = g.PreShootStudio;
+  const project = St.createProject({ name: 'Teach AI' });
+  const created = St.createProduction(project.id, {
+    name: 'Student film',
+    source: 'idea',
+    ideaSnapshot: { title: 'Teaching AI helps students learn better.', hook: 'Teaching AI helps students learn better.' }
+  });
+  const pid = created.production.id;
+  assert.strictEqual(St.getScriptPlainText(created.production.workspace), '');
+  const applied = St.handleDirectorAction(
+    'update_script',
+    { productionId: pid, mode: 'replace', body: MIXED_HOOK },
+    { confirmed: true }
+  );
+  assert.ok(applied.ok, applied.message || applied.error);
+  const found = St.findProduction(pid);
+  const script = St.getScriptPlainText(found.production.workspace);
+  assert.ok(/learn faster by studying/.test(script));
+  assert.ok(/learn faster by teaching/.test(script));
+  assert.ok(!/\[VISUAL\]/.test(script));
+  assert.ok(!/Sony FX3/i.test(script));
+  assert.ok(!/DJI/i.test(script));
+  assert.ok(!/push-in/i.test(script));
+  const shots = found.production.workspace.shotList || [];
+  assert.ok(shots.length >= 1, 'extracted visuals must become shots, not disappear');
+  const blob = JSON.stringify(shots);
+  assert.ok(/Extreme close-up|close-up/i.test(blob));
+  assert.ok(/Sony FX3|FX3/i.test(blob));
+  assert.ok(/DJI|RS/i.test(blob));
+  assert.ok(/push-in/i.test(blob));
+  assert.ok(shots[0].scriptLineId);
+  assert.ok(/learn faster/.test(shots[0].audio || shots[0].notes || ''));
+});
+
+test('Generate Shot List does not overwrite the script', () => {
+  const g = loadStudio();
+  const St = g.PreShootStudio;
+  const project = St.createProject({ name: 'P' });
+  const created = St.createProduction(project.id, { name: 'Prod', source: 'blank' });
+  const pid = created.production.id;
+  St.handleDirectorAction(
+    'update_script',
+    {
+      productionId: pid,
+      mode: 'replace',
+      body: 'HOOK\n[ON CAMERA]\nYou don\'t learn faster by studying more.\nYou learn faster by teaching.'
+    },
+    { confirmed: true }
+  );
+  const before = St.getScriptPlainText(St.findProduction(pid).production.workspace);
+  const built = St.buildShotListFromScript(pid, { allowStarter: false });
+  assert.ok(built.ok, built.message || built.error);
+  const found = St.findProduction(pid);
+  assert.strictEqual(St.getScriptPlainText(found.production.workspace), before);
+  assert.ok((found.production.workspace.shotList || []).length >= 1);
+  assert.ok(!/\[VISUAL\]/.test(before));
+});
+
+test('manual applyScriptPlainText does not rewrite existing mixed user scripts', () => {
+  const g = loadStudio();
+  const St = g.PreShootStudio;
+  const ws = St.defaultWorkspace();
+  const dirty = MIXED_HOOK;
+  const applied = St.applyScriptPlainText(ws, dirty, 'replace');
+  assert.ok(applied.next.indexOf('[VISUAL]') >= 0);
+  assert.ok(St.scriptContainsProductionLeak(applied.next));
+});
+
+test('ensureWorkspace does not rewrite a stored mixed script', () => {
+  const g = loadStudio();
+  const St = g.PreShootStudio;
+  const project = St.createProject({ name: 'Legacy' });
+  const created = St.createProduction(project.id, { name: 'Old cut', source: 'blank' });
+  created.production.workspace.script = {
+    body: MIXED_HOOK,
+    lines: [{ id: 'legacy_line', text: MIXED_HOOK, shotId: null, shotOrder: 1 }]
+  };
+  St.updateProduction(created.production.id, { workspace: created.production.workspace });
+  const found = St.findProduction(created.production.id);
+  St.ensureWorkspace(found.production);
+  assert.ok(found.production.workspace.script.body.indexOf('[VISUAL]') >= 0);
+  assert.strictEqual(found.production.workspace.script.lines[0].id, 'legacy_line');
+});
+
+test('imported idea still does not become a fake script after sanitizer exists', () => {
+  const g = loadStudio();
+  const St = g.PreShootStudio;
+  const result = St.importIdeaIntoStudio({
+    newProjectName: 'Concept Project',
+    newProductionName: 'Teaching AI',
+    idea: {
+      title: 'Teaching AI helps students learn better.',
+      hook: 'Teaching AI helps students learn better.',
+      whyItWorks: 'Students remember more when they explain ideas out loud.'
+    },
+    sceneInfo: { label: 'Desk' },
+    meta: { source: 'idea' }
+  });
+  assert.ok(result.ok);
+  assert.strictEqual(St.getScriptPlainText(result.production.workspace), '');
+  assert.strictEqual((result.production.workspace.shotList || []).length, 0);
+  assert.strictEqual(result.production.ideaSnapshot.title, 'Teaching AI helps students learn better.');
 });
 
 test('no new serverless functions', () => {
