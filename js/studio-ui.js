@@ -2746,10 +2746,17 @@
       executeStagedDirectorAction();
       return;
     }
-    if (_dirGoState === 'executing') return;
-    if (_dirGoState === 'done' && forcedText == null) return;
-
     var inp = document.getElementById('dir-cmd-input');
+    if (_dirGoState === 'executing') {
+      setDirectorStatus('thinking', 'Director is still working…');
+      return;
+    }
+    if (_dirGoState === 'done' && forcedText == null) {
+      var peekDone = inp ? String(inp.value || '').trim() : '';
+      if (!peekDone) return;
+      setDirectorGoState('idle');
+    }
+
     var text =
       forcedText != null
         ? String(forcedText || '').trim()
@@ -2782,10 +2789,15 @@
       result = global.PreShootDirectorOS.processStudioCommand(text);
     } catch (e) {
       setDirectorGoState('idle');
-      setDirectorStatus('error', 'Something went wrong. Try again.');
+      setDirectorStatus('error', 'Director couldn’t respond. Please try again.');
       return;
     }
-    handleDirectorCommandResult(result);
+    try {
+      handleDirectorCommandResult(result);
+    } catch (e2) {
+      setDirectorGoState('idle');
+      setDirectorStatus('error', 'Director couldn’t respond. Please try again.');
+    }
   }
 
   function handleDirectorCommandResult(result) {
@@ -2990,6 +3002,41 @@
     handleDirectorCommandResult(next);
   }
 
+  function directorReplyText(data) {
+    if (data == null) return '';
+    if (typeof data === 'string') return data.trim();
+    var content = data.content;
+    if (typeof content === 'string') return content.trim();
+    if (Array.isArray(content)) {
+      var parts = [];
+      content.forEach(function (b) {
+        if (!b) return;
+        if (typeof b === 'string') parts.push(b);
+        else if (b.text) parts.push(String(b.text));
+      });
+      return parts.join('\n').trim();
+    }
+    if (data.text) return String(data.text).trim();
+    return '';
+  }
+
+  function readDirectorResponse(res) {
+    return res.text().then(function (raw) {
+      if (!raw) return { ok: res.ok, status: res.status, data: {} };
+      try {
+        return { ok: res.ok, status: res.status, data: JSON.parse(raw) };
+      } catch (e) {
+        return { ok: false, status: res.status, data: {}, parseError: true };
+      }
+    });
+  }
+
+  function showDirectorFail(message) {
+    var msg = message || 'Director couldn’t respond. Please try again.';
+    setDirectorStatus('error', msg);
+    setDirectorGoState('idle');
+  }
+
   function requestDirectorExplain(result) {
     var fallback = (result && result.localFallback) || 'Here’s a concise take based on your current production.';
     setDirectorStatus('thinking', statusLabelForIntent((result && result.message) || '') || 'Thinking…');
@@ -3001,57 +3048,49 @@
     } catch (e) {}
     var msg = String((result && result.message) || '').slice(0, 500);
     if (typeof global.apiFetch !== 'function') {
-      setDirectorStatus('error', 'Director needs a connection for advice. Try again.');
-      setDirectorGoState('idle');
+      showDirectorFail('Director couldn’t respond. Please try again.');
+      return;
+    }
+    var body;
+    try {
+      body = JSON.stringify(
+        directorRequestBody({
+          stream: false,
+          context:
+            ctxLines +
+            '\n\nMODE: Studio advice only. Reply in 1 short sentence. Do NOT claim you renamed, deleted, moved, archived, or updated anything. Do NOT say Updated/Done/Completed unless you emit an ACTION block. Mutations require [[ACTION:{...}]]. No markdown.',
+          messages: [
+            {
+              role: 'user',
+              content:
+                'Advice-only Studio assistant. Never pretend a mutation happened. Question: ' +
+                msg +
+                '\nIf a rename/move/delete/create is needed, emit [[ACTION:{...}]] with ids from context. Otherwise give brief advice only.'
+            }
+          ]
+        })
+      );
+    } catch (e) {
+      showDirectorFail('Director couldn’t respond. Please try again.');
       return;
     }
     global
       .apiFetch('/api/director', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          directorRequestBody({
-            stream: false,
-            context:
-              ctxLines +
-              '\n\nMODE: Studio advice only. Reply in 1 short sentence. Do NOT claim you renamed, deleted, moved, archived, or updated anything. Do NOT say Updated/Done/Completed unless you emit an ACTION block. Mutations require [[ACTION:{...}]]. No markdown.',
-            messages: [
-              {
-                role: 'user',
-                content:
-                  'Advice-only Studio assistant. Never pretend a mutation happened. Question: ' +
-                  msg +
-                  '\nIf a rename/move/delete/create is needed, emit [[ACTION:{...}]] with ids from context. Otherwise give brief advice only.'
-              }
-            ]
-          })
-        )
+        body: body
       })
       .then(function (res) {
-        return res.json().then(function (data) {
-          return { ok: res.ok, status: res.status, data: data };
-        });
+        return readDirectorResponse(res);
       })
       .then(function (pack) {
         var data = pack.data || {};
-        var apiErr = directorApiErrorMessage(data, pack.status);
         if (!pack.ok) {
-          var errShow = apiErr || 'Director advice failed. Try again.';
           if (isDevHost()) console.warn('[Director explain]', pack.status, data);
-          setDirectorStatus('error', errShow);
-          setDirectorPanel(
-            '<div class="dir-cmd-status-card kind-error">' +
-              '<div class="dir-cmd-status-text">' +
-              esc(errShow) +
-              '</div></div>'
-          );
-          setDirectorGoState('idle');
+          showDirectorFail('Director couldn’t respond. Please try again.');
           return;
         }
-        var block = (data.content || []).find(function (b) {
-          return b.type === 'text';
-        });
-        var raw = (block && block.text) || fallback;
+        var raw = directorReplyText(data) || fallback;
         var text = raw;
         if (global.PreShootDirectorOS && global.PreShootDirectorOS.stripActionMarker) {
           text = global.PreShootDirectorOS.stripActionMarker(text);
@@ -3070,12 +3109,8 @@
         setDirectorGoState('idle');
       })
       .catch(function (err) {
-        var net =
-          isDevHost() && err && err.message
-            ? 'Couldn’t reach Director: ' + String(err.message).slice(0, 120)
-            : 'Couldn’t reach Director. Try again.';
-        setDirectorStatus('error', net);
-        setDirectorGoState('idle');
+        if (isDevHost() && err) console.warn('[Director explain]', err);
+        showDirectorFail('Director couldn’t respond. Please try again.');
       });
   }
 
@@ -5406,6 +5441,7 @@
     removeProductionAsset: removeProductionAsset,
     filterAssetFolder: filterAssetFolder,
     seedFromIdea: seedFromIdea,
+    submitDirectorCommand: submitDirectorCommand,
     proposeDirectorAction: proposeDirectorAction,
     confirmDirectorAction: confirmDirectorAction,
     cancelDirectorAction: cancelDirectorAction,
