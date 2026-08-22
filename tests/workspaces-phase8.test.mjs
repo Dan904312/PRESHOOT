@@ -146,16 +146,18 @@ await test('accent CSS variables and primary buttons follow the user colour', ()
   assert.ok(appSrc.includes("r.style.setProperty('--accent-text'"));
   assert.ok(appSrc.includes('studio-more-btn'));
   assert.ok(appSrc.includes('--accent-text'));
+  assert.ok(appSrc.includes('--accent-light'));
+  assert.ok(appSrc.includes('--accent-dark'));
 });
 
-await test('scan orb is the original bubbling WebGL shader (hue + base colors)', () => {
-  assert.ok(orbSrc.includes('uniform float hue'));
-  assert.ok(orbSrc.includes('adjustHue(baseColor1, hue)'));
-  assert.ok(orbSrc.includes('vec3(0.611765'));
-  assert.ok(orbSrc.includes('0.298039'));
-  assert.ok(orbSrc.includes('noiseScale'));
-  assert.ok(!orbSrc.includes('uColor1'));
-  assert.ok(!orbSrc.includes('colorsFromAccent'));
+await test('scan orb derives accent colours without flattening the bubbling shader', () => {
+  assert.ok(orbSrc.includes('uColor1'));
+  assert.ok(orbSrc.includes('colorsFromAccent'));
+  assert.ok(orbSrc.includes('window.S'));
+  assert.ok(orbSrc.includes('hslToRgb'));
+  assert.ok(orbSrc.includes('col = (col + v1) * v2 * v3'));
+  assert.ok(!orbSrc.includes('v1 * color1'));
+  assert.ok(!orbSrc.includes('adjustHue(baseColor1'));
 });
 
 await test('no CRDT / OT / extra serverless files in this overhaul', () => {

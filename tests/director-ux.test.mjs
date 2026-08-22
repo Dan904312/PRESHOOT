@@ -37,16 +37,36 @@ const emojiRe =
 
 console.log('\n== Director UX / scan bubble / emoji ==');
 
-test('Take a Photo orb is the original bubbling shader', () => {
-  assert.ok(orbSrc.includes('uniform float hue'));
-  assert.ok(orbSrc.includes('adjustHue(baseColor1, hue)'));
+test('Take a Photo orb keeps bubbling animation and follows the user accent', () => {
   assert.ok(orbSrc.includes('const float innerRadius = 0.6'));
   assert.ok(orbSrc.includes('const float noiseScale = 0.65'));
-  assert.ok(!orbSrc.includes('uColor1'));
-  assert.ok(!orbSrc.includes('colorsFromAccent'));
+  assert.ok(orbSrc.includes('col = (col + v1) * v2 * v3'));
+  assert.ok(orbSrc.includes('snoise3'));
+  assert.ok(orbSrc.includes('uniform vec3 uColor1'));
+  assert.ok(orbSrc.includes('function colorsFromAccent'));
+  assert.ok(orbSrc.includes('window.S'));
+  assert.ok(orbSrc.includes('setAccent'));
+  assert.ok(!orbSrc.includes('adjustHue(baseColor1'));
+  assert.ok(!orbSrc.includes('v1 * color1'));
   assert.ok(!appSrc.includes('background:radial-gradient(circle at 38% 34%,var(--accent)'));
+  assert.ok(appSrc.includes('--accent-light'));
+  assert.ok(appSrc.includes("setProperty('--accent-light'"));
+  assert.ok(appSrc.includes("setProperty('--accent-dark'"));
   assert.ok(appSrc.includes('class="scan-orb"'));
   assert.ok(appSrc.includes('aria-label="Take a photo"'));
+  const start = orbSrc.indexOf('function clamp01');
+  const end = orbSrc.indexOf('function currentAccentHex');
+  assert.ok(start > 0 && end > start);
+  const colorsFromAccent = new Function(orbSrc.slice(start, end) + 'return colorsFromAccent;')();
+  const pink = colorsFromAccent('#FF2D78');
+  assert.ok(pink.c1[0] > pink.c1[1] + 0.15, 'pink orb core must be red/magenta, not green');
+  assert.ok(pink.c1[0] > pink.c1[2], 'pink orb core must not be cyan');
+  const blue = colorsFromAccent('#4A9EFF');
+  assert.ok(blue.c1[2] > blue.c1[0] && blue.c1[2] > blue.c1[1] * 0.85, 'blue orb core must be blue');
+  const purple = colorsFromAccent('#7C4DFF');
+  assert.ok(purple.c1[2] > purple.c1[1], 'purple orb core must be violet, not green');
+  const green = colorsFromAccent('#34F5C5');
+  assert.ok(green.c1[1] > green.c1[0] && green.c1[1] > green.c1[2] * 0.7, 'mint orb core must be green/teal');
 });
 
 test('Director is execution-first without a tiny global token cap', () => {

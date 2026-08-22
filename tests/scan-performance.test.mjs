@@ -107,12 +107,13 @@ test('primary CTAs and Director Go follow accent, not hardcoded green/black', ()
   assert.ok(!appSrc.includes('html.theme-light .rescan-btn,html.theme-light .fmt-go-btn,html.theme-light .gen-shotlist-btn,html.theme-light .ob-btn-primary,html.theme-light .ob-nav-next{\n  background:#000!important'));
 });
 
-test('scan orb is the original bubbling shader, not a static RGB disc', () => {
-  assert.ok(orbSrc.includes('uniform float hue'));
-  assert.ok(orbSrc.includes('adjustHue'));
-  assert.ok(orbSrc.includes('baseColor1'));
-  assert.ok(!orbSrc.includes('colorsFromAccent'));
-  assert.ok(!orbSrc.includes('uColor1'));
+test('scan orb keeps bubbling animation and derives colours from the user accent', () => {
+  assert.ok(orbSrc.includes('const float innerRadius = 0.6'));
+  assert.ok(orbSrc.includes('col = (col + v1) * v2 * v3'));
+  assert.ok(orbSrc.includes('colorsFromAccent'));
+  assert.ok(orbSrc.includes('uColor1'));
+  assert.ok(orbSrc.includes('window.S'));
+  assert.ok(!orbSrc.includes('adjustHue(baseColor1'));
   assert.ok(!appSrc.includes('background:radial-gradient(circle at 38% 34%,var(--accent)'));
 });
 
