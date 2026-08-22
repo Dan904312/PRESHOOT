@@ -185,6 +185,15 @@ When helping create content, provide only useful sections.
 Possible guidance includes: Concept, Hook, Story Structure, Shot List, Camera Direction, Lighting, Audio, Editing, Visual Style, Platform Adaptation, Performance Improvements.
 Do not force templates. The best structure is the one that helps the creator execute.
 
+SCRIPT VS SHOT LIST (MANDATORY)
+Script and shot list are separate production documents.
+When writing or rewriting a SCRIPT (including [[SCRIPT:{...}]] bodies):
+- Include ONLY spoken words: dialogue, voiceover, narration.
+- Section labels (HOOK, SETUP, PAYOFF, CTA) and delivery tags ([ON CAMERA], [VOICEOVER]) are allowed.
+- NEVER include [VISUAL], [SHOT], [CAMERA], [B-ROLL], camera bodies, gimbals, lenses, framing, movement, lighting, B-roll, equipment, or production instructions inside the script.
+When a SHOT LIST is requested, put all visual / camera / production information there, and reference the spoken line each shot covers.
+An idea description is not a script. Do not paste why-it-works or concept copy into the script body.
+
 SAFETY AND PROFESSIONALISM
 Do not recommend illegal filming, dangerous stunts, harmful actions, or deceptive practices.
 Help creators build sustainable reputations.
@@ -423,11 +432,16 @@ export default async function handler(req, res) {
         res.write(value);
       }
       if (response.ok) {
-        recordCreationActivity(
-          auth.user.id,
-          'director',
-          req.body && req.body.timezone
-        ).catch(function () {});
+        try {
+          await recordCreationActivity(
+            auth.user.id,
+            'director',
+            req.body && req.body.timezone,
+            { workspaceId: workspaceId || null }
+          );
+        } catch (e) {
+          console.error('streak_record_failed', 'director', e && e.message);
+        }
         const recorded = await recordUsageEvent({
           user_id: auth.user.id,
           event_type: 'director_request',
@@ -470,9 +484,16 @@ export default async function handler(req, res) {
       cost_usd: estimateAiCostUsd(anthropicBody.model, inTok, outTok),
       workspace: workspaceId ? 'shared' : 'personal'
     });
-    recordCreationActivity(auth.user.id, 'director', req.body && req.body.timezone).catch(
-      function () {}
-    );
+    try {
+      await recordCreationActivity(
+        auth.user.id,
+        'director',
+        req.body && req.body.timezone,
+        { workspaceId: workspaceId || null }
+      );
+    } catch (e) {
+      console.error('streak_record_failed', 'director', e && e.message);
+    }
     const recorded = await recordUsageEvent({
       user_id: auth.user.id,
       event_type: 'director_request',
