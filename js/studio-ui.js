@@ -63,28 +63,28 @@
           (result.result && result.result.action))) ||
       '';
     var map = {
-      rebuild_shot_list: 'Done — shot list updated.',
-      generate_sections: 'Done — added to Studio.',
-      update_script: 'Done — script generated.',
-      create_project: 'Done — project created.',
-      create_production: 'Done — production created.',
-      rename_production: 'Done — renamed.',
-      rename_project: 'Done — renamed.',
-      move_production: 'Done — moved.',
-      archive_production: 'Done — archived.',
-      archive_project: 'Done — archived.',
-      update_status: 'Done — status updated.',
-      set_primary_platform: 'Done — platform updated.'
+      rebuild_shot_list: 'Done. shot list updated.',
+      generate_sections: 'Done. added to Studio.',
+      update_script: 'Done. script generated.',
+      create_project: 'Done. project created.',
+      create_production: 'Done. production created.',
+      rename_production: 'Done. renamed.',
+      rename_project: 'Done. renamed.',
+      move_production: 'Done. moved.',
+      archive_production: 'Done. archived.',
+      archive_project: 'Done. archived.',
+      update_status: 'Done. status updated.',
+      set_primary_platform: 'Done. platform updated.'
     };
     if (map[action]) return map[action];
     var section = result && result.section;
     var raw = String((result && result.message) || fallback || '').replace(/\s+/g, ' ').trim();
     var lower = raw.toLowerCase();
-    if (section === 'shots' || /shot list/.test(lower)) return 'Done — shot list updated.';
-    if (/script/.test(lower) && /generat|updat|rewrit|draft/.test(lower)) return 'Done — script generated.';
-    if (/section/.test(lower)) return 'Done — added to Studio.';
+    if (section === 'shots' || /shot list/.test(lower)) return 'Done. shot list updated.';
+    if (/script/.test(lower) && /generat|updat|rewrit|draft/.test(lower)) return 'Done. script generated.';
+    if (/section/.test(lower)) return 'Done. added to Studio.';
     if (!raw) return 'Done.';
-    if (raw.length <= 72) return /^done\b/i.test(raw) ? raw : 'Done — ' + raw.replace(/[.]+$/, '') + '.';
+    if (raw.length <= 72) return /^done\b/i.test(raw) ? raw : 'Done. ' + raw.replace(/[.]+$/, '') + '.';
     return 'Done.';
   }
 
@@ -182,6 +182,70 @@
     );
   }
 
+  function studioCrumbHtml(parts) {
+    var html = '<nav class="st-crumb" aria-label="Studio location">';
+    parts.forEach(function (p, i) {
+      if (i) html += '<span aria-hidden="true">/</span>';
+      if (p.on && i < parts.length - 1) {
+        html +=
+          '<button type="button" onclick="' +
+          p.on +
+          '">' +
+          esc(p.label) +
+          '</button>';
+      } else if (i === parts.length - 1) {
+        html += '<span class="here" aria-current="page">' + esc(p.label) + '</span>';
+      } else {
+        html += '<span>' + esc(p.label) + '</span>';
+      }
+    });
+    html += '</nav>';
+    return html;
+  }
+
+  function sectionNowCopy(section) {
+    var map = {
+      overview: { t: 'Overview', n: 'Check the idea, then open Script or Shot List.' },
+      shots: { t: 'Shot List', n: 'Build the shots you will film.' },
+      script: { t: 'Script', n: 'Write what is said on camera.' },
+      refs: { t: 'Assets and references', n: 'Collect YouTube, CapCut, and files.' },
+      assets: { t: 'Assets and references', n: 'Collect YouTube, CapCut, and files.' },
+      performance: { t: 'Performance', n: 'Record how the piece landed after posting.' },
+      trending: { t: 'Trending', n: 'Optional public trend context.' }
+    };
+    return map[section] || map.overview;
+  }
+
+  function renderDirectorQuickActions() {
+    var chips = [
+      ['Improve hook', 'Improve the hook for this production. Keep it specific and easy to say in three seconds.'],
+      ['Make this easier to film', 'Simplify this production so it is easier to film with the gear on my profile. Prefer fewer setups.'],
+      ['Create production plan', 'Create a production plan: what to film, in what order, and what I need on set.'],
+      ['Adjust for iPhone', 'Adjust the shot list and notes for filming on iPhone.'],
+      ['Make this shorter', 'Make the script and shot list shorter. Keep the hook and the payoff.']
+    ];
+    var h = '<div class="dir-quick" role="group" aria-label="Director actions">';
+    chips.forEach(function (c) {
+      h +=
+        '<button type="button" onclick="PreShootStudioUI.runDirectorQuick(' +
+        JSON.stringify(c[1]).replace(/"/g, '&quot;') +
+        ')">' +
+        esc(c[0]) +
+        '</button>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  function runDirectorQuick(prompt) {
+    var inp = document.getElementById('dir-cmd-input');
+    if (inp) {
+      inp.value = prompt || '';
+      onDirectorInputChange();
+    }
+    if (prompt) submitDirectorCommand();
+  }
+
   /* ── Studio dashboard ── */
   function renderStudio() {
     var root = document.getElementById('studio-root');
@@ -233,7 +297,7 @@
 
     h += renderStudioRecents();
     h += renderDirectorCommandBar({
-      placeholder: 'Tell Director what you’d like to do…',
+      placeholder: 'Tell Director what you would like to do',
       scope: 'studio'
     });
 
@@ -243,8 +307,8 @@
         '<div class="studio-empty-ico" aria-hidden="true">' +
         '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>' +
         '</div>' +
-        '<div class="studio-empty-t">No Projects Yet</div>' +
-        '<div class="studio-empty-s">Start organizing your content ideas into creative projects.</div>' +
+        '<div class="studio-empty-t">No projects yet</div>' +
+        '<div class="studio-empty-s">Start with a scan or create a project.</div>' +
         (global.PreShootWorkspace &&
         PreShootWorkspace.isShared &&
         PreShootWorkspace.isShared() &&
@@ -388,6 +452,10 @@
 
     var h = '';
     h += '<div class="studio-shell studio-fade">';
+    h += studioCrumbHtml([
+      { label: 'Studio', on: "PreShootStudioUI.backToList()" },
+      { label: project.name }
+    ]);
     h += '<div class="studio-detail-hd">';
     h +=
       '<button type="button" class="studio-back" onclick="PreShootStudioUI.backToList()" aria-label="Back to Studio">‹</button>';
@@ -682,8 +750,8 @@
     }
 
     if (timeline.length) {
+      h += '<details class="pw-disclose"><summary>Timeline</summary>';
       h += '<div class="pw-card">';
-      h += '<div class="pw-card-kicker">Timeline</div>';
       h += '<div class="pw-timeline">';
       timeline
         .slice()
@@ -697,12 +765,12 @@
           h += '<div class="pw-tl-time">' + esc(fmtRelative(evt.at)) + '</div>';
           h += '</div></div>';
         });
-      h += '</div></div>';
+      h += '</div></div></details>';
     }
 
     /* Editable essentials */
+    h += '<details class="pw-disclose"><summary>Details</summary>';
     h += '<div class="pw-card">';
-    h += '<div class="pw-card-kicker">Details</div>';
     h += '<label class="st-label">Production name</label>';
     h +=
       '<input class="st-input" value="' +
@@ -747,7 +815,7 @@
       "','notes',this.value)\">" +
       esc(prod.notes || '') +
       '</textarea>';
-    h += '</div>';
+    h += '</div></details>';
 
     if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.reviewCardHtml) {
       h += PreShootWorkspaceComments.reviewCardHtml(productionId, prod);
@@ -836,7 +904,7 @@
         }
       } else {
         h += '<div class="studio-empty-t">No shots yet</div>';
-        h += '<div class="studio-empty-s">Generate a script first, then build a shot list from those beats — or add shots manually.</div>';
+        h += '<div class="studio-empty-s">Generate a script first, then build a shot list from those beats, or add shots manually.</div>';
         h +=
           '<button type="button" class="studio-btn" style="margin-top:12px" onclick="PreShootStudioUI.setProdSection(\'' +
           esc(productionId) +
@@ -848,7 +916,7 @@
 
     shots.forEach(function (shot, i) {
       var open = !!expanded[shot.id];
-      var dur = typeof shot.durationSec === 'number' ? shot.durationSec + ' sec' : '—';
+      var dur = typeof shot.durationSec === 'number' ? shot.durationSec + ' sec' : '-';
       h += '<div class="pw-shot-card' + (open ? ' open' : '') + '">';
       h +=
         '<button type="button" class="pw-shot-head" onclick="PreShootStudioUI.toggleShot(\'' +
@@ -968,7 +1036,7 @@
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Script</div>';
-    h += '<div class="pw-section-sub">What is said — dialogue, voiceover, narration. Not camera or visuals.</div>';
+    h += '<div class="pw-section-sub">What is said: dialogue, voiceover, narration. Not camera or visuals.</div>';
     if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
       h += PreShootWorkspaceComments.commentChipHtml(
         productionId,
@@ -1008,7 +1076,7 @@
       var body = (ws.script && ws.script.body) || '';
       if (body) {
         h += '<div class="pw-card">';
-        h += '<div class="pw-section-sub" style="margin-bottom:10px">Legacy script — convert to line cards</div>';
+        h += '<div class="pw-section-sub" style="margin-bottom:10px">Legacy script: convert to line cards</div>';
         h +=
           '<button type="button" class="studio-btn" onclick="PreShootStudioUI.convertScriptBody(\'' +
           esc(productionId) +
@@ -1255,7 +1323,7 @@
     var h = '';
     h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Trending</div>';
     h +=
-      '<div class="pw-section-sub">Public trend cache — metadata and links only, no copyrighted media copies</div></div></div>';
+      '<div class="pw-section-sub">Public trend cache: metadata and links only, no copyrighted media copies</div></div></div>';
     if (global.PreShootTrending && PreShootTrending.renderStudioPanel) {
       h += PreShootTrending.renderStudioPanel(productionId);
     } else {
@@ -1491,7 +1559,7 @@
       setArStatus(
         productionId,
         platform,
-        'Connect CapCut in Menu to unlock template research (preference only — no CapCut API).',
+        'Connect CapCut in Menu to unlock template research (preference only, no CapCut API).',
         'error'
       );
       if (typeof global.openM === 'function') global.openM('capcut-connect-modal');
@@ -1732,7 +1800,7 @@
       PreShootWorkspace.canEdit &&
       !PreShootWorkspace.canEdit()
     ) {
-      setStatus('Read-only workspace — uploads require editor access.', 'error');
+      setStatus('Read-only workspace: uploads require editor access.', 'error');
       input.value = '';
       return;
     }
@@ -1891,7 +1959,7 @@
     var perf = (ws && ws.performance) || {};
     var h = '';
     h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Performance Review</div>';
-    h += '<div class="pw-section-sub">Manual metrics you enter — PreShoot does not scrape social platforms. Architecture ready for future imports.</div></div></div>';
+    h += '<div class="pw-section-sub">Manual metrics you enter. PreShoot does not scrape social platforms.</div></div></div>';
     h += '<div class="pw-card">';
     h += '<div class="pw-perf-grid">';
     [
@@ -1908,7 +1976,7 @@
       h +=
         '<input class="st-input" value="' +
         esc(perf[f[0]] || '') +
-        '" placeholder="—" onchange="PreShootStudioUI.savePerformanceField(\'' +
+        '" placeholder="-" onchange="PreShootStudioUI.savePerformanceField(\'' +
         esc(productionId) +
         "','" +
         f[0] +
@@ -1940,7 +2008,7 @@
 
   function renderDirectorCommandBar(opts) {
     opts = opts || {};
-    var ph = opts.placeholder || 'Tell Director what you’d like to do…';
+    var ph = opts.placeholder || 'Tell Director what you would like to do';
     var scope = opts.scope || 'studio';
     return (
       '<div class="dir-cmd" data-dir-scope="' +
@@ -1962,12 +2030,22 @@
   }
 
   function renderDirectorCard(productionId) {
-    /* Studio stays in-place — command bar replaces chat launch card */
-    return renderDirectorCommandBar({
-      placeholder: 'What do you want to change?',
-      scope: 'production',
-      productionId: productionId
-    });
+    var found = Studio().findProduction(productionId);
+    var name = found && found.production ? found.production.name : 'this production';
+    return (
+      '<div class="dir-partner">' +
+      '<div class="dir-partner-k">Director</div>' +
+      '<div class="dir-partner-line">Working on <strong>' +
+      esc(name) +
+      '</strong></div>' +
+      renderDirectorQuickActions() +
+      renderDirectorCommandBar({
+        placeholder: 'Ask Director to change this production',
+        scope: 'production',
+        productionId: productionId
+      }) +
+      '</div>'
+    );
   }
 
   function setDirectorPanel(html, opts) {
@@ -2064,13 +2142,13 @@
         '</strong></div>';
       rows +=
         '<div class="dir-action-row"><span>Current</span><strong>' +
-        esc(current || '—') +
+        esc(current || '-') +
         '</strong></div>';
       rows +=
         '<div class="dir-action-arrow" aria-hidden="true">→</div>';
       rows +=
         '<div class="dir-action-row"><span>New</span><strong>' +
-        esc(payload.name || '—') +
+        esc(payload.name || '-') +
         '</strong></div>';
     } else if (action === 'update_status') {
       rows +=
@@ -2078,7 +2156,7 @@
         esc(
           ((Studio().STATUS_MAP || {})[payload.status] || {}).label ||
             payload.status ||
-            '—'
+            '-'
         ) +
         '</strong></div>';
     } else if (action === 'move_production') {
@@ -2495,9 +2573,9 @@
           action,
           payload,
           action === 'update_script'
-            ? 'Done — script updated.'
+            ? 'Done. script updated.'
             : action === 'rebuild_shot_list'
-              ? 'Done — shot list rebuilt.'
+              ? 'Done. shot list rebuilt.'
               : verified.label
                 ? 'Updated to “' + verified.label + '”'
                 : 'Completed',
@@ -2507,9 +2585,9 @@
       setDirectorStatus(
         'done',
         action === 'update_script'
-          ? 'Done — script updated.'
+          ? 'Done. script updated.'
           : action === 'rebuild_shot_list'
-            ? 'Done — shot list rebuilt.'
+            ? 'Done. shot list rebuilt.'
             : 'Completed'
       );
       toast(
@@ -2575,7 +2653,7 @@
       PreShootWorkspace.isShared()
     ) {
       if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
-        failDirectorPersist('Read-only workspace — changes were not saved');
+        failDirectorPersist('Read-only workspace: changes were not saved');
         return;
       }
       if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
@@ -2677,7 +2755,7 @@
         afterPersistOk();
       })
       .catch(function () {
-        failDirectorPersist('Save failed. Your Studio may be out of sync — try again.');
+        failDirectorPersist('Save failed. Your Studio may be out of sync. Try again.');
       });
   }
 
@@ -2701,7 +2779,7 @@
       if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
         return Promise.resolve({
           ok: false,
-          message: 'Read-only workspace — changes were not saved'
+          message: 'Read-only workspace: changes were not saved'
         });
       }
       if (PreShootWorkspace.markSharedDirty) {
@@ -3454,6 +3532,17 @@
 
     var h = '';
     h += '<div class="studio-shell studio-fade pw-shell">';
+    h += studioCrumbHtml([
+      { label: 'Studio', on: "PreShootStudioUI.backToList()" },
+      { label: project.name, on: "PreShootStudioUI.openProject('" + esc(project.id) + "')" },
+      { label: prod.name },
+      { label: (sectionNowCopy(section).t) }
+    ]);
+    var now = sectionNowCopy(section);
+    h += '<div class="st-now" aria-live="polite">';
+    h += '<div class="st-now-k">Now working on</div>';
+    h += '<div class="st-now-t">' + esc(now.t) + '</div>';
+    h += '<div class="st-now-n">' + esc(now.n) + '</div></div>';
     h += '<div class="studio-detail-hd">';
     h +=
       '<button type="button" class="studio-back" onclick="PreShootStudioUI.openProject(\'' +
@@ -3536,17 +3625,19 @@
 
     /* Progress stages */
     h += '<div class="pw-card pw-progress-card">';
-    h += '<div class="pw-card-kicker">Progress</div>';
+    h += '<div class="pw-card-kicker">Production stage</div>';
     h += '<div class="st-stage-rail pw-stage-rail" aria-label="Production stages">';
     Studio().STATUSES.forEach(function (s, i) {
       if (s.id === 'archived') return;
       var cls = 'st-stage';
       if (i < stageIdx) cls += ' done';
       if (i === stageIdx) cls += ' on';
-      h +=
-        '<button type="button" class="' +
-        cls +
-        '" onclick="PreShootStudioUI.setStatus(\'' +
+    h +=
+      '<button type="button" class="' +
+      cls +
+      '" aria-current="' +
+      (i === stageIdx ? 'step' : 'false') +
+      '" onclick="PreShootStudioUI.setStatus(\'' +
         esc(productionId) +
         "','" +
         esc(s.id) +
@@ -3571,6 +3662,8 @@
       h +=
         '<button type="button" class="st-tab' +
         (section === t.id || (t.id === 'refs' && section === 'assets') ? ' on' : '') +
+        '" aria-current="' +
+        (section === t.id || (t.id === 'refs' && section === 'assets') ? 'page' : 'false') +
         '" onclick="PreShootStudioUI.setProdSection(\'' +
         esc(productionId) +
         "','" +
@@ -3927,7 +4020,7 @@
         order: order,
         purpose: 'Setup',
         durationSec: 3,
-        beginnerTip: 'Keep it simple — one clear action per shot.'
+        beginnerTip: 'Keep it simple: one clear action per shot.'
       })
     );
     prod.workspace.shotList = list;
@@ -4229,7 +4322,7 @@
       need_platform: 'Platform pacing changes hook length and structure.',
       script_long: 'Short-form audiences drop off when scripts run long.',
       weak_hook: 'A sharper first line improves retention.',
-      ready_film: 'Completeness looks strong — time to shoot.',
+      ready_film: 'Completeness looks strong. Time to shoot.',
       add_perf: 'Logging results improves future recommendations.'
     };
     if (reasons[next.id]) return reasons[next.id];
@@ -4538,7 +4631,7 @@
     }
 
     function failModalPersist(msg) {
-      toast(msg || 'Save failed — change was not confirmed');
+      toast(msg || 'Save failed: change was not confirmed');
       setDirectorStatus('error', msg || 'Save failed');
       setDirectorGoState('idle');
     }
@@ -4549,7 +4642,7 @@
       PreShootWorkspace.isShared()
     ) {
       if (PreShootWorkspace.canEdit && !PreShootWorkspace.canEdit()) {
-        failModalPersist('Read-only workspace — changes were not saved');
+        failModalPersist('Read-only workspace: changes were not saved');
         return;
       }
       if (PreShootWorkspace.markSharedDirty) PreShootWorkspace.markSharedDirty();
@@ -4784,7 +4877,7 @@
         '<button type="button" class="studio-btn primary block" onclick="PreShootStudioUI.projectWizardNext()">Continue</button>';
     } else if (step === 2) {
       h += '<div class="st-step-title">Description</div>';
-      h += '<div class="st-step-sub">Optional — you can skip this.</div>';
+      h += '<div class="st-step-sub">Optional: you can skip this.</div>';
       h +=
         '<textarea class="st-input st-notes" id="st-new-project-notes" placeholder="Optional description">' +
         esc(projectDraft.notes) +
@@ -4799,7 +4892,7 @@
       h += '</div>';
     } else {
       h += '<div class="st-step-title">Cover image</div>';
-      h += '<div class="st-step-sub">Optional — add a cover later anytime.</div>';
+      h += '<div class="st-step-sub">Optional: add a cover later anytime.</div>';
       h +=
         '<label class="st-cover-pick">' +
         (projectDraft.coverImage
@@ -5452,6 +5545,7 @@
     runSearch: runSearch,
     openSuggestedNext: openSuggestedNext,
     openSuggestedFromStudio: openSuggestedFromStudio,
-    handleOverviewSuggestion: handleOverviewSuggestion
+    handleOverviewSuggestion: handleOverviewSuggestion,
+    runDirectorQuick: runDirectorQuick
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);

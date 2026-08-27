@@ -496,14 +496,14 @@
       cameraMovement:
         skill === 'advanced' ? 'Locked off with a micro push-in' : 'Hold steady for 3 seconds',
       lens: skill === 'advanced' ? '24–35mm equivalent' : skill === 'intermediate' ? 'Wide-to-normal' : '',
-      gear: skill === 'beginner' ? 'Phone is fine — steady hands or lean on something' : '',
+      gear: skill === 'beginner' ? 'Phone is fine: steady hands or lean on something' : '',
       lighting:
         skill === 'beginner'
           ? 'Stand so light hits the subject from the front or side'
           : 'Key from window/practicals; avoid flat overhead',
       audio: idea.audio || (skill === 'beginner' ? 'Speak clearly or add soft music later' : 'Clean VO + room tone'),
       notes: idea.hook ? 'Open on: “' + String(idea.hook).slice(0, 120) + '”' : '',
-      beginnerTip: 'Film this first. If the hook is weak, nothing else matters — reshoot before moving on.',
+      beginnerTip: 'Film this first. If the hook is weak, nothing else matters. Reshoot before moving on.',
       advancedDetail:
         skill === 'advanced'
           ? 'Protect headroom for captions; bias contrast and motion toward the hook subject.'
@@ -535,7 +535,7 @@
       lighting: '',
       audio: '',
       notes: idea.editingStyle ? 'Edit vibe: ' + idea.editingStyle : '',
-      beginnerTip: 'This is the “aha” moment — make it clear and satisfying.',
+      beginnerTip: 'This is the “aha” moment. Make it clear and satisfying.',
       advancedDetail:
         skill === 'advanced'
           ? 'Time the reveal on a beat; leave 4–6 frames of handles for the cut.'
@@ -573,7 +573,9 @@
       filmTime: idea.filmTime || '',
       whyItWorks: idea.whyItWorks || '',
       ytSearch: idea.ytSearch || '',
-      capcutSearch: idea.capcutSearch || ''
+      capcutSearch: idea.capcutSearch || '',
+      selectedHookIndex: typeof idea.selectedHookIndex === 'number' ? idea.selectedHookIndex : 0,
+      selectedHookIndexes: Array.isArray(idea.selectedHookIndexes) ? idea.selectedHookIndexes : []
     };
   }
 
@@ -645,7 +647,7 @@
     var shotList = meta.includeStarterShots ? starterShotListFromIdea(idea, sceneInfo, meta) : [];
     return {
       overview: {
-        summary: [idea.title, idea.hook].filter(Boolean).join(' — ').slice(0, 280),
+        summary: [idea.title, idea.hook].filter(Boolean).join(': ').slice(0, 280),
         goal: idea.category ? 'Ship a strong ' + idea.category + ' piece' : '',
         platform: '',
         format: idea.category || ''
@@ -1294,7 +1296,7 @@
       suggestions.push({
         id: 'script_long',
         severity: 'med',
-        text: 'This script may be too long for TikTok / Reels — tighten the hook and CTA.',
+        text: 'This script may be too long for TikTok / Reels. Tighten the hook and CTA.',
         action: null
       });
     }
@@ -1303,7 +1305,7 @@
       suggestions.push({
         id: 'weak_hook',
         severity: 'med',
-        text: 'This hook could be stronger — make the first line more specific.',
+        text: 'This hook could be stronger. Make the first line more specific.',
         action: null
       });
     }
@@ -1852,7 +1854,7 @@
     var workspace = seedWorkspaceFromIdea(idea, sceneInfo, Object.assign({}, meta, { includeStarterShots: false }));
     return {
       name: String(idea.title || 'Untitled Production').trim(),
-      notes: [idea.hook ? 'Hook (idea, not script): ' + idea.hook : '', idea.shotAngle || '', meta.notes || '']
+      notes: [idea.hook ? 'Hook: ' + idea.hook : '', idea.shotAngle || '', meta.notes || '']
         .filter(Boolean)
         .join('\n'),
       status: 'planning',
@@ -1896,7 +1898,7 @@
     }
     var ov = prod.workspace.overview || {};
     if (!ov.summary) {
-      ov.summary = [idea.title, idea.hook].filter(Boolean).join(' — ').slice(0, 280);
+      ov.summary = [idea.title, idea.hook].filter(Boolean).join(': ').slice(0, 280);
     }
     if (!ov.format && idea.category) ov.format = idea.category;
     prod.workspace.overview = ov;

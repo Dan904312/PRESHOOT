@@ -547,7 +547,7 @@
           failAndClose(
             hardDeny
               ? errorMessage(err)
-              : 'Microphone unavailable. Check Settings → PreShoot / Safari → Microphone, then try again — or type your request.'
+              : 'Microphone unavailable. Check Settings → PreShoot / Safari → Microphone, then try again, or type your request.'
           );
           return;
         }
@@ -555,7 +555,7 @@
         failAndClose(
           hardDeny
             ? errorMessage(err)
-            : 'Microphone unavailable. Check browser permissions, then try again — or type your request.'
+            : 'Microphone unavailable. Check browser permissions, then try again, or type your request.'
         );
         return;
       });

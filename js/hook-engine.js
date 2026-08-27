@@ -323,6 +323,36 @@
     return list;
   }
 
+  function allHooks(idea) {
+    normalizeIdea(idea);
+    return [idea.primaryHook].concat(idea.altHooks || []).filter(Boolean);
+  }
+
+  function uniqueIndexes(list, max) {
+    var seen = {};
+    return (list || []).map(function (n) { return parseInt(n, 10); }).filter(function (n) {
+      if (isNaN(n) || n < 0 || n >= max || seen[n]) return false;
+      seen[n] = 1;
+      return true;
+    });
+  }
+
+  function ensureSelectedIndexes(idea) {
+    if (!idea) return [];
+    var hooks = allHooks(idea);
+    var max = hooks.length || 1;
+    var idxs = uniqueIndexes(idea.selectedHookIndexes, max);
+    if (!idxs.length) {
+      var fallback = typeof idea.selectedHookIndex === 'number' ? idea.selectedHookIndex : 0;
+      if (fallback < 0 || fallback >= max) fallback = 0;
+      idxs = hooks.length ? [fallback] : [];
+    }
+    idea.selectedHookIndexes = idxs;
+    idea.selectedHookIndex = idxs.length ? idxs[0] : 0;
+    idea.hook = hooks[idea.selectedHookIndex] || idea.primaryHook || idea.hook || '';
+    return idxs;
+  }
+
   function selectHook(idea, index) {
     if (!idea) return null;
     normalizeIdea(idea);
@@ -331,13 +361,29 @@
     var max = 1 + (idea.altHooks ? idea.altHooks.length : 0);
     if (idx >= max) idx = 0;
     idea.selectedHookIndex = idx;
+    idea.selectedHookIndexes = [idx];
     idea.hook = idx === 0 ? idea.primaryHook : idea.altHooks[idx - 1];
     return idea.hook;
   }
 
-  function allHooks(idea) {
-    normalizeIdea(idea);
-    return [idea.primaryHook].concat(idea.altHooks || []).filter(Boolean);
+  function toggleHook(idea, index) {
+    if (!idea) return null;
+    var hooks = allHooks(idea);
+    var i = parseInt(index, 10);
+    if (isNaN(i) || i < 0 || i >= hooks.length) return idea;
+    var idxs = ensureSelectedIndexes(idea).slice();
+    var pos = idxs.indexOf(i);
+    if (pos >= 0) {
+      if (idxs.length === 1) return idea;
+      idxs.splice(pos, 1);
+    } else {
+      idxs.push(i);
+      idxs.sort(function (a, b) { return a - b; });
+    }
+    idea.selectedHookIndexes = idxs;
+    idea.selectedHookIndex = idxs[0];
+    idea.hook = hooks[idxs[0]] || idea.primaryHook;
+    return idea;
   }
 
   global.PreShootHooks = {
@@ -348,6 +394,8 @@
     normalizeIdea: normalizeIdea,
     normalizeIdeas: normalizeIdeas,
     selectHook: selectHook,
+    toggleHook: toggleHook,
+    ensureSelectedIndexes: ensureSelectedIndexes,
     allHooks: allHooks,
     markUsed: markUsed,
     platformHint: platformHint,

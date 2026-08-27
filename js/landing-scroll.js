@@ -661,7 +661,7 @@
       // Neutralize grid wrappers
       gsap.utils
         .toArray(
-          '.creator-strip.reveal, .steps.reveal, .feat-grid.reveal, .pricing-wrap.reveal, .community-grid.reveal, .phone-mock.reveal, .proof-grid.reveal, .trust-grid.reveal'
+          '.creator-strip.reveal, .steps.reveal, .feat-grid.reveal, .pricing-wrap.reveal, .community-grid.reveal, .phone-mock.reveal, .proof-grid.reveal, .trust-grid.reveal, .faq-list, .problem-grid, .why-list, .how-flow'
         )
         .forEach(function (el) {
           if (!outsideHero(el)) return;

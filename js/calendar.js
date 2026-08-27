@@ -616,7 +616,7 @@
         '"' +
         (ev.productionId === p.id ? ' selected' : '') +
         '>' +
-        esc(p.projectName + ' — ' + p.name) +
+        esc(p.projectName + ': ' + p.name) +
         '</option>';
     });
     html += '</select>';
@@ -680,6 +680,8 @@
       '<div class="plan-sub">' +
       esc(isShared() ? workspaceName() + ' planning' : 'Personal planning') +
       ' · streak stays personal</div></div></div>';
+    html += '<div class="plan-layout">';
+    html += '<div class="plan-layout-cal">';
     html += renderStats();
     html += renderWeekStrip();
     html += renderMonthGrid();
@@ -689,7 +691,9 @@
       ' Posted</span><span>' +
       ico('flame', 12) +
       ' Streak</span></div>';
+    html += '</div>';
     html += '<div class="plan-day-panel">' + renderDayList(selectedDate || todayIso()) + '</div>';
+    html += '</div>';
     root.innerHTML = html;
     fillDaySheet();
   }

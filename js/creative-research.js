@@ -241,7 +241,7 @@
     return (
       '<div class="sh-sec rs-sec">' +
       '<div class="sh-lbl">Creative research</div>' +
-      '<p class="rs-intro">Curated references matched to this exact idea — not a generic keyword dump.</p>' +
+      '<p class="rs-intro">YouTube and CapCut references, if you need them.</p>' +
       '<div class="rs-actions">' +
       '<button type="button" class="rs-launch yt" onclick="PreShootResearch.launch(\'youtube\')">YouTube references</button>' +
       '<button type="button" class="rs-launch cc" onclick="PreShootResearch.launch(\'capcut\')">CapCut templates</button>' +
@@ -378,7 +378,7 @@
     if (typeof global.scheduleCloudSync === 'function') global.scheduleCloudSync();
     if (typeof global.showToast === 'function') {
       global.showToast(
-        'CapCut preference saved. CapCut has no public login API yet — PreShoot will tailor template suggestions only.'
+        'CapCut preference saved. CapCut has no public login API yet. PreShoot will tailor template suggestions only.'
       );
     }
   }
