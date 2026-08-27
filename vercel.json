@@ -74,6 +74,15 @@
       ]
     },
     {
+      "source": "/more-info.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/app.html",
       "headers": [
         {
@@ -132,6 +141,10 @@
     {
       "src": "/admin.html",
       "dest": "/admin.html"
+    },
+    {
+      "src": "/more-info.html",
+      "dest": "/more-info.html"
     },
     {
       "src": "/app.html",

@@ -21,26 +21,26 @@ html.hero-live #cinematic-hero .hero-text-wrapper .text-track,
 html.hero-live #cinematic-hero .hero-text-wrapper .text-days,
 html.hero-live #cinematic-hero .hero-text-wrapper .text-secs{visibility:visible!important;opacity:1}
 </style>
-<title>PreShoot — AI Creative Production Studio</title>
+<title>PreShoot: from idea to ready to film</title>
 <meta name="description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
 <link rel="canonical" href="https://preshoot.vercel.app/">
 <link rel="image_src" href="https://preshoot.vercel.app/og/preshoot-cover.jpg">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="PreShoot">
 <meta property="og:url" content="https://preshoot.vercel.app/">
-<meta property="og:title" content="PreShoot — AI Creative Production Studio">
+<meta property="og:title" content="PreShoot: from idea to ready to film">
 <meta property="og:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
 <meta property="og:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
 <meta property="og:image:secure_url" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1024">
 <meta property="og:image:height" content="1024">
-<meta property="og:image:alt" content="PreShoot — AI creative production studio on desktop and mobile">
+<meta property="og:image:alt" content="PreShoot: AI creative production studio on desktop and mobile">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="PreShoot — AI Creative Production Studio">
+<meta name="twitter:title" content="PreShoot: from idea to ready to film">
 <meta name="twitter:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
 <meta name="twitter:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
-<meta name="twitter:image:alt" content="PreShoot — AI creative production studio on desktop and mobile">
+<meta name="twitter:image:alt" content="PreShoot: AI creative production studio on desktop and mobile">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -419,6 +419,12 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 .reveal{opacity:1;transform:none}
 /* GSAP owns post-hero motion; keep a safe fallback if JS fails */
 .js-ready .reveal:not(.revealed){opacity:0}
+.js-ready .after-hero .faq-list,
+.js-ready .after-hero .problem-grid,
+.js-ready .after-hero .why-list,
+.js-ready .after-hero .how-flow,
+.js-ready .after-hero .price-cycle,
+.js-ready .after-hero .price-compare-wrap{opacity:1}
 @media(prefers-reduced-motion:reduce){
   .js-ready .reveal:not(.revealed){opacity:1}
   .creator-card img{transform:none!important}
@@ -639,7 +645,7 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 @media(max-width:600px){.community-grid{grid-template-columns:1fr}}
 
 /* ── Final CTA (kinetic grid shows through) ── */
-.final-cta{text-align:center;padding:var(--section-y) var(--page-x);border-top:1px solid var(--glass-border);position:relative;overflow:hidden;background:transparent}
+.final-cta{text-align:center;padding:var(--section-y) var(--page-x);border-top:1px solid var(--glass-border);position:relative;overflow:hidden;background:var(--bg)}
 .final-inner{position:relative;z-index:2}
 .final-h{font-family:var(--fd);font-size:clamp(32px,5.5vw,60px);font-weight:700;letter-spacing:-1.5px;line-height:1.05;margin-bottom:20px}
 .final-sub{font-size:17px;color:var(--txt-2);margin-bottom:40px}
@@ -659,7 +665,7 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 .about-founder-cta:hover{transform:translateX(3px);color:var(--cyan)}
 
 /* ── Footer ── */
-footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;max-width:1140px;margin:0 auto;position:relative;z-index:2;box-sizing:border-box}
+footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;max-width:1140px;margin:0 auto;position:relative;z-index:2;box-sizing:border-box;background:var(--bg)}
 .footer-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
 .footer-brand{font-family:var(--fd);font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .footer-brand-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
@@ -679,6 +685,35 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 .community-name .ico-svg{margin-right:8px;color:var(--accent)}
 .pf-check{color:var(--green)}
 .pf-row.dim .pf-check{color:var(--txt-3)}
+
+.after-hero{position:relative;z-index:2;background:var(--bg)}
+.after-hero .section{padding:clamp(64px,8vw,104px) var(--page-x)}
+.problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px}
+.problem-card{padding:28px 24px;border:1px solid var(--glass-border);border-radius:var(--r-lg);background:var(--bg-2)}
+.problem-card h3{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.03em;margin-bottom:8px;color:var(--txt)}
+.problem-card p{font-size:15px;color:var(--txt-2);line-height:1.6;margin:0}
+@media(max-width:700px){.problem-grid{grid-template-columns:1fr}}
+.how-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.how-flow .step{background:var(--bg-2);border:1px solid var(--glass-border);backdrop-filter:none}
+.how-flow .step:hover{transform:none;background:var(--bg-2)}
+@media(max-width:860px){.how-flow{grid-template-columns:1fr}}
+.why-list{display:grid;gap:14px;max-width:640px}
+.why-row{padding:20px 0;border-bottom:1px solid var(--glass-border)}
+.why-row:last-child{border-bottom:none}
+.why-row h3{font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:6px;color:var(--txt)}
+.why-row p{font-size:15px;color:var(--txt-2);line-height:1.65;margin:0}
+.proof-panel{background:var(--bg-2);border:1px solid var(--glass-border)}
+.proof-panel .proof-title,.proof-panel .proof-hook,.proof-shots li{color:var(--txt)}
+.proof-in{font-size:14px;line-height:1.6;color:var(--txt);padding:8px 0}
+.proof-in strong{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3);margin-bottom:4px}
+.faq-list{max-width:720px;border-top:1px solid var(--glass-border)}
+.faq-item{border-bottom:1px solid var(--glass-border)}
+.faq-item summary{cursor:pointer;padding:18px 0;font-family:var(--fd);font-size:16px;font-weight:600;color:var(--txt);list-style:none;display:flex;justify-content:space-between;gap:16px}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary:after{content:"+";color:var(--accent);font-weight:700}
+.faq-item[open] summary:after{content:"-"}
+.faq-item p{padding:0 0 18px;font-size:15px;color:var(--txt-2);line-height:1.65;margin:0;max-width:40rem}
+.more-link{display:inline-flex;align-items:center;gap:6px;margin-top:28px;font-size:14px;font-weight:600;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -690,10 +725,10 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
   <div class="nav-logo"><span class="nav-logo-dot"></span>Pre<span>Shoot</span></div>
   <div class="nav-links">
     <a href="#how">How it works</a>
-    <a href="#proof">See output</a>
-    <a href="#hooks">100+ Hooks</a>
-    <a href="#demo">Director AI</a>
+    <a href="#why">Why PreShoot</a>
     <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+    <a href="/more-info.html">More info</a>
     <a href="/app.html" class="nav-cta">Open app</a>
   </div>
 </nav>
@@ -723,11 +758,11 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
               <div class="cta-label">Web App</div>
             </div>
           </a>
-          <a href="#demo" class="btn-modern-dark" aria-label="Try Director AI">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5h11a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9z"/><path d="M16 11.5l5-2.5v8l-5-2.5"/><circle cx="8" cy="14" r="1.5" fill="currentColor" stroke="none"/></svg>
+          <a href="#how" class="btn-modern-dark" aria-label="See how PreShoot works">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             <div>
-              <div class="cta-kicker">Try</div>
-              <div class="cta-label">Director AI</div>
+              <div class="cta-kicker">See</div>
+              <div class="cta-label">How it works</div>
             </div>
           </a>
         </div>
@@ -831,313 +866,133 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
       <p class="scroll-hint">Scroll to explore · Move cursor · Click to ripple</p>
 </section>
 
+<div class="after-hero">
 <div class="stats">
   <div class="stat reveal"><div class="stat-val">6</div><div class="stat-lbl">Ideas per scan</div></div>
   <div class="stat reveal" data-delay="80"><div class="stat-val">&lt;30s</div><div class="stat-lbl">Time to ideas</div></div>
-  <div class="stat reveal" data-delay="160"><div class="stat-val">You</div><div class="stat-lbl">Niche, gear &amp; platform</div></div>
-  <div class="stat reveal" data-delay="240"><div class="stat-val">8</div><div class="stat-lbl">Formats incl. custom</div></div>
+  <div class="stat reveal" data-delay="160"><div class="stat-val">You</div><div class="stat-lbl">Niche, gear and platform</div></div>
+  <div class="stat reveal" data-delay="240"><div class="stat-val">8</div><div class="stat-lbl">Formats including custom</div></div>
 </div>
 
-<section class="section" id="proof">
+<section class="section" id="problem">
   <div class="reveal">
-    <span class="section-eyebrow">Product proof</span>
-    <h2 class="section-h">From one image to a<br>finished content plan.</h2>
-    <p class="section-sub">This is the transformation. Upload a scene. Walk away with a title, hook, structure, and shotlist ready to film.</p>
+    <span class="section-eyebrow">The problem</span>
+    <h2 class="section-h">People need content.<br>Most do not know what to make.</h2>
   </div>
-  <div class="proof-grid reveal">
-    <div class="proof-panel">
-      <div class="proof-panel-hd">
-        <span class="proof-kicker">Input</span>
-        <span class="proof-kicker">Scanned photo</span>
-      </div>
-      <div class="proof-img-wrap">
-        <img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=900&h=675&fit=crop&q=80" alt="Coffee shop interior used as a PreShoot scan example" loading="lazy">
-        <span class="proof-img-cap">Coffee shop · NYC</span>
-      </div>
-      <div class="proof-body">
-        <p style="font-size:13px;color:var(--txt-2);line-height:1.6">One photo. No brief. PreShoot reads the scene and builds ideas around your niche, gear, and platform.</p>
-      </div>
+  <div class="problem-grid">
+    <div class="problem-card">
+      <h3>The demand is real</h3>
+      <p>Creators, shops, and teams have to post. The camera is ready. The idea is not.</p>
     </div>
-    <div class="proof-arrow" aria-hidden="true">↓ Output</div>
-    <div class="proof-panel">
-      <div class="proof-panel-hd">
-        <span class="proof-kicker out">Output</span>
-        <span class="proof-kicker out">PreShoot plan</span>
-      </div>
-      <div class="proof-body">
-        <div>
-          <div class="proof-block-lbl">Idea title</div>
-          <div class="proof-title">Hidden coffee spot nobody knows about</div>
-        </div>
-        <div>
-          <div class="proof-block-lbl">Hook</div>
-          <div class="proof-hook"><strong>“POV: You found NYC’s most underrated cafe”</strong>. On-screen text in the first 2 seconds.</div>
-        </div>
-        <div>
-          <div class="proof-block-lbl">Shotlist</div>
-          <ul class="proof-shots">
-            <li><span>01</span>Exterior establishing shot of the shopfront at golden hour</li>
-            <li><span>02</span>Coffee preparation close-up: grind, pour, steam</li>
-            <li><span>03</span>Customer reaction / first sip</li>
-            <li><span>04</span>Product detail shots: cup texture, latte art, logo</li>
-          </ul>
-        </div>
-        <div class="proof-meta">
-          <span class="proof-chip">Structure · Viral</span>
-          <span class="proof-chip">Director AI · Shotlist</span>
-          <span class="proof-chip">Edit direction included</span>
-        </div>
-      </div>
+    <div class="problem-card">
+      <h3>The plan is missing</h3>
+      <p>Knowing you should film is easy. Knowing the hook, the shots, and the order is the hard part.</p>
     </div>
   </div>
 </section>
 
-
-<section class="hooks-showcase kinetic-section" id="hooks" aria-label="100 plus proven viral hook frameworks">
-  <div class="hooks-inner">
-    <div class="reveal hooks-head">
-      <span class="section-eyebrow">Hook Engine</span>
-      <h2 class="section-h">Built on patterns that<br>stop the scroll.</h2>
-      <p class="section-sub" style="margin-left:auto;margin-right:auto;text-align:center">PreShoot doesn’t guess openings. It draws from a living library of high-performing hook frameworks, filled with your scene, niche, and platform.</p>
-    </div>
-    <div class="hooks-stage reveal" id="hooks-stage">
-      <div class="odo" id="hook-odo" aria-label="One hundred plus" data-target="100">
-        <div class="odo-digit" data-place="100"><div class="odo-reel"></div></div>
-        <div class="odo-digit" data-place="10"><div class="odo-reel"></div></div>
-        <div class="odo-digit" data-place="1"><div class="odo-reel"></div></div>
-        <span class="odo-plus" aria-hidden="true">+</span>
-      </div>
-      <div class="hooks-copy">
-        <h3 class="hooks-title" id="hooks-title">Proven viral hook frameworks</h3>
-        <p class="hooks-sub" id="hooks-sub">Built from proven high-performing content patterns used across creators, brands, and viral campaigns, then rewritten for your exact photo, niche, and format.</p>
-      </div>
-      <div class="hooks-chips" id="hooks-chips" aria-hidden="true">
-        <span class="hooks-chip">Curiosity</span>
-        <span class="hooks-chip">Contradiction</span>
-        <span class="hooks-chip">FOMO</span>
-        <span class="hooks-chip">Open loop</span>
-        <span class="hooks-chip">Social proof</span>
-        <span class="hooks-chip">Authority</span>
-      </div>
-    </div>
+<section class="section" id="solution">
+  <div class="reveal">
+    <span class="section-eyebrow">The solution</span>
+    <h2 class="section-h">PreShoot turns an idea into a production-ready plan.</h2>
+    <p class="section-sub">Scan what you have. Get personalised ideas. Send the one you want into Studio, then film.</p>
   </div>
 </section>
 
 <section class="section" id="how">
   <div class="reveal">
     <span class="section-eyebrow">How it works</span>
-    <h2 class="section-h">From a single picture to a production plan.</h2>
-    <p class="section-sub">Scan a scene, lock a format, send the idea into Studio — then use Director for scripts and shot lists. No giant tutorial required.</p>
+    <h2 class="section-h">Scan. Ideas. Studio.</h2>
+    <p class="section-sub">One path from a photo to a plan you can shoot today.</p>
   </div>
-  <div class="creator-strip reveal">
-    <div class="creator-card">
-      <img src="https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&h=533&fit=crop&q=80" alt="Creator filming outdoors" loading="lazy">
-      <div class="creator-card-ov"><span class="creator-tag">SCAN ANYTHING</span><span class="creator-label">Find the content hidden in plain sight.</span></div>
-    </div>
-    <div class="creator-card">
-      <img src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=400&h=533&fit=crop&q=80" alt="Audience fully engaged watching a film in a cinema" loading="lazy">
-      <div class="creator-card-ov"><span class="creator-tag">Hook ready</span><span class="creator-label">Attention that holds to the last frame</span></div>
-    </div>
-    <div class="creator-card">
-      <img src="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400&h=533&fit=crop&q=80" alt="Video editing setup" loading="lazy">
-      <div class="creator-card-ov"><span class="creator-tag">Edit direction</span><span class="creator-label">CapCut templates linked</span></div>
-    </div>
-    <div class="creator-card">
-      <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=533&fit=crop&q=80" alt="Creator team collaborating" loading="lazy">
-      <div class="creator-card-ov"><span class="creator-tag">Your niche</span><span class="creator-label">Gear-aware ideas</span></div>
-    </div>
-  </div>
-  <div class="steps reveal">
+  <div class="steps how-flow">
     <div class="step">
-      <div class="step-num">01 Capture</div>
+      <div class="step-num">01 Scan</div>
       <div class="step-icon"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
       <h3 class="step-h">Take a photo</h3>
-      <p class="step-p">Point at anything: coffee, a car park, your desk, the gym, a product, or the street. PreShoot understands what it sees and transforms it into content ideas built around your niche.</p>
+      <p class="step-p">Point at a product, a shop, a desk, or a location. PreShoot reads what is in front of you.</p>
     </div>
     <div class="step">
-      <div class="step-num">02 Choose</div>
-      <div class="step-icon"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
-      <h3 class="step-h">Set the format</h3>
-      <p class="step-p">Pick Advert, UGC, Viral, Storytelling, Educational, Trial Reel, Meme, or Custom. Every idea locks to that structure.</p>
+      <div class="step-num">02 Ideas</div>
+      <div class="step-icon"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg></div>
+      <h3 class="step-h">Choose a direction</h3>
+      <p class="step-p">You get six ideas with hooks, built around your niche, platform, and gear. Pick one or more openings.</p>
     </div>
     <div class="step">
-      <div class="step-num">03 Film</div>
-      <div class="step-icon"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></div>
-      <h3 class="step-h">Walk on set ready</h3>
-      <p class="step-p">Six ideas with hooks, camera angles, editing style, audio direction, and YouTube references. Link straight to CapCut.</p>
-    </div>
-  </div>
-
-  <div class="privacy-strip reveal">
-    <div class="privacy-strip-ico" aria-hidden="true">
-      <svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-    </div>
-    <div>
-      <h3>Your content stays yours</h3>
-      <p>Photos are used to generate your ideas (including secure processing by our AI provider). Saved scans live in your account or device library, and you can delete them anytime. Read the <a href="/privacy.html">privacy policy</a>.</p>
-    </div>
-  </div>
-
-</section>
-
-<section class="demo-section kinetic-section" id="demo">
-  <div class="demo-inner">
-    <div class="reveal">
-      <span class="section-eyebrow">Director AI</span>
-      <h2 class="section-h">Your creative director,<br>always on call.</h2>
-      <p class="section-sub">Context-aware AI that knows your gear, niche, platform, and scan history. Ask anything: hooks, gear advice, content calendars.</p>
-      <p style="font-size:13px;color:var(--txt-3);border-left:2px solid var(--accent);padding-left:14px;margin-top:24px;line-height:1.6">The demo below is a scripted sample of a Director session. Press send to watch the flow. The same experience runs inside the app on Pro.</p>
-    </div>
-    <div class="phone-mock reveal">
-      <div class="director-window">
-        <div class="director-titlebar">
-          <div class="titlebar-dots"><div class="titlebar-dot"></div><div class="titlebar-dot"></div><div class="titlebar-dot"></div></div>
-          <div class="titlebar-title">PreShoot Director</div>
-          <div class="titlebar-status"><div class="status-dot"></div>AI Active</div>
-        </div>
-        <div class="director-ctx">
-          <span class="ctx-label">Profile</span>
-          <span class="ctx-chip">Cafe & Food</span>
-          <span class="ctx-chip">Sony A7IV</span>
-          <span class="ctx-chip">DJI RS4</span>
-          <span class="ctx-chip">Instagram Reels</span>
-        </div>
-        <div class="director-messages" id="dir-msgs">
-          <div class="msg-row">
-            <div class="msg-avatar ai">D</div>
-            <div class="msg-bubble ai">Hey. Your profile's loaded, cafe and food content, Sony A7IV, DJI RS4, optimised for Reels. What are we working on?</div>
-          </div>
-        </div>
-        <div class="typing-indicator" id="typing-indicator">
-          <div class="msg-avatar ai" style="width:28px;height:28px">D</div>
-          <div style="display:flex;gap:4px;padding:10px 4px">
-            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-          </div>
-        </div>
-        <div class="director-input-bar">
-          <textarea class="demo-input" id="demo-input" rows="2" readonly>I just scanned a coffee from my cafe. Give me a viral marketing reel.</textarea>
-          <button class="demo-send" id="demo-send" aria-label="Send message">
-            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-        <div class="demo-reset" id="demo-reset">
-          <button class="demo-reset-btn" id="demo-reset-btn">Run demo again</button>
-        </div>
-      </div>
+      <div class="step-num">03 Studio</div>
+      <div class="step-icon"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14"/></svg></div>
+      <h3 class="step-h">Leave ready to film</h3>
+      <p class="step-p">Send the idea to Studio. Script, shot list, and Director stay on the same production.</p>
     </div>
   </div>
 </section>
 
-<section class="section" id="features">
+<section class="section" id="proof">
   <div class="reveal">
-    <span class="section-eyebrow">Features</span>
-    <h2 class="section-h">Built around how<br>creators actually work.</h2>
-    <p class="section-sub">Every detail eliminates friction between what you scan and the finished video.</p>
+    <span class="section-eyebrow">Example</span>
+    <h2 class="section-h">From one photo to a shoot plan.</h2>
+    <p class="section-sub">A real working scenario. Input, context, idea, production.</p>
   </div>
-  <div class="feat-grid reveal">
-    <div class="feat-cell">
-      <div class="feat-icon"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
-      <h3 class="feat-h">Deep personalisation</h3>
-      <p class="feat-p">Set your niche, platform, gear, style and goals once. Every scan is built around your world, not generic advice.</p>
-      <div class="feat-tags"><span class="feat-tag">Niche & platform</span><span class="feat-tag">Gear-aware</span><span class="feat-tag">Style-matched</span></div>
+  <div class="proof-grid reveal">
+    <div class="proof-panel">
+      <div class="proof-panel-hd">
+        <span class="proof-kicker">Input</span>
+        <span class="proof-kicker">Scan plus profile</span>
+      </div>
+      <div class="proof-body">
+        <div class="proof-in"><strong>Photo</strong>Bakery counter at 7am. Sourdough loaves, flour on the bench, street light through the window.</div>
+        <div class="proof-in"><strong>Context</strong>Local bakery. Instagram Reels. iPhone. Owner films between service, about 20 minutes.</div>
+      </div>
     </div>
-    <div class="feat-cell">
-      <div class="feat-icon"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="9,7 17,12 9,17" fill="currentColor" stroke="none"/></svg></div>
-      <h3 class="feat-h">Real references, not just text</h3>
-      <p class="feat-p">Every idea links to YouTube videos and CapCut templates. See the shot before you film it.</p>
-      <div class="feat-tags"><span class="feat-tag">YouTube references</span><span class="feat-tag">CapCut templates</span></div>
-    </div>
-    <div class="feat-cell">
-      <div class="feat-icon"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .3-8A6 6 0 0 0 6.2 12 3.5 3.5 0 0 0 7 18z"/></svg></div>
-      <h3 class="feat-h">Cross-device sync</h3>
-      <p class="feat-p">Sign in with Google and your history, saved ideas, and settings sync across devices. Director chats sync on Pro.</p>
-      <div class="feat-tags"><span class="feat-tag">Instant sync</span><span class="feat-tag">All devices</span></div>
-    </div>
-    <div class="feat-cell">
-      <div class="feat-icon"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18h2"/></svg></div>
-      <h3 class="feat-h">Platform-optimised output</h3>
-      <p class="feat-p">Ideas adapted for TikTok, Reels, YouTube Shorts, Longform, LinkedIn and more.</p>
-      <div class="feat-tags"><span class="feat-tag">TikTok</span><span class="feat-tag">Reels</span><span class="feat-tag">YouTube</span></div>
-    </div>
-    <div class="feat-cell span-2">
-      <div class="feat-icon"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="19" cy="12" r="2.2"/></svg></div>
-      <h3 class="feat-h">100+ hook frameworks in product</h3>
-      <p class="feat-p">Frameworks are selected and filled from your scene, niche, and platform — then measurable via hook_structure_used. Not a marketing claim alone.</p>
-      <div class="feat-tags"><span class="feat-tag">Hook Engine</span><span class="feat-tag">Curiosity patterns</span><span class="feat-tag">Alt hooks</span></div>
-    </div>
-    <div class="feat-cell span-2">
-      <div class="feat-icon"><svg class="ico-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><path d="M16 14l4 3-4 3"/></svg></div>
-      <h3 class="feat-h">Studio + collaboration</h3>
-      <p class="feat-p">Personal Studio for productions, scripts, and shot lists. Shared workspaces add roles, comments, mentions, and review — without rewriting your creative docs into a chat thread.</p>
-      <div class="feat-tags"><span class="feat-tag">Productions</span><span class="feat-tag">Workspaces</span><span class="feat-tag">Comments</span></div>
+    <div class="proof-arrow" aria-hidden="true">to output</div>
+    <div class="proof-panel">
+      <div class="proof-panel-hd">
+        <span class="proof-kicker out">Output</span>
+        <span class="proof-kicker out">Ready to film</span>
+      </div>
+      <div class="proof-body">
+        <div>
+          <div class="proof-block-lbl">Idea</div>
+          <div class="proof-title">We start at 4am so the bread is still warm when you walk in</div>
+        </div>
+        <div>
+          <div class="proof-block-lbl">Hook</div>
+          <div class="proof-hook"><strong>"This loaf was in the oven before your alarm went off."</strong> On-screen in the first two seconds.</div>
+        </div>
+        <div>
+          <div class="proof-block-lbl">Production</div>
+          <ul class="proof-shots">
+            <li><span>01</span>Oven door opens. Steam. Hold 3 seconds.</li>
+            <li><span>02</span>Hands scoring dough. Bench, not face.</li>
+            <li><span>03</span>Customer picks up a loaf at the counter.</li>
+            <li><span>04</span>Price board and shop name. End frame.</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="section" id="trust">
+<section class="section" id="why">
   <div class="reveal">
-    <span class="section-eyebrow">Trust</span>
-    <h2 class="section-h">Built from a real<br>creator workflow.</h2>
-    <p class="section-sub">See the product flow, then meet the person who built it for the same problem creators face every week.</p>
+    <span class="section-eyebrow">Why PreShoot</span>
+    <h2 class="section-h">Not another chatbot.<br>A production workflow.</h2>
   </div>
-  <div class="trust-grid reveal">
-    <div class="walk-frame" id="product-walkthrough" data-walk>
-      <div class="walk-stage">
-        <div class="walk-panel active" data-walk-panel="0">
-          <div class="walk-visual"><img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1000&h=625&fit=crop&q=80" alt="" loading="lazy"></div>
-          <span class="walk-panel-tag">01 · Scan</span>
-          <h3>Point at the scene</h3>
-          <p>Capture a cafe, product, desk, gym, or street. PreShoot understands what it sees.</p>
-        </div>
-        <div class="walk-panel" data-walk-panel="1">
-          <div class="walk-visual" style="opacity:.35"><img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1000&h=625&fit=crop&q=80" alt="" loading="lazy"></div>
-          <span class="walk-panel-tag">02 · Ideas</span>
-          <div class="walk-idea-card">
-            <div class="w-title">Hidden coffee spot nobody knows about</div>
-            <div class="w-hook">Hook: “POV: You found NYC’s most underrated cafe”</div>
-          </div>
-          <h3 style="margin-top:14px">Six shoot-ready ideas</h3>
-          <p>Title, hook, difficulty, film time, and references, personalised to your niche.</p>
-        </div>
-        <div class="walk-panel" data-walk-panel="2">
-          <div class="walk-visual" style="opacity:.25;background:#111"><img src="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=1000&h=625&fit=crop&q=80" alt="" loading="lazy"></div>
-          <span class="walk-panel-tag">03 · Director</span>
-          <div class="walk-idea-card">
-            <div class="w-title">Shotlist delivered</div>
-            <div class="w-hook">Exterior → prep close-up → reaction → product detail. Edit cuts on the grinder sound.</div>
-          </div>
-          <h3 style="margin-top:14px">Director turns an idea into a plan</h3>
-          <p>Ask for shotlists, gear help, captions, or calendars — with your niche, gear, and project context injected (deterministic context, not a trained model of your channel).</p>
-        </div>
-        <div class="walk-panel" data-walk-panel="3">
-          <div class="walk-visual" style="opacity:.3;background:#111"><img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1000&h=625&fit=crop&q=80" alt="Studio collaboration" loading="lazy"></div>
-          <span class="walk-panel-tag">04 · Studio</span>
-          <div class="walk-idea-card">
-            <div class="w-title">Production workspace</div>
-            <div class="w-hook">Script · Shot list · Assets · Comments · Review</div>
-          </div>
-          <h3 style="margin-top:14px">Studio holds the production</h3>
-          <p>Personal Studio or shared workspaces with roles, comments, and revision-based sync — ready to film and iterate.</p>
-        </div>
-      </div>
-      <div class="walk-controls">
-        <div class="walk-dots" role="tablist" aria-label="Product walkthrough steps">
-          <button type="button" class="walk-dot active" data-walk-dot="0" aria-label="Step 1 scan"></button>
-          <button type="button" class="walk-dot" data-walk-dot="1" aria-label="Step 2 ideas"></button>
-          <button type="button" class="walk-dot" data-walk-dot="2" aria-label="Step 3 Director"></button>
-          <button type="button" class="walk-dot" data-walk-dot="3" aria-label="Step 4 Studio"></button>
-        </div>
-        <div class="walk-note">Product walkthrough · Idea → Director → Production</div>
-      </div>
+  <div class="why-list">
+    <div class="why-row">
+      <h3>It knows the creator</h3>
+      <p>Niche, platform, gear, and skill sit on the profile. Ideas are built for what you can actually film.</p>
     </div>
-    <aside class="founder-card">
-      <div class="founder-eyebrow">Founder</div>
-      <h3>Built by a creator and commercial videographer.</h3>
-      <p>PreShoot exists because “what do I post?” is the daily bottleneck, not camera gear. Generic chatbots gave ideas nobody would film.</p>
-      <p>After years creating content and shooting commercially, the product was designed around a real set workflow: scan the scene, lock a format, leave with hooks and shots you can execute today.</p>
-      <div class="founder-meta">Daniel Liu · PreShoot · Follow the build on <a href="https://www.instagram.com/danielvisualmedia" target="_blank" rel="noopener">Instagram</a></div>
-    </aside>
+    <div class="why-row">
+      <h3>It decides what is worth making</h3>
+      <p>You leave with a direction and a hook, not a pile of generic captions.</p>
+    </div>
+    <div class="why-row">
+      <h3>It stays with the production</h3>
+      <p>Studio holds the script and shot list. Director works on that project, not a blank chat.</p>
+    </div>
   </div>
+  <a class="more-link reveal" href="/more-info.html">More about the product</a>
 </section>
 
 <section class="section" id="pricing" style="padding-top:0" data-billing="annually">
@@ -1153,12 +1008,12 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
     </div>
   </div>
   <div class="pricing-wrap reveal">
-    <div class="price-card glow">
+    <div class="price-card">
       <div class="price-card-hd">
         <div class="price-icon" aria-hidden="true"><svg class="ico-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div>
         <div class="price-name">Free</div>
       </div>
-      <p class="price-desc">For everyone starting out — scan a scene and get film-ready ideas.</p>
+      <p class="price-desc">For everyone starting out. Scan a scene and get film-ready ideas.</p>
       <div class="price-amount"><sup>$</sup>0<span class="price-amount-suffix">/mo</span></div>
       <p class="price-note">Free to start. 3 scans a day. No card required.</p>
       <a href="/app.html" class="price-btn outline">Get started for free</a>
@@ -1220,49 +1075,62 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
   </div>
 </section>
 
-<section class="section">
+
+<section class="section" id="faq">
   <div class="reveal">
-    <span class="section-eyebrow">Community</span>
-    <h2 class="section-h">Creators in the room.</h2>
-    <p class="section-sub" style="margin-bottom:40px">Talk to other PreShoot users, share what's working, and get early access to new features.</p>
+    <span class="section-eyebrow">FAQ</span>
+    <h2 class="section-h">Questions, answered quickly.</h2>
   </div>
-  <div class="community-grid reveal">
-    <a href="https://discord.gg/sjxyeGmTsH" target="_blank" class="community-card">
-      <div class="community-hd"><div class="community-name"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14v9H9l-4 3V6z"/></svg> Discord</div><span class="community-count">community</span></div>
-      <p class="community-p">Share scans, discuss formats, and get feedback with creators who are actually filming.</p>
-      <span class="community-link">Join the server</span>
-    </a>
-    <a href="https://www.instagram.com/danielvisualmedia" target="_blank" class="community-card">
-      <div class="community-hd"><div class="community-name"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg> Instagram</div><span class="community-count">behind the build</span></div>
-      <p class="community-p">Follow the build journey. Behind-the-scenes of PreShoot and creator workflow insights.</p>
-      <span class="community-link">Follow @danielvisualmedia</span>
-    </a>
+  <div class="faq-list">
+    <details class="faq-item" open>
+      <summary>What is PreShoot?</summary>
+      <p>PreShoot is an AI creative production tool. You scan a scene, get personalised video ideas, then send the one you want into Studio as a production-ready plan.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Who is it for?</summary>
+      <p>Creators, small businesses, and anyone who needs to post video but does not want to start from a blank page. Beginners and working professionals both use the same product, with different levels of production detail.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Does PreShoot generate videos?</summary>
+      <p>No. It does not render finished videos. It gives you the idea, hook, script, and shot list so you can film.</p>
+    </details>
+    <details class="faq-item">
+      <summary>How is this different from ChatGPT?</summary>
+      <p>A chatbot answers in a thread. PreShoot keeps creator context, then turns a chosen idea into a production you can open in Studio and Direct.</p>
+    </details>
+    <details class="faq-item">
+      <summary>What happens when I upload a photo?</summary>
+      <p>PreShoot reads the scene and combines it with your profile: niche, platform, style, and gear. You get several ideas you can actually shoot with what you have.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Do I need a professional camera?</summary>
+      <p>No. Phone, camera, or mixed kits all work. Guidance changes with the skill and gear on your profile.</p>
+    </details>
+    <details class="faq-item">
+      <summary>What is Studio and Director?</summary>
+      <p>Studio is the production workspace: script, shot list, assets. Director is the AI partner for that project. You choose an idea first, then send it to Studio.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Does PreShoot remember my preferences?</summary>
+      <p>Yes. Your niche, platforms, style, and gear live on your creator profile. Sign in to keep them across devices.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Can businesses use PreShoot?</summary>
+      <p>Yes. Shops, studios, and teams can plan content from a product, a location, or a campaign brief, then keep the production in Studio.</p>
+    </details>
   </div>
 </section>
 
 <section class="final-cta kinetic-section" id="final-cta">
   <div class="final-inner">
     <h2 class="final-h reveal">Your next six ideas<br>are in the next photo.</h2>
-    <p class="final-sub reveal">Scan once. Walk onto set knowing exactly what you're filming.</p>
+    <p class="final-sub reveal">Scan once. Walk onto set knowing what you are filming.</p>
     <div class="final-actions reveal">
-      <a href="/app.html" class="btn-primary">Start scanning free</a>
-      <a href="#demo" class="btn-ghost">Watch the demo</a>
+      <a href="/app.html" class="btn-primary">Try PreShoot</a>
+      <a href="/more-info.html" class="btn-ghost">More info</a>
     </div>
   </div>
 </section>
-
-<section class="about-founder" id="about" aria-labelledby="about-founder-heading">
-  <div class="about-founder-inner reveal">
-    <span class="section-eyebrow">About the founder</span>
-    <h2 class="section-h" id="about-founder-heading">Built by a creator, for creators.</h2>
-    <p>PreShoot was built by Daniel Liu, a filmmaker, photographer, creator, and entrepreneur based in Perth, Australia.</p>
-    <p>Daniel built PreShoot after experiencing the problem firsthand: having an idea for a video but spending hours figuring out the script, shots, structure, and production plan before even picking up a camera.</p>
-    <p>PreShoot is built around one goal:</p>
-    <p class="about-founder-goal">Get creators from idea to production faster.</p>
-    <a class="about-founder-cta" href="https://daniel-liu.vercel.app" target="_blank" rel="noopener noreferrer">Meet Daniel <span aria-hidden="true">→</span></a>
-  </div>
-</section>
-
 <footer>
   <div class="footer-grid">
     <div>
@@ -1272,11 +1140,10 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
     <div class="footer-col">
       <h4>Product</h4>
       <a href="#how">How it works</a>
-      <a href="#proof">See output</a>
-      <a href="#hooks">100+ Hooks</a>
-      <a href="#demo">Director AI</a>
+      <a href="#why">Why PreShoot</a>
       <a href="#pricing">Pricing</a>
-      <a href="#about">About</a>
+      <a href="#faq">FAQ</a>
+      <a href="/more-info.html">More info</a>
       <a href="/app.html">Open app</a>
     </div>
     <div class="footer-col">
@@ -1295,13 +1162,14 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
     <span class="footer-made">Built for creators.</span>
   </div>
 </footer>
+</div><!-- /.after-hero -->
 </div><!-- /.site -->
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 <script src="/js/kinetic-grid.js?v=296"></script>
 <script src="/js/cinematic-hero.js?v=296"></script>
-<script src="/js/landing-scroll.js?v=296"></script>
+<script src="/js/landing-scroll.js?v=388"></script>
 <script>
 (function() {
 'use strict';
@@ -1566,11 +1434,13 @@ function resetDemo() {
   for (var i = rows.length - 1; i >= 1; i--) rows[i].remove();
 }
 
+if (sendBtn && msgs && input) {
 sendBtn.addEventListener('click', runDemo);
 resetBtn.addEventListener('click', resetDemo);
 document.getElementById('demo-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runDemo(); }
 });
+}
 
 window.setPricingCycle = function setPricingCycle(cycle) {
   if (cycle !== 'monthly' && cycle !== 'annually') return;
