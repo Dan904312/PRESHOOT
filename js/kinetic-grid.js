@@ -34,17 +34,32 @@
     this.globalColor = options.globalColor || 'default';
     this.interactive = options.interactive !== false;
     this.fixed = options.fixed !== false;
+    this.followScroll = !!options.followScroll;
+    this.reduced = false;
+    this.coarse = false;
+    try {
+      this.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this.coarse = window.matchMedia('(pointer: coarse)').matches;
+    } catch (e) {}
+    if (this.reduced) this.interactive = false;
 
     this.mouse = { x: -9999, y: -9999 };
     this.targetMouse = { x: -9999, y: -9999 };
     this.ripples = [];
     this.raf = 0;
     this.size = { w: 0, h: 0 };
+    this.intensity = 1;
+    this.targetIntensity = this.reduced && this.followScroll ? 0.22 : 1;
 
+    this._animate = this._animate.bind(this);
     this._build();
     this._bind();
-    this._animate = this._animate.bind(this);
-    this.raf = requestAnimationFrame(this._animate);
+    if (this.reduced) {
+      this.intensity = this.targetIntensity;
+      this._draw(performance.now());
+    } else {
+      this.raf = requestAnimationFrame(this._animate);
+    }
   }
 
   KineticGrid.prototype._build = function () {
@@ -127,7 +142,7 @@
       var waveWidth = 55;
       var diff = rdist - r.radius;
       if (Math.abs(diff) < waveWidth) {
-        var strength = (1 - Math.abs(diff) / waveWidth) * r.opacity * 18 * pinFactor;
+        var strength = (1 - Math.abs(diff) / waveWidth) * r.opacity * 18 * pinFactor * this.intensity;
         var angle = Math.atan2(rdy, rdx);
         var sign = diff < 0 ? -1 : 1;
         rx += Math.cos(angle) * strength * sign * -1;
@@ -138,7 +153,8 @@
     if (dist < INFLUENCE_RADIUS && dist > 0 && pinFactor > 0) {
       var t = dist / INFLUENCE_RADIUS;
       var eased = t < 0.01 ? 0 : (1 - t) * (1 - t) * Math.min(1, dist / 60);
-      var warpAmt = eased * MAX_WARP * pinFactor;
+      var warpScale = this.reduced ? 0 : (0.38 + 0.62 * this.intensity);
+      var warpAmt = eased * MAX_WARP * pinFactor * warpScale;
       var angle2 = Math.atan2(dy, dx);
       return {
         pt: {
@@ -160,11 +176,12 @@
     var H = this.size.h;
     var theme = this._getTheme();
 
+    var I = this.intensity;
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.05 * I).toFixed(3) + ')';
     for (var x = DOT_SPACING / 2; x < W; x += DOT_SPACING) {
       for (var y = DOT_SPACING / 2; y < H; y += DOT_SPACING) {
         ctx.beginPath();
@@ -198,14 +215,20 @@
       }
     }
 
-    var self = this;
+    var lineBase = { r: LINE_BASE.r, g: LINE_BASE.g, b: LINE_BASE.b, a: LINE_BASE.a * I };
+    var lineActive = {
+      r: theme.lineActive.r,
+      g: theme.lineActive.g,
+      b: theme.lineActive.b,
+      a: theme.lineActive.a * (0.42 + 0.58 * I)
+    };
     function drawSeg(p1, p2, pr1, pr2) {
       var avg = (pr1 + pr2) / 2;
       var t = avg * avg * (3 - 2 * avg);
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
-      ctx.strokeStyle = lerpColor(LINE_BASE, theme.lineActive, t);
+      ctx.strokeStyle = lerpColor(lineBase, lineActive, t);
       ctx.lineWidth = lerpN(0.8, 1.5, t);
       ctx.stroke();
     }
@@ -232,7 +255,7 @@
         if (t2 > 0.3) {
           var glowR = nr + lerpN(0, 6, (t2 - 0.3) / 0.7);
           var grd = ctx.createRadialGradient(p.x, p.y, nr * 0.5, p.x, p.y, glowR);
-          grd.addColorStop(0, 'rgba(' + theme.glow + ',' + (t2 * 0.3).toFixed(3) + ')');
+          grd.addColorStop(0, 'rgba(' + theme.glow + ',' + (t2 * 0.3 * I).toFixed(3) + ')');
           grd.addColorStop(1, 'rgba(' + theme.glow + ',0)');
           ctx.beginPath();
           ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
@@ -243,8 +266,8 @@
         ctx.beginPath();
         ctx.arc(p.x, p.y, nr, 0, Math.PI * 2);
         ctx.fillStyle = lerpColor(
-          { r: 255, g: 255, b: 255, a: 0.2 },
-          theme.nodeActive,
+          { r: 255, g: 255, b: 255, a: 0.2 * I },
+          { r: theme.nodeActive.r, g: theme.nodeActive.g, b: theme.nodeActive.b, a: theme.nodeActive.a * I },
           t2
         );
         ctx.fill();
@@ -256,13 +279,35 @@
       var safeRadius = Math.max(0, rp.radius);
       ctx.beginPath();
       ctx.arc(rp.x, rp.y, safeRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(' + theme.ripple + ',' + (rp.opacity * 0.28).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + theme.ripple + ',' + (rp.opacity * 0.28 * I).toFixed(3) + ')';
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
   };
 
+  KineticGrid.prototype._updateScrollIntensity = function () {
+    if (this.reduced) {
+      this.targetIntensity = 0.22;
+      return;
+    }
+    var vh = window.innerHeight || 1;
+    var after = this._afterEl;
+    if (!after || !after.isConnected) {
+      after = document.querySelector('.after-hero');
+      this._afterEl = after;
+    }
+    var afterTop = after ? after.getBoundingClientRect().top : vh;
+    var p = (vh - afterTop) / vh;
+    if (p < 0) p = 0;
+    var t = p <= 0.2 ? 0 : Math.min(1, (p - 0.2) / 1.7);
+    t = t * t * (3 - 2 * t);
+    var floor = this.coarse ? 0.36 : 0.4;
+    this.targetIntensity = floor + (1 - floor) * (1 - t);
+  };
+
   KineticGrid.prototype._animate = function (now) {
+    if (this.followScroll) this._updateScrollIntensity();
+    this.intensity = lerpN(this.intensity, this.targetIntensity, 0.12);
     this.mouse.x = lerpN(this.mouse.x, this.targetMouse.x, LERP_SPEED);
     this.mouse.y = lerpN(this.mouse.y, this.targetMouse.y, LERP_SPEED);
     this._draw(now);
@@ -298,6 +343,7 @@
 
   KineticGrid.prototype._onResize = function () {
     this._setSize();
+    if (this.reduced) this._draw(performance.now());
   };
 
   KineticGrid.prototype._bind = function () {
@@ -307,10 +353,12 @@
     this._onClickBound = this._onClick.bind(this);
 
     window.addEventListener('resize', this._onResizeBound);
-    if (this.interactive) {
+    if (this.interactive && !this.coarse) {
       window.addEventListener('mousemove', this._onMouseMoveBound);
       window.addEventListener('click', this._onClickBound);
     }
+    this._onVisBound = this._onVisibility.bind(this);
+    document.addEventListener('visibilitychange', this._onVisBound);
 
     if (!this.fixed && typeof ResizeObserver !== 'undefined') {
       this._ro = new ResizeObserver(this._onResizeBound);
@@ -318,11 +366,25 @@
     }
   };
 
+  KineticGrid.prototype._onVisibility = function () {
+    if (document.hidden) {
+      cancelAnimationFrame(this.raf);
+      this.raf = 0;
+      return;
+    }
+    if (this.reduced) {
+      this._draw(performance.now());
+      return;
+    }
+    if (!this.raf) this.raf = requestAnimationFrame(this._animate);
+  };
+
   KineticGrid.prototype.destroy = function () {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this._onResizeBound);
     window.removeEventListener('mousemove', this._onMouseMoveBound);
     window.removeEventListener('click', this._onClickBound);
+    document.removeEventListener('visibilitychange', this._onVisBound);
     if (this._ro) this._ro.disconnect();
     if (this.canvas && this.canvas.parentNode) {
       this.canvas.parentNode.removeChild(this.canvas);
