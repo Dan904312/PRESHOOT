@@ -403,7 +403,7 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 .kinetic-section > .section-inner,.kinetic-section > .demo-inner,.kinetic-section > .final-inner{position:relative;z-index:2}
 
 /* ── Stats ── */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--glass-border);border-bottom:1px solid var(--glass-border);background:rgba(22,22,24,.6);backdrop-filter:blur(12px)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--glass-border);border-bottom:1px solid var(--glass-border);background:rgba(22,22,24,.28);backdrop-filter:blur(10px)}
 .stat{padding:clamp(32px,4vw,44px) clamp(20px,3vw,40px);border-right:1px solid var(--glass-border)}
 .stat:last-child{border-right:none}
 .stat-val{font-family:var(--fd);font-size:clamp(28px,3vw,40px);font-weight:700;letter-spacing:-1px;color:var(--accent);line-height:1;margin-bottom:6px}
@@ -645,7 +645,7 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 @media(max-width:600px){.community-grid{grid-template-columns:1fr}}
 
 /* ── Final CTA (kinetic grid shows through) ── */
-.final-cta{text-align:center;padding:var(--section-y) var(--page-x);border-top:1px solid var(--glass-border);position:relative;overflow:hidden;background:var(--bg)}
+.final-cta{text-align:center;padding:var(--section-y) var(--page-x);border-top:1px solid var(--glass-border);position:relative;overflow:hidden;background:transparent}
 .final-inner{position:relative;z-index:2}
 .final-h{font-family:var(--fd);font-size:clamp(32px,5.5vw,60px);font-weight:700;letter-spacing:-1.5px;line-height:1.05;margin-bottom:20px}
 .final-sub{font-size:17px;color:var(--txt-2);margin-bottom:40px}
@@ -665,7 +665,7 @@ html.hero-ready .site > *:not(nav):not(#cinematic-hero){visibility:visible}
 .about-founder-cta:hover{transform:translateX(3px);color:var(--cyan)}
 
 /* ── Footer ── */
-footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;max-width:1140px;margin:0 auto;position:relative;z-index:2;box-sizing:border-box;background:var(--bg)}
+footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;max-width:1140px;margin:0 auto;position:relative;z-index:2;box-sizing:border-box;background:transparent}
 .footer-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
 .footer-brand{font-family:var(--fd);font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .footer-brand-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
@@ -686,7 +686,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 .pf-check{color:var(--green)}
 .pf-row.dim .pf-check{color:var(--txt-3)}
 
-.after-hero{position:relative;z-index:2;background:var(--bg)}
+.after-hero{position:relative;z-index:2;background:transparent}
 .after-hero .section{padding:clamp(64px,8vw,104px) var(--page-x)}
 .problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px}
 .problem-card{padding:28px 24px;border:1px solid var(--glass-border);border-radius:var(--r-lg);background:var(--bg-2)}
@@ -1167,7 +1167,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="/js/kinetic-grid.js?v=296"></script>
+<script src="/js/kinetic-grid.js?v=389"></script>
 <script src="/js/cinematic-hero.js?v=296"></script>
 <script src="/js/landing-scroll.js?v=388"></script>
 <script>
@@ -1189,7 +1189,7 @@ try {
 snapTop();
 
 /* One fixed kinetic grid — behind the page */
-new KineticGrid('#kinetic-hero', { fixed: true, interactive: true });
+new KineticGrid('#kinetic-hero', { fixed: true, interactive: true, followScroll: true });
 
 function unlockPage() {
   snapTop();
