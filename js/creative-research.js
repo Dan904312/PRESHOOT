@@ -17,10 +17,25 @@
     capcut: {
       id: 'capcut',
       label: 'CapCut',
-      requiresConnection: true,
+      requiresConnection: false,
+      accent: 'rgba(255,255,255,.12)'
+    },
+    tiktok: {
+      id: 'tiktok',
+      label: 'TikTok',
+      requiresConnection: false,
+      available: false,
+      requiredEnv: 'TIKTOK_CLIENT_KEY',
+      accent: 'rgba(255,255,255,.12)'
+    },
+    instagram: {
+      id: 'instagram',
+      label: 'Instagram',
+      requiresConnection: false,
+      available: false,
+      requiredEnv: 'INSTAGRAM_ACCESS_TOKEN',
       accent: 'rgba(255,255,255,.12)'
     }
-    // Future: tiktok, instagram, vimeo, pinterest, behance
   };
 
   function gs(k, fallback) {
@@ -163,12 +178,15 @@
   }
 
   function renderLoading(platform) {
+    var sk = global.PreShootSkeleton ? PreShootSkeleton.list(3) : '<div class="rs-spinner"></div>';
     return (
       '<div class="rs-state" id="rs-panel-' +
       platform +
-      '"><div class="rs-spinner"></div><div class="rs-state-t">Finding the best ' +
+      '">' +
+      sk +
+      '<div class="rs-state-t">Finding the best ' +
       (platform === 'capcut' ? 'templates' : 'references') +
-      ' for this idea…</div></div>'
+      ' for this idea</div></div>'
     );
   }
 
@@ -269,15 +287,13 @@
       return;
     }
 
-    if (meta.requiresConnection && platform === 'capcut' && !isCapCutConnected()) {
+    if (meta.available === false) {
       mount.innerHTML = renderError(
-        'capcut',
-        'Connect CapCut in Profile to unlock idea-matched templates and a smoother editing workflow.',
-        '<button type="button" class="rs-cta rs-btn" onclick="PreShootResearch.goConnectCapCut()">Connect CapCut</button>'
+        platform,
+        meta.id === 'tiktok'
+          ? 'TikTok search needs an approved TikTok API app. TIKTOK_CLIENT_KEY is not configured. PreShoot does not scrape TikTok.'
+          : 'Instagram search needs official Graph API access. INSTAGRAM_ACCESS_TOKEN is not configured. PreShoot does not scrape Instagram.'
       );
-      if (typeof global.showToast === 'function') {
-        global.showToast('Connect CapCut in Profile for smarter templates');
-      }
       return;
     }
 
@@ -385,17 +401,11 @@
 
   function renderConnectedAccountsSection(authUser) {
     ensureStateAccounts();
-    var accounts = getConnectedAccounts();
     var googleOn = isGoogleConnected(authUser);
-    var cc = accounts.capcut;
-    var ccOn = !!(cc && cc.connected);
 
     var googleSub = googleOn
       ? escapeHtml((authUser && (authUser.email || authUser.name)) || 'Connected')
       : 'Sign in with Google to sync';
-    var ccSub = ccOn
-      ? escapeHtml(cc.displayName || 'Connected')
-      : 'Connect for idea-matched templates';
 
     return (
       '<div class="menu-sec" id="connected-accounts">' +
@@ -413,19 +423,7 @@
       '">' +
       (googleOn ? 'Connected' : 'Connect') +
       '</div></div>' +
-      '<div class="menu-row" onclick="' +
-      (ccOn ? 'PreShootResearch.promptDisconnectCapCut()' : 'PreShootResearch.openCapCutConnectModal()') +
-      '">' +
-      '<div class="menu-ico" style="background:var(--s2)"><span style="font-weight:800;font-size:11px;letter-spacing:.02em">CC</span></div>' +
-      '<div class="menu-info"><div class="menu-row-title">CapCut</div><div class="menu-row-sub">' +
-      ccSub +
-      '</div></div>' +
-      '<div class="conn-status ' +
-      (ccOn ? 'on' : 'off') +
-      '">' +
-      (ccOn ? 'Connected' : 'Connect') +
-      '</div></div>' +
-      '<div style="padding:10px 14px 14px;font-size:12px;color:var(--text3);line-height:1.5">More services (TikTok, Instagram, Vimeo) can be added here later.</div>' +
+      '<div style="padding:10px 14px 14px;font-size:12px;color:var(--text3);line-height:1.5">CapCut templates open in CapCut from Ideas. TikTok and Instagram APIs are not configured.</div>' +
       '</div></div>'
     );
   }

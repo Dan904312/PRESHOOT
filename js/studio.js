@@ -649,8 +649,13 @@
       overview: {
         summary: [idea.title, idea.hook].filter(Boolean).join(': ').slice(0, 280),
         goal: idea.category ? 'Ship a strong ' + idea.category + ' piece' : '',
-        platform: '',
-        format: idea.category || ''
+        platform: (function () {
+          var st = global.S || {};
+          var pf = st.platformFocus || {};
+          var n = st.niche || {};
+          return pf.primaryPlatform || (pf.platforms && pf.platforms[0]) || n.platform || '';
+        })(),
+        format: idea.category || ((global.S && S.selectedFormat) || '')
       },
       shotList: shotList,
       script: { body: '', lines: [] },
@@ -3010,6 +3015,15 @@
               shotList: shots,
               scriptLines: lines,
               references: prod.workspace.references,
+              assets: (prod.workspace.assets || []).slice(0, 16).map(function (a) {
+                return {
+                  name: a.name || a.filename || '',
+                  type: a.type || '',
+                  kind: a.kind || '',
+                  note: a.note || a.analysisSummary || '',
+                  analysis: a.analysis || null
+                };
+              }),
               assetCount: (prod.workspace.assets || []).length,
               performance: prod.workspace.performance || {},
               timeline: prod.timeline || [],

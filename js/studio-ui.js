@@ -1540,7 +1540,12 @@
       var cached = Studio().getResearchCache(productionId, platform, key);
       if (cached && cached.items && cached.items.length) {
         _arResearchPayload[platform + ':' + productionId] = cached;
-        setArStatus(productionId, platform, 'References loaded (cached).', 'ok');
+        setArStatus(
+          productionId,
+          platform,
+          cached.items.length === 1 ? '1 reference loaded (cached).' : cached.items.length + ' references loaded (cached).',
+          'ok'
+        );
         if (resultsEl) {
           resultsEl.innerHTML = cached.items
             .map(function (item, i) {
@@ -1552,17 +1557,23 @@
       }
     }
 
-    setArStatus(productionId, platform, 'Loading references…', 'loading');
-    if (resultsEl) resultsEl.innerHTML = '';
+    setArStatus(productionId, platform, 'Loading references', 'loading');
+    if (resultsEl) {
+      resultsEl.innerHTML = global.PreShootSkeleton
+        ? PreShootSkeleton.list(3)
+        : '';
+    }
 
-    if (platform === 'capcut' && global.PreShootResearch && !PreShootResearch.isCapCutConnected()) {
+    if (platform === 'tiktok' || platform === 'instagram') {
       setArStatus(
         productionId,
         platform,
-        'Connect CapCut in Menu to unlock template research (preference only, no CapCut API).',
+        platform === 'tiktok'
+          ? 'TikTok search needs TIKTOK_CLIENT_KEY. PreShoot does not scrape TikTok.'
+          : 'Instagram search needs INSTAGRAM_ACCESS_TOKEN. PreShoot does not scrape Instagram.',
         'error'
       );
-      if (typeof global.openM === 'function') global.openM('capcut-connect-modal');
+      if (resultsEl) resultsEl.innerHTML = '';
       return;
     }
 
@@ -1628,7 +1639,12 @@
           }
           return;
         }
-        setArStatus(productionId, platform, 'References loaded.', 'ok');
+        setArStatus(
+          productionId,
+          platform,
+          items.length === 1 ? '1 reference loaded.' : items.length + ' references loaded.',
+          'ok'
+        );
         if (resultsEl) {
           resultsEl.innerHTML = items
             .map(function (item, i) {
@@ -1959,8 +1975,23 @@
     var perf = (ws && ws.performance) || {};
     var h = '';
     h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Performance Review</div>';
-    h += '<div class="pw-section-sub">Manual metrics you enter. PreShoot does not scrape social platforms.</div></div></div>';
+    h += '<div class="pw-section-sub">Manual metrics you enter, plus optional YouTube public stats from a URL. PreShoot does not scrape social platforms.</div></div></div>';
     h += '<div class="pw-card">';
+    h += '<label class="st-label">Paste a published video URL</label>';
+    h += '<div class="pw-url-row">';
+    h +=
+      '<input class="st-input" id="perf-url-' +
+      esc(productionId) +
+      '" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">';
+    h +=
+      '<button type="button" class="studio-btn primary sm" onclick="PreShootStudioUI.importPerformanceUrl(\'' +
+      esc(productionId) +
+      '\')">Analyse</button>';
+    h += '</div>';
+    h +=
+      '<div class="pw-section-sub" id="perf-url-status-' +
+      esc(productionId) +
+      '">YouTube public views and likes when YOUTUBE_API_KEY is set. TikTok and Instagram need official API access.</div>';
     h += '<div class="pw-perf-grid">';
     [
       ['views', 'Views'],
@@ -4731,6 +4762,76 @@
     renderContinueCard();
   }
 
+  function importPerformanceUrl(productionId) {
+    var inp = document.getElementById('perf-url-' + productionId);
+    var status = document.getElementById('perf-url-status-' + productionId);
+    var url = inp ? String(inp.value || '').trim() : '';
+    if (!url) {
+      if (status) status.textContent = 'Paste a YouTube, TikTok, or Instagram URL first.';
+      return;
+    }
+    if (status) status.textContent = 'Looking up public metadata';
+    if (typeof global.apiFetch !== 'function') {
+      if (status) status.textContent = 'Unable to reach the server.';
+      return;
+    }
+    global
+      .apiFetch('/api/performance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, productionId: productionId })
+      })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || data.ok !== true || !data.record) {
+          if (status) {
+            status.textContent =
+              (data && data.message) ||
+              'Could not analyse this URL. Enter metrics manually if you have them.';
+          }
+          return;
+        }
+        var rec = data.record;
+        Studio().savePerformance(productionId, {
+          url: rec.url || url,
+          platform: rec.platform || '',
+          title: rec.title || '',
+          views: rec.views || '',
+          likes: rec.likes || '',
+          comments: rec.comments || '',
+          shares: rec.shares || '',
+          importedAt: rec.importedAt || new Date().toISOString()
+        });
+        try {
+          var S = global.S || {};
+          if (!S.prefs) S.prefs = {};
+          var hist = Array.isArray(S.prefs.performanceHistory) ? S.prefs.performanceHistory.slice() : [];
+          hist.unshift({
+            platform: rec.platform,
+            url: rec.url || url,
+            title: rec.title,
+            views: rec.views,
+            likes: rec.likes,
+            productionId: productionId,
+            importedAt: rec.importedAt
+          });
+          S.prefs.performanceHistory = hist.slice(0, 40);
+          if (typeof global.ss === 'function') global.ss('prefs', S.prefs);
+        } catch (e) {}
+        if (status) status.textContent = 'Saved public stats from ' + (rec.platform || 'YouTube') + '.';
+        toast('Performance record saved');
+        if (global.S) {
+          global.S.studioView = { mode: 'production', productionId: productionId, section: 'performance' };
+        }
+        renderStudio();
+      })
+      .catch(function () {
+        if (status) status.textContent = 'Network error. Try again, or enter metrics manually.';
+      });
+  }
+
   function onPerformancePdf(productionId, input) {
     var file = input && input.files && input.files[0];
     if (!file) return;
@@ -5279,7 +5380,7 @@
     if (global.PreShootCalendar && PreShootCalendar.indexProduction && result.createdProduction) {
       PreShootCalendar.indexProduction(result.production, result.project);
     }
-    toast(result.createdProduction ? 'Imported to a new production' : 'Imported into “' + (result.production.name || 'production') + '”');
+    toast(result.createdProduction ? 'Imported to a new production' : 'Imported into "' + (result.production.name || 'production') + '"');
     openProduction(result.production.id);
   }
 
@@ -5539,6 +5640,7 @@
     confirmDirectorAction: confirmDirectorAction,
     cancelDirectorAction: cancelDirectorAction,
     savePerformanceField: savePerformanceField,
+    importPerformanceUrl: importPerformanceUrl,
     onPerformancePdf: onPerformancePdf,
     openSearch: openSearch,
     onSearchInput: onSearchInput,

@@ -6,8 +6,60 @@
   'use strict';
 
   var cache = null;
+  var cacheKey = '';
   var inflight = null;
-  var filters = { platform: 'all', category: 'all', region: 'US' };
+  var filters = { platform: 'all', category: 'all', region: 'US', q: '' };
+
+  var REGION_OPTIONS = [
+    ['US', 'United States'],
+    ['AU', 'Australia'],
+    ['GB', 'United Kingdom'],
+    ['CA', 'Canada'],
+    ['SG', 'Singapore'],
+    ['JP', 'Japan'],
+    ['CN', 'China'],
+    ['IN', 'India'],
+    ['GLOBAL', 'Global']
+  ];
+
+  var TOPIC_SUGGESTIONS = [
+    'Cars',
+    'Motorsport',
+    'Technology',
+    'Startups',
+    'Entrepreneurship',
+    'Fitness',
+    'Fashion',
+    'Music',
+    'Art',
+    'Photography',
+    'Videography',
+    'Gaming',
+    'Education',
+    'Business',
+    'Food',
+    'Travel'
+  ];
+
+  try {
+    var savedRegion = localStorage.getItem('scout_trend_region');
+    if (savedRegion) {
+      var allowed = REGION_OPTIONS.some(function (r) { return r[0] === savedRegion; });
+      if (allowed) filters.region = savedRegion;
+    }
+  } catch (e) {}
+
+  function regionLabel(code) {
+    var c = code || filters.region || 'US';
+    for (var i = 0; i < REGION_OPTIONS.length; i++) {
+      if (REGION_OPTIONS[i][0] === c) return REGION_OPTIONS[i][1];
+    }
+    return c;
+  }
+
+  function currentKey() {
+    return (filters.region || 'US') + '|' + (filters.q || '');
+  }
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -23,9 +75,11 @@
   }
 
   function load(force) {
-    if (!force && cache && cache.items) return Promise.resolve(cache);
+    var key = currentKey();
+    if (!force && cache && cache.items && cacheKey === key) return Promise.resolve(cache);
     if (inflight) return inflight;
     var url = '/api/trends?region=' + encodeURIComponent(filters.region || 'US');
+    if (filters.q) url += '&q=' + encodeURIComponent(filters.q);
     if (force) url += '&refresh=1';
     inflight = apiFetch(url, { method: 'GET' })
       .then(function (r) {
@@ -33,6 +87,7 @@
       })
       .then(function (data) {
         inflight = null;
+        cacheKey = key;
         if (data && Array.isArray(data.items)) cache = data;
         else {
           cache = {
@@ -47,7 +102,8 @@
       })
       .catch(function () {
         inflight = null;
-        if (cache) return cache;
+        if (cache && cacheKey === key) return cache;
+        cacheKey = key;
         cache = {
           ok: false,
           items: [],
@@ -146,7 +202,51 @@
   }
 
   function filterBar() {
-    var html = '<div class="trend-filters">';
+    var html = '<div class="trend-loc">';
+    html += '<div class="trend-loc-k">Trending</div>';
+    html +=
+      '<div class="trend-loc-row">Location: <strong>' +
+      esc(regionLabel()) +
+      '</strong> <label class="trend-change">Change<select onchange="PreShootTrending.setFilter(\'region\',this.value)" aria-label="Trend location">';
+    REGION_OPTIONS.forEach(function (o) {
+      html +=
+        '<option value="' +
+        o[0] +
+        '"' +
+        (filters.region === o[0] ? ' selected' : '') +
+        '>' +
+        esc(o[1]) +
+        '</option>';
+    });
+    html += '</select></label></div></div>';
+    html += '<div class="trend-search">';
+    html +=
+      '<input type="search" id="trend-q" class="trend-q" placeholder="Search a topic or niche" value="' +
+      esc(filters.q || '') +
+      '" aria-label="Topic search" onkeydown="if(event.key===\'Enter\'){event.preventDefault();PreShootTrending.searchTopic(this.value);}">';
+    html +=
+      '<button type="button" class="studio-btn primary sm" onclick="PreShootTrending.searchTopic(document.getElementById(\'trend-q\').value)">Search</button>';
+    if (filters.q) {
+      html +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootTrending.searchTopic(\'\')">Clear</button>';
+    }
+    html += '</div>';
+    html += '<div class="trend-chips" aria-label="Topic suggestions">';
+    TOPIC_SUGGESTIONS.forEach(function (t) {
+      html +=
+        '<button type="button" class="trend-chip' +
+        (filters.q === t ? ' on' : '') +
+        '" onclick="PreShootTrending.searchTopic(' +
+        JSON.stringify(t) +
+        ')">' +
+        esc(t) +
+        '</button>';
+    });
+    html += '</div>';
+    if (filters.q) {
+      html += '<div class="trend-note">Topic: ' + esc(filters.q) + '</div>';
+    }
+    html += '<div class="trend-filters">';
     html += '<label>Platform<select onchange="PreShootTrending.setFilter(\'platform\',this.value)">';
     [
       ['all', 'All'],
@@ -179,18 +279,6 @@
         (filters.category === o[0] ? ' selected' : '') +
         '>' +
         o[1] +
-        '</option>';
-    });
-    html += '</select></label>';
-    html += '<label>Region<select onchange="PreShootTrending.setFilter(\'region\',this.value)">';
-    ['US', 'GB', 'AU', 'CA', 'IN'].forEach(function (r) {
-      html +=
-        '<option value="' +
-        r +
-        '"' +
-        (filters.region === r ? ' selected' : '') +
-        '>' +
-        r +
         '</option>';
     });
     html += '</select></label>';
@@ -236,7 +324,10 @@
     var countEl = document.getElementById('lib-count');
     if (!grid) return;
     if (countEl) countEl.textContent = 'Trending';
-    grid.innerHTML = '<div class="trend-wrap"><div class="trend-loading">Loading public trends…</div></div>';
+    grid.innerHTML =
+      '<div class="trend-wrap">' +
+      (global.PreShootSkeleton ? PreShootSkeleton.list(5) : '<div class="trend-loading">Loading public trends</div>') +
+      '</div>';
     load(false).then(function () {
       if (global.S && S.libTab !== 'trending') return;
       grid.innerHTML = '<div class="trend-wrap">' + bodyHtml(null) + '</div>';
@@ -248,7 +339,9 @@
     return (
       '<div class="trend-studio" id="trend-studio-' +
       esc(productionId) +
-      '"><div class="trend-loading">Loading public trends…</div></div>'
+      '"><div class="trend-studio-inner">' +
+      (global.PreShootSkeleton ? PreShootSkeleton.list(4) : '<div class="trend-loading">Loading public trends</div>') +
+      '</div></div>'
     );
   }
 
@@ -277,7 +370,7 @@
       whyItWorks: 'Public trend reference. Original source stays on the platform.',
       shotAngle: '',
       editingStyle: '',
-      audio: it.type === 'music' ? 'Reference only — do not copy the recording. Source: ' + (it.url || '') : '',
+      audio: it.type === 'music' ? 'Reference only. Do not copy the recording. Source: ' + (it.url || '') : '',
       category: 'trending',
       ytSearch: it.platform === 'youtube' ? it.title : it.title,
       capcutSearch: it.title,
@@ -296,7 +389,7 @@
     }
     if (typeof global.renderResults === 'function') global.renderResults();
     if (typeof global.goTab === 'function') global.goTab('results');
-    if (typeof global.showToast === 'function') global.showToast('Opened as inspiration — import to Studio when ready');
+    if (typeof global.showToast === 'function') global.showToast('Opened as inspiration. Import to Studio when ready');
   }
 
   function saveToProduction(productionId, id) {
@@ -320,7 +413,11 @@
   function setFilter(key, value) {
     filters[key] = value;
     if (key === 'region') {
+      try {
+        localStorage.setItem('scout_trend_region', value);
+      } catch (e) {}
       cache = null;
+      cacheKey = '';
       renderLibrary();
       return;
     }
@@ -335,8 +432,21 @@
     }
   }
 
+  function searchTopic(q) {
+    filters.q = String(q || '').trim().slice(0, 80);
+    cache = null;
+    cacheKey = '';
+    if (global.S && S.libTab === 'trending') renderLibrary();
+    else load(false);
+  }
+
+  function peek() {
+    return ((cache && cache.items) || []).slice(0, 12);
+  }
+
   function refresh() {
     cache = null;
+    cacheKey = '';
     if (global.S && S.libTab === 'trending') renderLibrary();
     else load(true);
   }
@@ -348,7 +458,9 @@
     inspire: inspire,
     saveToProduction: saveToProduction,
     setFilter: setFilter,
+    searchTopic: searchTopic,
     refresh: refresh,
-    load: load
+    load: load,
+    peek: peek
   };
 })(typeof window !== 'undefined' ? window : globalThis);
