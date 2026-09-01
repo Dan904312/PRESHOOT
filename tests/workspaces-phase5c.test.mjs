@@ -179,6 +179,8 @@ test('client comment UI + notifications + review exist', () => {
   const ui = fs.readFileSync(path.join(root, 'js/workspace-comments.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'app.html'), 'utf8');
   const studio = fs.readFileSync(path.join(root, 'js/studio-ui.js'), 'utf8');
+  const dirCtx = fs.readFileSync(path.join(root, 'js/director-context.js'), 'utf8');
+  const src = html + '\n' + dirCtx;
   assert.ok(ui.includes('openSheet'));
   assert.ok(ui.includes('insertMention'));
   assert.ok(ui.includes('reviewCardHtml'));
@@ -186,8 +188,8 @@ test('client comment UI + notifications + review exist', () => {
   assert.ok(html.includes('ws-comments-modal'));
   assert.ok(html.includes('ws-notifications-modal'));
   assert.ok(html.includes('workspace-comments.js'));
-  assert.ok(html.includes('Unresolved collaborative feedback'));
-  assert.ok(html.includes('MUTATION RULE'));
+  assert.ok(src.includes('Unresolved collaborative feedback'));
+  assert.ok(src.includes('MUTATION RULE'));
   assert.ok(studio.includes('reviewCardHtml'));
   assert.ok(studio.includes("commentChipHtml"));
 });

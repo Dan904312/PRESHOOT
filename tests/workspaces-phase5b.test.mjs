@@ -76,10 +76,12 @@ test('UI has people + activity panels and presence chip', () => {
 
 test('Director gets shared collab context without personal leak markers', () => {
   const html = fs.readFileSync(path.join(root, 'app.html'), 'utf8');
-  assert.ok(html.includes('SHARED WORKSPACE:'));
-  assert.ok(html.includes('Recent workspace activity:'));
-  assert.ok(html.includes('COLLAB RULE:'));
-  assert.ok(html.includes('PreShootWorkspace.isShared'));
+  const ctx = fs.readFileSync(path.join(root, 'js/director-context.js'), 'utf8');
+  const src = html + '\n' + ctx;
+  assert.ok(src.includes('SHARED WORKSPACE:'));
+  assert.ok(src.includes('Recent workspace activity:'));
+  assert.ok(src.includes('COLLAB RULE:'));
+  assert.ok(src.includes('PreShootWorkspace.isShared'));
 });
 
 test('studioView sets projectId for production navigation', () => {
