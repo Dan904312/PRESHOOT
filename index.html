@@ -275,11 +275,27 @@ nav.visible{transform:translateY(0);opacity:1}
 @media(min-width:768px){.mockup-scale{transform:scale(.85)}}
 @media(min-width:1024px){.mockup-scale{transform:scale(1)}}
 .iphone-mockup{position:relative;width:280px;height:580px;border-radius:3rem;display:flex;flex-direction:column;will-change:transform;transform-style:preserve-3d}
-.phone-screen{position:absolute;inset:7px;background:#050914;border-radius:2.5rem;overflow:hidden;box-shadow:inset 0 0 15px #000;color:#fff;z-index:10}
+.phone-screen{position:absolute;inset:7px;background:#000;border-radius:2.5rem;overflow:hidden;box-shadow:inset 0 0 15px #000;color:#fff;z-index:10}
 .dynamic-island{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:100px;height:28px;background:#000;border-radius:999px;z-index:50;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;box-shadow:inset 0 -1px 2px rgba(255,255,255,.1)}
 .island-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.8);animation:pulse-dot 2s ease infinite}
 @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
-.phone-ui{position:relative;width:100%;height:100%;padding:48px 20px 32px;display:flex;flex-direction:column}
+.phone-ui{position:relative;width:100%;height:100%;padding:44px 14px 12px;display:flex;flex-direction:column}
+.ps-home-ui{background:#000;gap:0}
+.ps-home-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ps-home-logo{font-family:var(--fd);font-size:15px;font-weight:700;letter-spacing:-.03em;color:#fff}
+.ps-home-logo span{color:#4A9EFF}
+.ps-home-streak{font-size:9px;color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:3px 8px}
+.ps-home-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 0 8px;min-height:0}
+.ps-home-ring{width:92px;height:92px;border-radius:50%;border:2px solid rgba(74,158,255,.55);display:flex;align-items:center;justify-content:center;color:#4A9EFF;margin-bottom:10px;background:rgba(74,158,255,.08)}
+.ps-home-lbl{font-family:var(--fd);font-size:16px;font-weight:700;color:#fff;margin-bottom:4px}
+.ps-home-sub{font-size:10px;color:rgba(255,255,255,.45);text-align:center;line-height:1.4;max-width:160px;margin-bottom:12px}
+.ps-home-upload{font-size:10px;font-weight:600;color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.04)}
+.ps-home-dir{margin-top:auto;width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;background:#111;margin-bottom:10px}
+.ps-home-dir-t{font-family:var(--fd);font-size:12px;font-weight:700;color:#fff}
+.ps-home-dir-s{font-size:9px;color:rgba(255,255,255,.45);margin-top:2px}
+.ps-home-nav{display:flex;align-items:flex-end;justify-content:space-between;font-size:7px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.28);padding:6px 4px 2px}
+.ps-home-nav .on{color:#4A9EFF}
+.ps-home-nav .studio{color:#000;background:#4A9EFF;border-radius:999px;padding:6px 7px;margin-top:-10px}
 .phone-ui-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
 .phone-ui-hd .lbl{font-size:10px;color:#a3a3a3;text-transform:uppercase;letter-spacing:.12em;font-weight:700;margin-bottom:4px}
 .phone-ui-hd .ttl{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
@@ -788,70 +804,34 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
                     <div class="screen-glare" style="position:absolute;inset:0;z-index:40;pointer-events:none" aria-hidden="true"></div>
                     <div class="dynamic-island"><div class="island-dot"></div></div>
 
-                    <div class="phone-ui">
-                      <div class="phone-widget phone-ui-hd">
-                        <div>
-                          <div class="lbl">Today</div>
-                          <div class="ttl">Scan ready</div>
-                        </div>
-                        <div class="phone-avatar">PS</div>
+                    <div class="phone-ui ps-home-ui">
+                      <div class="ps-home-hd">
+                        <div class="ps-home-logo">Pre<span>Shoot</span></div>
+                        <div class="ps-home-streak">0 days</div>
                       </div>
-
-                      <div class="phone-widget ring-wrap">
-                        <svg aria-hidden="true">
-                          <circle cx="88" cy="88" r="64" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="12"/>
-                          <circle class="progress-ring" cx="88" cy="88" r="64" fill="none" stroke="#4A9EFF" stroke-width="12"/>
-                        </svg>
-                        <div class="ring-center">
-                          <span class="counter-val">0</span>
-                          <span class="metric-lbl">Ideas Ready</span>
+                      <div class="ps-home-main">
+                        <div class="ps-home-ring" aria-hidden="true">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
                         </div>
+                        <div class="ps-home-lbl">Take a photo</div>
+                        <div class="ps-home-sub">Take a clear photo of your location.</div>
+                        <div class="ps-home-upload">Upload from Camera Roll</div>
                       </div>
-
-                      <div class="widget-list">
-                        <div class="phone-widget widget-depth widget-row">
-                          <div class="widget-ico">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-                          </div>
-                          <div>
-                            <div class="bar-lg"></div>
-                            <div class="bar-sm"></div>
-                          </div>
-                        </div>
-                        <div class="phone-widget widget-depth widget-row">
-                          <div class="widget-ico green">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
-                          </div>
-                          <div>
-                            <div class="bar-lg" style="width:64px"></div>
-                            <div class="bar-md"></div>
-                          </div>
-                        </div>
+                      <div class="ps-home-dir">
+                        <div class="ps-home-dir-t">Director</div>
+                        <div class="ps-home-dir-s">Your AI assistant for filming</div>
                       </div>
-                      <div class="home-bar" aria-hidden="true"></div>
+                      <div class="ps-home-nav" aria-hidden="true">
+                        <span class="on">Home</span>
+                        <span>Library</span>
+                        <span class="studio">Studio</span>
+                        <span>Menu</span>
+                        <span>Profile</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div class="floating-badge top floating-ui-badge">
-                  <div class="badge-ico">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="9,7 17,12 9,17" fill="currentColor" stroke="none"/></svg>
-                  </div>
-                  <div>
-                    <p class="badge-t">6 ideas ready</p>
-                    <p class="badge-s">Viral format locked</p>
-                  </div>
-                </div>
-
-                <div class="floating-badge bot floating-ui-badge">
-                  <div class="badge-ico indigo">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5h11a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9z"/><path d="M16 11.5l5-2.5v8l-5-2.5"/></svg>
-                  </div>
-                  <div>
-                    <p class="badge-t">Director reply</p>
-                    <p class="badge-s">Shot list delivered</p>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -940,6 +920,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
         <span class="proof-kicker">Scan plus profile</span>
       </div>
       <div class="proof-body">
+        <img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=900&h=675&fit=crop&q=80" alt="Coffee shop interior used as a PreShoot scan example" loading="lazy" style="width:100%;height:auto;border-radius:12px;margin-bottom:12px;display:block">
         <div class="proof-in"><strong>Photo</strong>Bakery counter at 7am. Sourdough loaves, flour on the bench, street light through the window.</div>
         <div class="proof-in"><strong>Context</strong>Local bakery. Instagram Reels. iPhone. Owner films between service, about 20 minutes.</div>
       </div>
@@ -989,7 +970,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
     </div>
     <div class="why-row">
       <h3>It stays with the production</h3>
-      <p>Studio holds the script and shot list. Director works on that project, not a blank chat.</p>
+      <p>Studio holds the production: script, shot list, and assets. Director uses that project context, not a blank chat.</p>
     </div>
   </div>
   <a class="more-link reveal" href="/more-info.html">More about the product</a>
@@ -1131,6 +1112,17 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
     </div>
   </div>
 </section>
+
+<section class="about-founder" id="about">
+  <div class="about-founder-inner">
+    <span class="section-eyebrow">About</span>
+    <h2 class="section-h">Built by a creator, for creators.</h2>
+    <p>PreShoot comes from the same production work it is built to simplify: scanning a scene, choosing a direction, and leaving ready to film.</p>
+    <p class="about-founder-goal">Less guessing. More shooting.</p>
+    <a class="about-founder-cta" href="https://daniel-liu.vercel.app" target="_blank" rel="noopener noreferrer">Meet Daniel</a>
+  </div>
+</section>
+
 <footer>
   <div class="footer-grid">
     <div>
@@ -1168,7 +1160,7 @@ footer{border-top:1px solid var(--glass-border);padding:56px var(--page-x) 40px;
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 <script src="/js/kinetic-grid.js?v=389"></script>
-<script src="/js/cinematic-hero.js?v=296"></script>
+<script src="/js/cinematic-hero.js?v=391"></script>
 <script src="/js/landing-scroll.js?v=388"></script>
 <script>
 (function() {
@@ -1315,6 +1307,8 @@ var resetWrap = document.getElementById('demo-reset');
 var resetBtn = document.getElementById('demo-reset-btn');
 var hasRun = false;
 
+if (msgs && sendBtn && input) {
+
 function addUserMessage() {
   var row = document.createElement('div');
   row.className = 'msg-row user';
@@ -1436,10 +1430,11 @@ function resetDemo() {
 
 if (sendBtn && msgs && input) {
 sendBtn.addEventListener('click', runDemo);
-resetBtn.addEventListener('click', resetDemo);
-document.getElementById('demo-input').addEventListener('keydown', function(e) {
+if (resetBtn) resetBtn.addEventListener('click', resetDemo);
+input.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runDemo(); }
 });
+}
 }
 
 window.setPricingCycle = function setPricingCycle(cycle) {

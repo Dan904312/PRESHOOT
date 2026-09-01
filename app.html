@@ -57,9 +57,11 @@
 <script src="/js/icons.js"></script>
 <script src="/js/color-picker.js"></script>
 <script src="/js/gear-catalog.js"></script>
-<script src="/js/hook-engine.js?v=388"></script>
-<script src="/js/creative-research.js?v=388"></script>
-<script src="/js/studio.js?v=388"></script>
+<script src="/js/hook-engine.js?v=391"></script>
+<script src="/js/skeleton.js?v=390"></script>
+<script src="/js/director-context.js?v=391"></script>
+<script src="/js/creative-research.js?v=390"></script>
+<script src="/js/studio.js?v=390"></script>
 <script src="/js/studio-sync.js?v=320"></script>
 <script src="/js/workspace-sync.js?v=361"></script>
 <script src="/js/workspace-changes.js?v=361"></script>
@@ -70,10 +72,10 @@
 <script src="/js/analytics.js?v=360"></script>
 <script src="/js/entitlements.js?v=382"></script>
 <script src="/js/streak.js?v=385"></script>
-<script src="/js/calendar.js?v=388"></script>
-<script src="/js/trending.js?v=385"></script>
+<script src="/js/calendar.js?v=390"></script>
+<script src="/js/trending.js?v=390"></script>
 <script src="/js/director-voice.js?v=388"></script>
-<script src="/js/studio-ui.js?v=388"></script>
+<script src="/js/studio-ui.js?v=390"></script>
 <script src="/js/studio-export.js?v=383"></script>
 <script src="/js/studio-keyboard.js?v=302"></script>
 <script src="/js/director-os.js?v=383"></script>
@@ -101,7 +103,7 @@
   --accent-light:#8fc4ff;--accent-dark:#2a5a99;
   --on-accent:var(--accent-contrast);
   /* Semantic status (not the user accent) */
-  --danger:#E5484D;--danger-hover:#C73B40;--ok:#30A46C;--success:#30A46C;--warn:#F5A524;--warning:#F5A524;
+  --danger:#e5484d;--danger-hover:#C73B40;--ok:#30A46C;--success:#30A46C;--warn:#F5A524;--warning:#F5A524;
   --r:10px;--rlg:16px;--r-card:16px;--r-pill:999px;--r-btn:10px;--r-icon:50%;
   --sh:none;--sh-card:none;--sh-glow:none;
   --fd:'Space Grotesk',system-ui,sans-serif;--fb:'DM Sans',system-ui,sans-serif;
@@ -135,7 +137,7 @@ button{font-family:var(--fb);cursor:pointer;border:none;background:none}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 @keyframes pulse{0%,100%{box-shadow:none}} /* SCREENS */
-.screen{position:fixed;top:0;left:0;right:0;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);display:none;flex-direction:column;background:var(--bg);padding-bottom:var(--bnav-space);box-sizing:border-box}
+.screen{position:fixed;top:0;left:0;right:0;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);display:none;flex-direction:column;background:var(--bg);padding-bottom:0;box-sizing:border-box}
 .screen.active{display:flex;animation:screenIn .32s cubic-bezier(0.4,0,.2,1) forwards}
 .screen.exit{animation:screenOut .2s cubic-bezier(0.4,0,1,1) forwards;pointer-events:none}
 @keyframes screenIn{0%{opacity:0}100%{opacity:1}}
@@ -184,6 +186,30 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .bni-scan{width:56px;height:56px;min-width:56px;min-height:56px;flex-shrink:0;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px rgba(255,255,255,.18),0 8px 24px rgba(0,0,0,.45);margin-top:-28px;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s;color:var(--on-accent)}
 .bni-scan:active{transform:scale(.88)}
 .bni-scan svg,.bni-scan .ico-svg{color:var(--on-accent);stroke:var(--on-accent)}
+#nav-profile,#nav-prof-ico,.bni-ico{overflow:visible;position:relative}
+#nav-prof-ico{width:24px;height:24px}
+#nav-prof-ico .nav-av-img{width:22px;height:22px;border-radius:50%;object-fit:cover;display:block}
+#nav-prof-ico .nav-av-dot{position:absolute;top:-4px;right:-4px;width:8px;height:8px;border-radius:50%;background:var(--ok);border:2px solid var(--s1);z-index:4;pointer-events:none}
+.bnav-veil{position:fixed;left:0;right:0;bottom:0;height:calc(var(--bnav-space) + 36px);z-index:180;pointer-events:none;backdrop-filter:blur(12px) saturate(60%) brightness(.68);-webkit-backdrop-filter:blur(12px) saturate(60%) brightness(.68);background:linear-gradient(to top, rgba(0,0,0,.55) 0%, rgba(0,0,0,.22) 48%, rgba(0,0,0,0) 100%);-webkit-mask-image:linear-gradient(to top, #000 34%, transparent 100%);mask-image:linear-gradient(to top, #000 34%, transparent 100%)}
+#screen-onboard.active ~ .bnav-veil,#screen-director.active ~ .bnav-veil{display:none}
+.bnav.hidden ~ .bnav-veil{display:none}
+.modal-ov.modal-center{align-items:center;justify-content:center}
+.modal-ov.modal-center .modal-sheet{border-radius:20px;max-width:420px;width:calc(100% - 32px);max-height:min(84vh,640px);margin:0;transform:translateY(12px) scale(.98);padding-bottom:24px}
+.modal-ov.modal-center.open .modal-sheet{transform:none}
+.sk-list,.sk-ideas,.sk-rows{display:flex;flex-direction:column;gap:10px;width:100%;padding:8px 0}
+.sk-card,.sk-idea,.sk-row{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:var(--r-card);background:var(--s1)}
+.sk-thumb,.sk-avatar,.sk-chip,.sk-line{background:var(--s3);border-radius:8px}
+.sk-thumb{width:56px;height:56px;flex-shrink:0;border-radius:10px}
+.sk-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0}
+.sk-chip{width:52px;height:14px;border-radius:6px;display:block;margin-bottom:8px}
+.sk-body,.sk-idea,.sk-row>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.sk-line{display:block;height:10px;max-width:100%}
+.sk-idea{flex-direction:column}
+@keyframes skPulse{0%,100%{opacity:.55}50%{opacity:.92}}
+.sk-thumb,.sk-avatar,.sk-chip,.sk-line{animation:skPulse 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){
+  .sk-thumb,.sk-avatar,.sk-chip,.sk-line{animation:none}
+}
 @media(min-width:640px){.bnav{left:50%;right:auto;width:min(440px,calc(100% - 48px));transform:translateX(-50%);--bnav-side:24px}.scan-zone{max-width:480px;margin:0 auto}.home-inner{max-width:720px;margin:0 auto;width:100%}}
 @media(min-width:900px){:root{--bnav-side:24px;--bnav-inset-bottom:10px}.home-inner{max-width:780px}.scan-zone{max-width:520px}.scan-ring{width:clamp(140px,18vw,176px);height:clamp(140px,18vw,176px)}}
 @media(min-width:1200px){.home-inner{max-width:840px}.bnav{width:min(480px,calc(100% - 64px))}}
@@ -446,9 +472,10 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .prof-title{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.3px;color:var(--text)}
 .prof-edit-btn{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--text)}
 .prof-hero{margin:0 20px 14px;background:var(--accent-dim);border:1px solid var(--accent-dim);border-radius:var(--rlg);padding:20px}
-.prof-av{width:64px;height:64px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:24px;font-weight:700;color:var(--text);overflow:hidden;border:1px solid var(--border);margin-bottom:10px;cursor:pointer;position:relative}
+.prof-av{width:64px;height:64px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:24px;font-weight:700;color:var(--text);overflow:visible;border:1px solid var(--border);margin-bottom:10px;cursor:pointer;position:relative}
+.prof-av-frame{width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .prof-av img{width:100%;height:100%;object-fit:cover}
-.prof-av-badge{position:absolute;bottom:0;right:0;width:20px;height:20px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid var(--bg)}
+.prof-av-badge{position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:var(--ok);display:block;border:2px solid var(--bg);z-index:2;pointer-events:none}
 .prof-name{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text);margin-bottom:2px}
 .prof-handle{font-size:13px;color:var(--text2)}
 .prof-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin:0 20px 14px}
@@ -765,6 +792,19 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .trend-filters label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;flex:1;min-width:90px}
 .trend-filters select{background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px;font-size:13px}
 .trend-note,.trend-empty{font-size:12px;color:var(--text2);line-height:1.45;margin-bottom:12px}
+.trend-loc{margin:0 0 12px}
+.trend-loc-k{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+.trend-loc-row{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.trend-loc-row strong{color:var(--text);font-weight:700}
+.trend-change{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);cursor:pointer;text-transform:none;letter-spacing:0}
+.trend-change select{background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:12px}
+.trend-search{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.trend-q{flex:1;min-width:0;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;font-family:var(--fb)}
+.trend-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.trend-chip{appearance:none;border:1px solid var(--border);background:var(--s2);color:var(--text2);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--fb)}
+.trend-chip.on,.trend-chip:hover{border-color:var(--accent);color:var(--text)}
+.pw-url-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.pw-url-row .st-input{flex:1;min-width:0}
 .trend-sec{margin:16px 0}
 .trend-sec-hd{font-family:var(--fd);font-size:15px;font-weight:700;margin-bottom:8px}
 .trend-card{display:flex;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:10px;margin-bottom:8px}
@@ -1648,24 +1688,39 @@ html.dir-voice-active{overflow:hidden}
 
 /* ═══ HOME MOBILE LAYOUT REFINEMENT ═══ */
 #screen-home{
-  padding-bottom:var(--bnav-space)!important;
+  padding-bottom:0!important;
   overflow:hidden;
 }
+#screen-home .home-inner{
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  margin:0 auto;
+}
 #screen-home .scan-zone{
-  justify-content:flex-start;
+  flex:1;
+  min-height:0;
+  justify-content:safe center;
+  align-items:center;
   gap:var(--home-gap);
   padding-top:var(--home-gap-sm);
-  padding-bottom:0;
+  padding-bottom:calc(var(--bnav-h) + var(--bnav-inset-bottom) + 12px);
+  overflow-y:auto;
+  width:100%;
 }
-/* Scan sits under the header. Do not vertically center it in leftover viewport. */
 #screen-home .scan-zone-main{
   flex:0 0 auto;
-  justify-content:flex-start;
+  justify-content:center;
   align-items:center;
   min-height:0;
   padding-top:12px;
   padding-bottom:var(--home-gap);
   gap:var(--home-gap);
+  width:100%;
+  max-width:var(--home-card-max);
+  margin:0 auto;
 }
 #screen-home .scan-zone-foot{
   width:100%;
@@ -1699,11 +1754,10 @@ html.dir-voice-active{overflow:hidden}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(11px,3.2vw,12px)
 }
 #screen-library,#screen-menu,#screen-profile,#screen-results,#screen-studio,#screen-plan{
-  padding-bottom:var(--bnav-space)!important;
+  padding-bottom:0!important;
 }
-/* Screen already clears the bottom nav — shell only needs content breathing room (avoid double whitespace) */
-.studio-shell{padding-bottom:28px!important}
-.sb{padding-bottom:8px}
+.studio-shell{padding-bottom:calc(var(--bnav-space) + 16px)!important}
+.sb{padding-bottom:calc(var(--bnav-space) + 12px)}
 
 /* Director chat: safe header + fit phone */
 #screen-director > div:first-child{
@@ -1768,8 +1822,8 @@ html.dir-voice-active{overflow:hidden}
 /* Desktop / large: keep centered, don't force mobile squeeze */
 @media (min-width:640px){
   :root{--home-card-max:360px;--pad-x:24px;--home-gap:14px;--home-gap-sm:10px;--bnav-inset-bottom:10px}
-  #screen-home .scan-zone{justify-content:flex-start}
-  #screen-home .scan-zone-main{flex:0 0 auto;justify-content:flex-start;padding-top:16px;padding-bottom:var(--home-gap)}
+  #screen-home .scan-zone{justify-content:safe center}
+  #screen-home .scan-zone-main{flex:0 0 auto;justify-content:center;padding-top:16px;padding-bottom:var(--home-gap)}
   #screen-home .upload-btn{width:auto!important;max-width:280px!important}
   .continue-card{flex-direction:row;align-items:center;gap:14px;padding:12px 14px}
   .continue-cta{align-self:center;margin-left:auto}
@@ -1825,7 +1879,7 @@ html.dir-voice-active{overflow:hidden}
 .hook-pick-list{display:flex;flex-direction:column;gap:8px}
 .hook-pick{width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-size:14px;line-height:1.5;cursor:pointer;font-family:var(--fb);display:flex;align-items:flex-start;gap:10px}
 .hook-pick.sel{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
-.hook-pick-num{flex-shrink:0;width:22px;height:22px;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--fd);color:var(--text3);margin-top:1px}
+.hook-pick-num{flex-shrink:0;width:auto;min-width:46px;height:22px;padding:0 6px;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--fd);color:var(--text3);margin-top:1px;letter-spacing:.02em;white-space:nowrap}
 .hook-pick.sel .hook-pick-num{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .hook-pick-body{min-width:0;flex:1}
 .hook-pick-mark{flex-shrink:0;font-size:12px;font-weight:700;color:transparent;margin-top:3px}
@@ -1860,15 +1914,13 @@ html.dir-voice-active{overflow:hidden}
 .pw-disclose>summary::-webkit-details-marker{display:none}
 .pw-disclose[open]>summary{color:var(--text);border-bottom:1px solid var(--border)}
 .pw-disclose .pw-card{border:none;border-radius:0}
-#screen-home .scan-zone-main{
-  flex:0 0 auto!important;
-  justify-content:flex-start!important;
-  padding-top:12px!important;
-  min-height:0!important;
+#screen-home .scan-zone{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
-#screen-home .scan-zone{justify-content:flex-start!important}
 @media (min-width:640px){
-  #screen-home .scan-zone-main{flex:0 0 auto!important;justify-content:flex-start!important;padding-top:16px!important}
+  #screen-home .scan-zone-main{padding-top:16px}
 }
 @media (min-width:900px){
   #screen-plan .sb{display:block}
@@ -2010,7 +2062,7 @@ html.dir-voice-active{overflow:hidden}
 <!-- Phase 5: Director action confirm -->
 
 <!-- Suggested Next detail -->
-<div class="modal-ov" id="suggested-next-modal">
+<div class="modal-ov modal-center" id="suggested-next-modal">
   <div class="modal-sheet" style="max-width:400px">
     <div class="modal-handle"></div>
     <div style="padding:8px 20px 24px">
@@ -2060,7 +2112,7 @@ html.dir-voice-active{overflow:hidden}
  <div class="scan-zone-foot"> <div id="continue-working" class="continue-working" style="display:none"></div> <div id="home-smart" class="home-smart" style="display:none"></div> <div class="director-card" onclick="S.activeProductionId=null;window.__preshootDirectorProduction=null;openDirector()" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''"> <div class="director-card-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg></div> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Director <span id="dir-lock" style="font-size:10px;background:var(--accent);color:var(--on-accent);padding:2px 7px;border-radius:8px;font-family:var(--fb);font-weight:700">PRO</span></div> <div style="font-size:11px;color:var(--text2);line-height:1.4">Your AI assistant for filming, editing and beyond</div> </div> <div style="color:var(--text3);display:flex;align-items:center" data-ico="chevronRight" data-ico-size="16"></div> </div> </div> </div>
  </div>
 </div> <!-- ═══ RESULTS ═══ -->
-<div class="screen" id="screen-results"> <div class="res-hd"> <div class="back-btn" onclick="goTab('home')" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <div style="flex:1;min-width:0"> <div class="res-title" id="res-title">Your ideas</div> <div class="res-sub" id="res-sub">6 ideas generated</div> </div> <button class="rescan-btn" onclick="openPicker()">Rescan</button> </div> <div class="scene-strip" id="scene-strip"><div style="width:100%;height:100%;background:var(--s2)"></div></div> <div class="sb"> <div class="ideas-list" id="ideas-list"></div> <button onclick="openShotlistDirector()" class="gen-shotlist-btn" style="margin:0 16px 20px;padding:14px;border-radius:10px;font-size:15px;font-weight:600;font-family:var(--fd);width:calc(100% - 32px)"> <span><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.4 5.8c0-.66.54-1.2 1.2-1.2h6c.66 0 1.2.54 1.2 1.2v1.7h.4c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2V5.8zm2.5 5.5a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5zm4.2 0a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5z"/><path d="M15.6 10.2 21.2 7.6v12.8l-5.6-2.6V10.2z"/></svg> Generate Shotlist</span> <span id="shotlist-lock" style="font-size:11px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:8px;font-weight:800">PRO</span> </button> </div>
+<div class="screen" id="screen-results"> <div class="res-hd"> <div class="back-btn" onclick="goTab('home')" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <div style="flex:1;min-width:0"> <div class="res-title" id="res-title">Your ideas</div> <div class="res-sub" id="res-sub">6 ideas generated</div> </div> <button class="rescan-btn" onclick="openPicker()">Rescan</button> </div> <div class="scene-strip" id="scene-strip"><div style="width:100%;height:100%;background:var(--s2)"></div></div> <div class="sb"> <div class="ideas-list" id="ideas-list"></div> </div>
 </div> <!-- ═══ LIBRARY ═══ -->
 <div class="screen" id="screen-library"> <div class="lib-hd"><div class="lib-title">Library</div><div class="lib-count" id="lib-count">0</div></div> <div class="lib-tabs"><button class="lib-tab active" onclick="libTab('history',this)">History</button> <button class="lib-tab" onclick="libTab('saved',this)">Saved</button> <button class="lib-tab" onclick="libTab('trending',this)">Trending</button> </div> <div class="sb"><div class="lib-grid" id="lib-grid"></div></div>
 </div>
@@ -2069,7 +2121,7 @@ html.dir-voice-active{overflow:hidden}
 <div class="screen" id="screen-studio"><div id="ws-recovery-banner" class="ws-recovery-banner" hidden><div class="ws-remote-banner-text" id="ws-recovery-banner-text">Unsaved changes from your previous session were found.</div><button type="button" class="studio-btn primary sm" onclick="PreShootWorkspaceUI.recoverSessionDraft()">Recover</button><button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.discardSessionDraft()">Discard</button></div><div id="ws-remote-banner" class="ws-remote-banner" hidden><div class="ws-remote-banner-text" id="ws-remote-banner-text">This workspace was updated by another collaborator.</div><button type="button" class="studio-btn primary sm" data-ws-review onclick="PreShootWorkspaceUI.reviewRemoteUpdate()">Review latest</button><button type="button" class="studio-btn ghost sm" data-ws-keep onclick="PreShootWorkspaceUI.keepLocalChanges()">Keep my changes</button></div><div id="ws-switch-overlay" class="ws-switch-overlay" hidden></div><div class="sb" id="studio-root">
 <div class="studio-hd"><div><div class="studio-title">Studio</div><div class="studio-sub">Your creative workspace</div></div>
 <button type="button" class="studio-btn" onclick="PreShootStudioUI.openCreateProject()">New Project</button></div>
-<div class="studio-empty"><div class="studio-empty-t">Loading Studio…</div></div>
+<div class="studio-empty compact" id="studio-boot-sk" role="status" aria-label="Loading Studio"><div class="sk-rows"><div class="sk-row"><span class="sk-avatar"></span><div><span class="sk-line" style="width:48%"></span><span class="sk-line" style="width:72%"></span></div></div><div class="sk-row"><span class="sk-avatar"></span><div><span class="sk-line" style="width:62%"></span><span class="sk-line" style="width:40%"></span></div></div></div></div>
 </div></div> <!-- ═══ MENU ═══ -->
 <div class="screen" id="screen-menu"> <div class="sb"> <div class="menu-hd"><div class="menu-title">Menu</div></div> <div class="menu-sec"> <div class="menu-sec-title">Workspaces</div> <div class="menu-card"> <div class="menu-row" onclick="PreShootWorkspaceUI.openSwitcher()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><path d="M16 14l4 3-4 3"/></svg></div><div class="menu-info"><div class="menu-row-title">Switch workspace</div><div class="menu-row-sub" id="ws-menu-summary">Personal</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="PreShootWorkspaceUI.openCreate()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></div><div class="menu-info"><div class="menu-row-title">Create shared workspace</div><div class="menu-row-sub">Collaborate on projects together</div></div><div class="menu-arrow">&gt;</div></div> </div> </div> <div class="menu-sec"> <div class="menu-sec-title">Appearance</div> <div class="menu-card"> <div class="menu-row" onclick="openM('appear-modal')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4a8 8 0 1 0 0 16h1.5a2 2 0 0 0 0-4H13a1.5 1.5 0 0 1 0-3h3A8 8 0 0 0 12 4z"/><circle cx="8" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></div><div class="menu-info"><div class="menu-row-title">Theme and colours</div><div class="menu-row-sub">Dark, light, auto and accent colours</div></div><div class="menu-arrow">&gt;</div></div> </div> </div>  <div class="menu-sec"> <div class="menu-sec-title">Tools</div> <div class="menu-card"> <div class="menu-row" onclick="PreShootCalendar.open()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></div><div class="menu-info"><div class="menu-row-title">Content calendar</div><div class="menu-row-sub">Plan posts, track streaks, mark posted</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="PreShootStudioUI.openSearch()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5 21 21"/></svg></div><div class="menu-info"><div class="menu-row-title">Search</div><div class="menu-row-sub">Projects, productions, scans, ideas</div></div><div class="menu-arrow">&gt;</div></div> </div> </div> <div class="menu-sec"> <div class="menu-sec-title">Preferences</div> <div class="menu-card"> <div class="menu-row"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17h10l-1-1.5V11a4 4 0 1 0-8 0v4.5L7 17z"/><path d="M10.5 19a1.5 1.5 0 0 0 3 0"/></svg></div><div class="menu-info"><div class="menu-row-title">Notifications</div><div class="menu-row-sub">Daily scan reminders</div></div><label class="tgl"><input type="checkbox" id="tgl-notif" onchange="savePref('notif',this.checked)"><div class="tgl-s"></div></label></div> <div class="menu-row"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M4.5 7.5 3 5M3 5h3.5"/></svg></div><div class="menu-info"><div class="menu-row-title">Save scan history</div><div class="menu-row-sub">Keep all past scans and ideas</div></div><label class="tgl"><input type="checkbox" id="tgl-hist" checked onchange="savePref('hist',this.checked)"><div class="tgl-s"></div></label></div> <div class="menu-row"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5a3 3 0 0 0-3 3v1A2.5 2.5 0 0 0 5 11.5V14a3 3 0 0 0 3 3h.5M14.5 5a3 3 0 0 1 3 3v1A2.5 2.5 0 0 1 19 11.5V14a3 3 0 0 1-3 3H15M9.5 5A2.5 2.5 0 0 1 12 3a2.5 2.5 0 0 1 2.5 2M8.5 17v2M15.5 17v2M12 11v8"/></svg></div><div class="menu-info"><div class="menu-row-title">Anti-repetition</div><div class="menu-row-sub">AI avoids repeating past ideas</div></div><label class="tgl"><input type="checkbox" id="tgl-rep" checked onchange="savePref('antirep',this.checked)"><div class="tgl-s"></div></label></div> </div> </div> <div class="menu-sec"> <div class="menu-sec-title">Personalization</div> <div class="menu-card"> <div class="menu-row" onclick="openNiche()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div><div class="menu-info"><div class="menu-row-title">Creator Profile & Niche</div><div class="menu-row-sub" id="niche-summary">Identity, goals, workflow</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="openM('platform-modal');setTimeout(function(){document.querySelectorAll('#platform-modal .chip, #platform-modal .platform-card').forEach(function(el){el.classList.remove('selected','primary');var badge=el.querySelector('.platform-badge');if(badge)badge.remove();});loadPlatformUI();},50)"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/></svg></div><div class="menu-info"><div class="menu-row-title">Platform Focus</div><div class="menu-row-sub">TikTok, Reels, YouTube, more</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="openM('aesthetic-modal');setTimeout(function(){document.querySelectorAll('#aesthetic-modal .chip').forEach(function(el){el.classList.remove('selected');});loadAestheticUI();},50)"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 15 9M13.5 7.5l1.5-1.5 2 2-1.5 1.5"/><path d="M16 4l.5 1.5L18 6l-1.5.5L16 8l-.5-1.5L14 6l1.5-.5L16 4z"/></svg></div><div class="menu-info"><div class="menu-row-title">Aesthetic & Style</div><div class="menu-row-sub">Visual identity, camera, editing</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="openM('gear-modal');setTimeout(function(){document.querySelectorAll('#gear-modal .chip').forEach(function(el){el.classList.remove('selected');});loadGearUI();},50)"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.5l1.6 1.6M17.5 15.9l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.9 17.5l1.6-1.6M17.5 8.1l1.6-1.6"/></svg></div><div class="menu-info"><div class="menu-row-title">Gear & Setup</div><div class="menu-row-sub">Camera, lens, editing tools</div></div><div class="menu-arrow">&gt;</div></div> </div> </div> <div class="menu-sec"> <div class="menu-sec-title">Data</div> <div class="menu-card"> <div class="menu-row" onclick="S.plan==='pro'?exportLib():openPaywall('generic')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10M8 7l4-4 4 4M5 14v5h14v-5"/></svg></div><div class="menu-info"><div class="menu-row-title">Export saved ideas</div><div class="menu-row-sub">Copy all to clipboard</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="clearHist()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M8 7l1 12h6l1-12"/></svg></div><div class="menu-info"><div class="menu-row-title">Clear scan history</div><div class="menu-row-sub">Resets anti-repetition memory</div></div><div class="menu-arrow">&gt;</div></div> </div> </div> <div class="menu-sec"> <div class="menu-sec-title">About</div> <div class="menu-card"> <div class="menu-row" onclick="showToast('PreShoot v1.0')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/></svg></div><div class="menu-info"><div class="menu-row-title">Version</div><div class="menu-row-sub">PreShoot v1.0</div></div><div class="menu-arrow" style="font-size:12px;color:var(--text2)">v2.0</div></div> <div class="menu-row" onclick="window.open('https://discord.gg/sjxyeGmTsH','_blank')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8.5c3-1.5 5-1.5 8 0M8.5 15.5s.8 1.2 3.5 1.2 3.5-1.2 3.5-1.2"/><circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M6.5 7C8 5 10 4.5 12 4.5S16 5 17.5 7c1.2 2.2 1.7 5.2 1.5 7.5-1.3 1-2.8 1.7-4.5 2.1L13.5 19l-1-2.2c-.5.1-1 .1-1.5 0L10 19l-1-2.4c-1.7-.4-3.2-1.1-4.5-2.1C4.3 12.2 4.8 9.2 6.5 7z"/></svg></div><div class="menu-info"><div class="menu-row-title" style="color:var(--accent)">JOIN THE COMMUNITY!</div><div class="menu-row-sub">Chat, share ideas, get early features</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="openM('privacy-modal')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg></div><div class="menu-info"><div class="menu-row-title">Privacy Policy</div><div class="menu-row-sub">How we handle your data</div></div><div class="menu-arrow">&gt;</div></div> <div class="menu-row" onclick="openM('terms-modal')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></div><div class="menu-info"><div class="menu-row-title">Terms of Service</div><div class="menu-row-sub">Our terms and conditions</div></div><div class="menu-arrow">&gt;</div></div> </div> </div> <div style="height:20px"></div> </div>
 </div> <!-- ═══ PROFILE ═══ -->
@@ -2215,7 +2267,9 @@ html.dir-voice-active{overflow:hidden}
 <div class="modal-ov" id="studio-send-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Send to Studio</div><div class="modal-x" onclick="closeM('studio-send-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body"> <div id="st-send-reason" style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5"></div> <button type="button" class="studio-btn" id="st-send-suggested" style="width:100%;margin-bottom:10px">Use Suggested Project</button> <label class="st-label">Project</label> <select class="st-input" id="st-send-project" onchange="PreShootStudioUI.onSendProjectChange()"></select> <label class="st-label">Production</label> <select class="st-input" id="st-send-production" onchange="PreShootStudioUI.onSendProductionChange()"></select> <div id="st-send-new-prod-wrap"><label class="st-label">New production name</label> <input class="st-input" id="st-send-prod-name" placeholder="e.g. Product Launch Video"></div> <button type="button" class="studio-btn primary" style="width:100%;margin-bottom:16px" onclick="PreShootStudioUI.confirmSend('existing')">Import to selected production</button> <label class="st-label">Or create a new project</label> <input class="st-input" id="st-send-new-name" placeholder="New project name"> <button type="button" class="studio-btn" style="width:100%" onclick="PreShootStudioUI.confirmSend('new')">Create project &amp; import</button> <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.4">Choosing an existing production attaches the idea to that production. It does not create a duplicate. Idea copy is not a script.</div> </div> </div> </div>
  <!-- ═══ NAV ═══ -->
 <nav class="bnav hidden"> <div class="bni active" id="nav-home" onclick="goTab('home')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg></div><div class="bni-lbl">Home</div></div> <div class="bni" id="nav-library" onclick="goTab('library')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v16l-5-3-5 3V4z"/></svg></div><div class="bni-lbl">Library</div></div> <div class="bni" id="nav-studio" onclick="goTab('studio')" aria-label="Studio"><div class="bni-scan bni-studio" title="Studio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="2"/></svg></div><div class="bni-lbl" style="margin-top:6px">Studio</div></div> <div class="bni" id="nav-menu" onclick="goTab('menu')"><div class="bni-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></div><div class="bni-lbl">Menu</div></div> <div class="bni" id="nav-profile" onclick="goTab('profile')"><div class="bni-ico" id="nav-prof-ico"><svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div><div class="bni-lbl">Profile</div></div>
-</nav> <script> var SUPA_URL = 'https://jxtbgsologwvjmcaeahg.supabase.co';
+</nav>
+<div class="bnav-veil" aria-hidden="true"></div>
+<script> var SUPA_URL = 'https://jxtbgsologwvjmcaeahg.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4dGJnc29sb2d3dmptY2FlYWhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODg0MjAsImV4cCI6MjA4OTc2NDQyMH0.y7uPPDNgLf9TyiDKt5QZX3zDitnz0HZlIBpMtGn8NUU';
 var supa = supabase.createClient(SUPA_URL, SUPA_KEY); /* Listen for auth state changes */
 supa.auth.onAuthStateChange(function(event, session) { if (session && session.user) { var u = session.user; S.authUser = { id: u.id, name: u.user_metadata.full_name || u.email.split('@')[0], email: u.email, avatar: u.user_metadata.avatar_url || null, provider: u.app_metadata.provider || 'google' }; S.profile.name = S.profile.name === 'PreShoot Creator' ? S.authUser.name : S.profile.name; if (!S.profile.avatar && S.authUser.avatar) S.profile.avatar = S.authUser.avatar; ss('auth_user', S.authUser); ss('profile', S.profile); /* Track this user in the all-users  table (free + pro, everyone) */
@@ -2299,7 +2353,7 @@ function buildScanSystemPrompt(){
     'GENERATE 6 ideas. Each must:\n'+
     '- Be specific to what is visible in this exact photo\n'+
     '- Match the format locked in the user message\n'+
-    '- Include Primary Hook + exactly 3 Alternative Hooks + hookFramework + hookWhy (see HOOK ENGINE in the user message)\n'+
+    '- Include 4 equal hook candidates (hook plus altHooks[3]) + hookFramework + hookWhy (see HOOK ENGINE in the user message). Do not treat the first as inherently the main hook.\n'+
     '- Include exact camera angle, movement, distance\n'+
     '- Include editing pace, cuts, colour grade\n'+
     '- Include audio direction\n'+
@@ -2307,8 +2361,8 @@ function buildScanSystemPrompt(){
     '- Include 3 hashtags\n'+
     '- Include why this format works psychologically (1 sentence)\n'+
     '- Include 3 filming steps\n'+
-    '- ytSearch must be a PRECISE research query for THIS idea (subject+niche+style). Never generic 2-word dumps. Cars must stay automotive; coffee ads stay cafe/commercial; dentist ads stay dental marketing — never lectures.\n'+
-    '- capcutSearch must name the edit STYLE for CapCut templates (e.g. cinematic cafe promo transitions, automotive speed ramp, gym transformation montage) — not just the topic noun.\n'+
+    '- ytSearch must be a PRECISE research query for THIS idea (subject+niche+style). Never generic 2-word dumps. Cars must stay automotive; coffee ads stay cafe/commercial; dentist ads stay dental marketing, never lectures.\n'+
+    '- capcutSearch must name the edit STYLE for CapCut templates (e.g. cinematic cafe promo transitions, automotive speed ramp, gym transformation montage), not just the topic noun.\n'+
     'Keep shotAngle, editingStyle, audio, whyItWorks, hookWhy, and each filming step under 22 words. filmTime like "8m". Do not drop any JSON fields.\n\n'+
     'Reply ONLY as raw JSON (no markdown):\n'+
     '{"mainSubject":"","sceneType":"urban/nature/indoor/automotive/architectural/beach","sceneLabel":"",'+
@@ -2318,7 +2372,16 @@ function buildScanUserPrompt(){
   var n=S.niche, ae=S.aesthetic||{}, gr=S.gear||{}, pf=S.platformFocus||{};
   var ctx=[]; var niche=n.primaryNiche||n.contentType; if(niche) ctx.push('Niche: '+niche); if(n.secondaryNiche) ctx.push('Also: '+n.secondaryNiche); var plat=pf.primaryPlatform||(pf.platforms&&pf.platforms[0])||n.platform; if(plat) ctx.push('Platform: '+plat); var skill=n.experienceLevel||n.skillLevel; if(skill) ctx.push('Level: '+skill); if(n.editingPace) ctx.push('Edit pace: '+n.editingPace); if(n.videoLength) ctx.push('Length: '+n.videoLength); var goals=Array.isArray(n.goals)?n.goals.join(', '):(n.goals||''); if(goals) ctx.push('Goal: '+goals); if(ae.aesthetics&&ae.aesthetics.length) ctx.push('Style: '+ae.aesthetics.slice(0,3).join(', ')); if(ae.colorPalette&&ae.colorPalette.length) ctx.push('Colour palette: '+ae.colorPalette.join(', ')); if(ae.cameraMovements&&ae.cameraMovements.length) ctx.push('Camera: '+ae.cameraMovements.join(', ')); if(pf.contentStyles&&pf.contentStyles.length) ctx.push('Content prefs: '+pf.contentStyles.join(', ')); var gear=[]; if(gr.camera) gear.push(gr.camera); if(gr.lens) gear.push(gr.lens); if(gr.drone) gear.push(gr.drone); if(gr.gimbal) gear.push(gr.gimbal); if(gear.length) ctx.push('Gear: '+gear.join(', ')); if(gr.editingSoftware&&gr.editingSoftware.length) ctx.push('Software: '+gr.editingSoftware.join(', ')); if(n.filmingLocations) ctx.push('Usual spots: '+n.filmingLocations); var creatorCtx = ctx.length ? 'CREATOR: '+ctx.join(' | ')+'\n' : ''; var avoid = pastIdeas().length ? 'Avoid repeating: '+pastIdeas().slice(0,6).join(', ')+'.\n' : '';
   var fmts={ advert:'FORMAT: Advertisement. Sell via desire, emotion, CTA. Premium, intentional, brand-driven.', ugc:'FORMAT: UGC. Raw, authentic, first-person. No polish. Genuine reaction, personal voice.', educational:'FORMAT: Educational. Teach something valuable. Clear outcome. Tutorial/explainer/tips structure.', viral:'FORMAT: Viral. Engineered for shares and rewatches. Pattern interrupts, surprise, emotional payoff. Use current trending structures for '+(plat||'short-form video')+'.', storytelling:'FORMAT: Storytelling. Full narrative arc, setup, tension, resolution. Emotion and payoff.', trialreel:'FORMAT: Trial Reel. Testing/experiencing something live. Honest, unscripted, real reaction.', meme:'FORMAT: Meme. Comedy-first. Relatable, trending formats, self-aware humour. Tags-a-friend energy.', other:'FORMAT: '+(S.selectedFormatCustom||'Custom, apply user-described format to all ideas.') }; var formatLine = fmts[S.selectedFormat||'viral']; var extraLine = S.selectedFormatExtra ? 'EXTRA CONTEXT FROM CREATOR: '+S.selectedFormatExtra+'\n' : ''; var hookBlock = (window.PreShootHooks && PreShootHooks.buildScanPromptSection) ? PreShootHooks.buildScanPromptSection({ platform: plat, format: S.selectedFormat||'viral', niche: niche||'', goals: goals||'', batchSize: 6 }) : 'Each idea needs a strong 3-second curiosity hook.';
-  return creatorCtx+avoid+formatLine+'\n'+extraLine+'\n'+hookBlock;
+  var trendHint='';
+  if(window.PreShootTrending && typeof PreShootTrending.peek==='function'){
+    try{
+      var tr=PreShootTrending.peek()||[];
+      if(tr.length){
+        trendHint='OPTIONAL LIVE TRENDS (use only if relevant to this photo, niche, and format; never force celebrity or unrelated news):\n'+tr.slice(0,6).map(function(it){return '- '+(it.title||'');}).join('\n')+'\n';
+      }
+    }catch(e){}
+  }
+  return creatorCtx+avoid+formatLine+'\n'+extraLine+'\n'+trendHint+hookBlock;
 }
 function buildPrompt(){ return buildScanSystemPrompt()+'\n\n'+buildScanUserPrompt(); }
 function scanChatPayload(stream){
@@ -2343,7 +2406,7 @@ function scanFriendlyError(raw){
   if(/stack|supabase|anthropic|api key|ECONN|internal/i.test(msg)) return 'Something went wrong while analyzing your image. Please try again.';
   return msg.slice(0,120);
 }
-function startLoad(){ var ov=document.getElementById('load-ov'); if(ov) ov.remove(); var el=document.createElement('div'); el.id='load-ov'; el.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(8,8,16,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(10px)'; el.innerHTML='<div style="width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.06);border-top-color:var(--accent);border-right-color:var(--accent2);animation:spin 1s linear infinite;display:flex;align-items:center;justify-content:center"><div style="width:62px;height:62px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:26px"><svg class="ico-svg" width="26" height="26" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div></div><div style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text)">Scanning...</div><div id="load-step" style="font-size:13px;color:var(--text2);text-align:center;max-width:240px;line-height:1.5">Analyzing image</div><div id="load-idea-count" style="display:none;background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--accent)"></div>'; document.body.appendChild(el);
+function startLoad(){ var ov=document.getElementById('load-ov'); if(ov) ov.remove(); var el=document.createElement('div'); el.id='load-ov'; el.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(8,8,16,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(10px);padding:24px 18px'; var sk=(window.PreShootSkeleton&&PreShootSkeleton.ideaCards)?PreShootSkeleton.ideaCards(6):''; el.innerHTML='<div style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--text)">Scanning</div><div id="load-step" style="font-size:13px;color:var(--text2);text-align:center;max-width:280px;line-height:1.5">Analyzing image</div><div id="load-idea-count" style="display:none;background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--accent)"></div><div style="width:min(420px,100%)">'+sk+'</div>'; document.body.appendChild(el);
 }
 function setLoadStep(txt){var el=document.getElementById('load-step');if(el)el.textContent=txt;}
 function setLoadCount(n){var el=document.getElementById('load-idea-count');if(el){el.style.display='block';el.textContent=n+' of 6 ideas ready...';}}
@@ -2488,9 +2551,9 @@ function openIdea(idx,src){
     if(!hk) return;
     var on=sel.indexOf(hi)>=0;
     h+='<button type="button" class="hook-pick'+(on?' sel':'')+'" data-hook="'+hi+'" aria-pressed="'+(on?'true':'false')+'" onclick="toggleIdeaHook('+hi+')">';
-    h+='<span class="hook-pick-num">'+(hi+1)+'</span>';
+    h+='<span class="hook-pick-num">Hook '+(hi+1)+'</span>';
     h+='<span class="hook-pick-body">'+escapeHtml(hk)+'</span>';
-    h+='<span class="hook-pick-mark" aria-hidden="true">✓</span></button>';
+    h+='<span class="hook-pick-mark" aria-hidden="true"><svg class="ico-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span></button>';
   });
   h+='</div><div class="hook-sel-count" id="hook-sel-count">'+(sel.length===1?'1 hook selected':sel.length+' hooks selected')+'</div>';
   if(item.hookWhy) h+='<div class="hook-why" style="margin-top:10px;font-size:12px;color:var(--text2);line-height:1.5">'+escapeHtml(item.hookWhy)+'</div>';
@@ -2567,12 +2630,35 @@ function openSession(i){ var entry=getHistory()[i]; if(!entry||!entry.ideas||!en
 } // ── HOME ──
 function updateStreak(){ /* Streak is server-authoritative. Do not write localStorage. */ }
 function getStreak(){ return (S.entitlement && S.entitlement.streak && S.entitlement.streak.current) || 0; }
-function renderHome(){ if(window.PreShootStudioUI) PreShootStudioUI.renderContinueCard(); var streak=getStreak(); var dl=document.getElementById('dir-lock'); if(dl) dl.style.display=(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')?'none':'inline'; var sn=document.getElementById('streak-n'); if(sn) sn.textContent=streak+' day'+(streak!==1?'s':''); var isPro=S.plan==='pro', e=S.entitlement||{}, used=scansToday(), rem=Math.max(0,FL-used); if(e.scansUnlimited) isPro=true; if(!e.scansUnlimited && e.freeScansRemaining!=null) rem=Math.max(e.freeScansRemaining, e.dailyScansRemaining||0); var ub=document.getElementById('usage-bar'); var rs=document.getElementById('reward-status'); if(rs){ var bits=[]; if(!isPro && (e.freeScansRemaining||0)>0) bits.push(e.freeScansRemaining+' free scan'+(e.freeScansRemaining!==1?'s':'')); var dirLeft=window.PreShootEntitlements&&PreShootEntitlements.formatRemaining?PreShootEntitlements.formatRemaining(e.accessEndsAt||e.streakAccessEndsAt||e.directorTrialEndsAt):''; var stLeft=window.PreShootEntitlements&&PreShootEntitlements.formatRemaining?PreShootEntitlements.formatRemaining(e.accessEndsAt||e.streakAccessEndsAt||e.studioTrialEndsAt):''; if(dirLeft && !(S.plan==='pro')) bits.push('Director · '+dirLeft); if(stLeft && !(S.plan==='pro') && stLeft!==dirLeft) bits.push('Studio · '+stLeft); if(bits.length){ rs.hidden=false; rs.classList.add('is-on'); rs.innerHTML=bits.map(function(b){return '<span>'+b+'</span>';}).join('<span aria-hidden="true"> · </span>'); } else { rs.hidden=true; rs.classList.remove('is-on'); rs.textContent=''; } } if(!ub) return; ub.classList.toggle('is-pro', !!isPro); if(isPro){ ub.innerHTML='<span class="usage-pill-label">PRO</span><span class="usage-pill-sep" aria-hidden="true">·</span><span class="usage-pill-sub">Unlimited</span>'; } else { var dots=''; var show=Math.max(FL, e.freeScansRemaining||0); var consumed=show-rem; if(e.freeScansRemaining!=null){ show=3; consumed=3-(e.freeScansRemaining||0); rem=e.freeScansRemaining||0; if(rem===0 && (e.dailyScansRemaining||0)>0){ rem=e.dailyScansRemaining; consumed=FL-rem; show=FL; } } for(var d=0;d<show;d++) dots+='<i class="ud'+(d<consumed?' used':'')+'"></i>'; ub.innerHTML='<span class="usage-pill-dots" aria-hidden="true">'+dots+'</span><span class="usage-pill-sub">'+rem+' left</span>'; }
+function renderHome(){ if(typeof paintNavProfile==='function') paintNavProfile(); if(window.PreShootStudioUI) PreShootStudioUI.renderContinueCard(); var streak=getStreak(); var dl=document.getElementById('dir-lock'); if(dl) dl.style.display=(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')?'none':'inline'; var sn=document.getElementById('streak-n'); if(sn) sn.textContent=streak+' day'+(streak!==1?'s':''); var isPro=S.plan==='pro', e=S.entitlement||{}, used=scansToday(), rem=Math.max(0,FL-used); if(e.scansUnlimited) isPro=true; if(!e.scansUnlimited && e.freeScansRemaining!=null) rem=Math.max(e.freeScansRemaining, e.dailyScansRemaining||0); var ub=document.getElementById('usage-bar'); var rs=document.getElementById('reward-status'); if(rs){ var bits=[]; if(!isPro && (e.freeScansRemaining||0)>0) bits.push(e.freeScansRemaining+' free scan'+(e.freeScansRemaining!==1?'s':'')); var dirLeft=window.PreShootEntitlements&&PreShootEntitlements.formatRemaining?PreShootEntitlements.formatRemaining(e.accessEndsAt||e.streakAccessEndsAt||e.directorTrialEndsAt):''; var stLeft=window.PreShootEntitlements&&PreShootEntitlements.formatRemaining?PreShootEntitlements.formatRemaining(e.accessEndsAt||e.streakAccessEndsAt||e.studioTrialEndsAt):''; if(dirLeft && !(S.plan==='pro')) bits.push('Director · '+dirLeft); if(stLeft && !(S.plan==='pro') && stLeft!==dirLeft) bits.push('Studio · '+stLeft); if(bits.length){ rs.hidden=false; rs.classList.add('is-on'); rs.innerHTML=bits.map(function(b){return '<span>'+b+'</span>';}).join('<span aria-hidden="true"> · </span>'); } else { rs.hidden=true; rs.classList.remove('is-on'); rs.textContent=''; } } if(!ub) return; ub.classList.toggle('is-pro', !!isPro); if(isPro){ ub.innerHTML='<span class="usage-pill-label">PRO</span><span class="usage-pill-sep" aria-hidden="true">·</span><span class="usage-pill-sub">Unlimited</span>'; } else { var dots=''; var show=Math.max(FL, e.freeScansRemaining||0); var consumed=show-rem; if(e.freeScansRemaining!=null){ show=3; consumed=3-(e.freeScansRemaining||0); rem=e.freeScansRemaining||0; if(rem===0 && (e.dailyScansRemaining||0)>0){ rem=e.dailyScansRemaining; consumed=FL-rem; show=FL; } } for(var d=0;d<show;d++) dots+='<i class="ud'+(d<consumed?' used':'')+'"></i>'; ub.innerHTML='<span class="usage-pill-dots" aria-hidden="true">'+dots+'</span><span class="usage-pill-sub">'+rem+' left</span>'; }
 } // ── MENU ──
 function renderMenu(){ updateNicheSummary(); var tgls=[['tgl-notif','notif'],['tgl-hist','hist'],['tgl-rep','antirep']]; tgls.forEach(function(t){var el=document.getElementById(t[0]);if(el)el.checked=S.prefs[t[1]]!==false;});
 }
 function savePref(k,v){S.prefs[k]=v;ss('prefs',S.prefs);showToast('Saved');} // ── PROFILE ──
-function renderProf(){ var streak=getStreak(),saved=getLib().length,total=gs('total_scans',0); var isPro=S.plan==='pro',user=S.authUser,p=S.profile; var e=S.entitlement||{}; var h=''; h+='<div class="prof-hd"><div class="prof-title">Profile</div><button class="prof-edit-btn" onclick="openEditProf()">Edit</button></div>'; if(!user){ h+='<div class="auth-card"><div class="auth-inner">'; h+='<div style="margin-bottom:10px;color:var(--text3)"><svg class="ico-svg" width="44" height="44" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div>'; h+='<div style="font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:6px;color:var(--text)">Sign in to PreShoot</div>'; h+='<div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5">Save ideas across devices.</div>'; h+='<button class="auth-btn auth-apple" onclick="authWith(\'apple\')">Sign in with Apple</button>'; h+='<div class="auth-divider">or</div>'; h+='<button class="auth-btn auth-google" onclick="authWith(\'google\')"><span style="font-weight:800;color:#4285F4;font-size:16px">G</span> Sign in with Google</button>'; h+='</div></div>'; } else { h+='<div class="prof-hero">'; h+='<div class="prof-av" onclick="document.getElementById(\'av-in\').click()">'; h+=(p.avatar?'<img src="'+p.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">':(p.name?p.name[0].toUpperCase():'S')); h+='<div class="prof-av-badge"></div></div>'; h+='<div class="prof-name">'+escapeHtml(p.name||user.name||'PreShoot Creator')+'</div>'; h+='<div class="prof-handle">'+escapeHtml(p.handle||user.email||'@creator')+'</div>'; if(p.bio) h+='<div style="font-size:13px;color:var(--text2);margin-top:6px">'+escapeHtml(p.bio||'')+'</div>'; h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-top:8px"><div style="width:6px;height:6px;border-radius:50%;background:'+(isPro?'var(--text)':'var(--text3)')+'"></div>'+(isPro?'PreShoot Pro':'Free Plan')+'</div>'; h+='</div>'; } h+='<div class="prof-stats"><div class="prof-stat"><div class="prof-stat-num">'+total+'</div><div class="prof-stat-lbl">Scans</div></div><div class="prof-stat"><div class="prof-stat-num">'+saved+'</div><div class="prof-stat-lbl">Saved</div></div><div class="prof-stat"><div class="prof-stat-num">'+streak+'</div><div class="prof-stat-lbl">Streak</div></div></div>'; if(user) h+='<div id="prof-streak-slot">'+(window.PreShootStreak&&PreShootStreak.renderProfileBlock?PreShootStreak.renderProfileBlock():'')+'</div>'; h+=(window.PreShootResearch&&PreShootResearch.renderConnectedAccountsSection)?PreShootResearch.renderConnectedAccountsSection(user):''; h+='<div class="menu-sec"><div class="menu-sec-title">Plan</div><div class="menu-card"><div class="menu-row" onclick="openPaywall(\'generic\')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></div><div class="menu-info"><div class="menu-row-title">'+(isPro?'PreShoot Pro, Unlimited':((e.freeScansRemaining||0)>0||(window.PreShootEntitlements&&PreShootEntitlements.remainingMs(e.directorTrialEndsAt)>0)?'Welcome gift':'Free, 3 scans/day'))+'</div><div class="menu-row-sub">'+(isPro?'All features unlocked':((e.freeScansRemaining||0)>0?'3 scans + 24h Director & Studio':'Tap to upgrade'))+'</div></div><div class="menu-arrow">&gt;</div></div>'+(isPro?'<div class="menu-row" onclick="manageSubscription()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></div><div class="menu-info"><div class="menu-row-title">Manage Subscription</div><div class="menu-row-sub">Change plan or cancel anytime</div></div><div class="menu-arrow">&gt;</div></div>':'')+'</div></div>'; if(user){ var _refUrl=(window.PreShootAnalytics&&PreShootAnalytics.referralShareUrl)?PreShootAnalytics.referralShareUrl():''; h+='<div class="menu-sec"><div class="menu-sec-title">Invite creators</div><div class="menu-card"><div class="menu-row" onclick="copyReferralLink()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 8a4 4 0 1 0-3.2 3.9M8 16a4 4 0 1 0 3.2-3.9M8.8 12.1l6.4-4.2"/></svg></div><div class="menu-info"><div class="menu-row-title">Share your invite link</div><div class="menu-row-sub">Track signups from creators you invite</div></div><div class="menu-arrow">&gt;</div></div></div></div>'; h+='<div class="menu-sec"><div class="menu-card"><div class="menu-row" onclick="signOut()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></div><div class="menu-info"><div class="menu-row-title">Sign out</div><div class="menu-row-sub">'+escapeHtml(user.email||'')+'</div></div><div class="menu-arrow">&gt;</div></div></div></div>'; } h+='<div style="height:20px"></div>'; document.getElementById('prof-sb').innerHTML=h; var navIco=document.getElementById('nav-prof-ico'); if(navIco) navIco.textContent=p.avatar?'':((p.name&&p.name[0])||'');
+function paintNavProfile(){
+  var navIco=document.getElementById('nav-prof-ico');
+  if(!navIco) return;
+  var p=S.profile||{};
+  var user=S.authUser;
+  var person='<svg class="ico-svg" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg>';
+  navIco.innerHTML='';
+  if(p.avatar){
+    var img=document.createElement('img');
+    img.className='nav-av-img';
+    img.alt='';
+    img.src=p.avatar;
+    navIco.appendChild(img);
+  } else {
+    navIco.innerHTML=person;
+  }
+  if(user){
+    var d=document.createElement('span');
+    d.className='nav-av-dot';
+    d.setAttribute('aria-hidden','true');
+    navIco.appendChild(d);
+  }
+}
+function renderProf(){ var streak=getStreak(),saved=getLib().length,total=gs('total_scans',0); var isPro=S.plan==='pro',user=S.authUser,p=S.profile; var e=S.entitlement||{}; var h=''; h+='<div class="prof-hd"><div class="prof-title">Profile</div><button class="prof-edit-btn" onclick="openEditProf()">Edit</button></div>'; if(!user){ h+='<div class="auth-card"><div class="auth-inner">'; h+='<div style="margin-bottom:10px;color:var(--text3)"><svg class="ico-svg" width="44" height="44" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></div>'; h+='<div style="font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:6px;color:var(--text)">Sign in to PreShoot</div>'; h+='<div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5">Save ideas across devices.</div>'; h+='<button class="auth-btn auth-apple" onclick="authWith(\'apple\')">Sign in with Apple</button>'; h+='<div class="auth-divider">or</div>'; h+='<button class="auth-btn auth-google" onclick="authWith(\'google\')"><span style="font-weight:800;color:#4285F4;font-size:16px">G</span> Sign in with Google</button>'; h+='</div></div>'; } else { h+='<div class="prof-hero">'; h+='<div class="prof-av" onclick="document.getElementById(\'av-in\').click()"><div class="prof-av-frame">'+(p.avatar?'<img src="'+p.avatar+'" alt="">':(p.name?p.name[0].toUpperCase():'S'))+'</div><div class="prof-av-badge"></div></div>'; h+='<div class="prof-name">'+escapeHtml(p.name||user.name||'PreShoot Creator')+'</div>'; h+='<div class="prof-handle">'+escapeHtml(p.handle||user.email||'@creator')+'</div>'; if(p.bio) h+='<div style="font-size:13px;color:var(--text2);margin-top:6px">'+escapeHtml(p.bio||'')+'</div>'; h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-top:8px"><div style="width:6px;height:6px;border-radius:50%;background:'+(isPro?'var(--text)':'var(--text3)')+'"></div>'+(isPro?'PreShoot Pro':'Free Plan')+'</div>'; h+='</div>'; } h+='<div class="prof-stats"><div class="prof-stat"><div class="prof-stat-num">'+total+'</div><div class="prof-stat-lbl">Scans</div></div><div class="prof-stat"><div class="prof-stat-num">'+saved+'</div><div class="prof-stat-lbl">Saved</div></div><div class="prof-stat"><div class="prof-stat-num">'+streak+'</div><div class="prof-stat-lbl">Streak</div></div></div>'; if(user) h+='<div id="prof-streak-slot">'+(window.PreShootStreak&&PreShootStreak.renderProfileBlock?PreShootStreak.renderProfileBlock():'')+'</div>'; h+=(window.PreShootResearch&&PreShootResearch.renderConnectedAccountsSection)?PreShootResearch.renderConnectedAccountsSection(user):''; h+='<div class="menu-sec"><div class="menu-sec-title">Plan</div><div class="menu-card"><div class="menu-row" onclick="openPaywall(\'generic\')"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></div><div class="menu-info"><div class="menu-row-title">'+(isPro?'PreShoot Pro, Unlimited':((e.freeScansRemaining||0)>0||(window.PreShootEntitlements&&PreShootEntitlements.remainingMs(e.directorTrialEndsAt)>0)?'Welcome gift':'Free, 3 scans/day'))+'</div><div class="menu-row-sub">'+(isPro?'All features unlocked':((e.freeScansRemaining||0)>0?'3 scans + 24h Director & Studio':'Tap to upgrade'))+'</div></div><div class="menu-arrow">&gt;</div></div>'+(isPro?'<div class="menu-row" onclick="manageSubscription()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></div><div class="menu-info"><div class="menu-row-title">Manage Subscription</div><div class="menu-row-sub">Change plan or cancel anytime</div></div><div class="menu-arrow">&gt;</div></div>':'')+'</div></div>'; if(user){ var _refUrl=(window.PreShootAnalytics&&PreShootAnalytics.referralShareUrl)?PreShootAnalytics.referralShareUrl():''; h+='<div class="menu-sec"><div class="menu-sec-title">Invite creators</div><div class="menu-card"><div class="menu-row" onclick="copyReferralLink()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 8a4 4 0 1 0-3.2 3.9M8 16a4 4 0 1 0 3.2-3.9M8.8 12.1l6.4-4.2"/></svg></div><div class="menu-info"><div class="menu-row-title">Share your invite link</div><div class="menu-row-sub">Track signups from creators you invite</div></div><div class="menu-arrow">&gt;</div></div></div></div>'; h+='<div class="menu-sec"><div class="menu-card"><div class="menu-row" onclick="signOut()"><div class="menu-ico" style="background:var(--s2)"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.2 4.2L17.5 8.5 13.2 9.8 12 14l-1.2-4.2L6.5 8.5l4.3-1.3L12 3z"/><path d="M18.5 14l.6 2.1 2.1.6-2.1.6-.6 2.1-.6-2.1-2.1-.6 2.1-.6.6-2.1z"/></svg></div><div class="menu-info"><div class="menu-row-title">Sign out</div><div class="menu-row-sub">'+escapeHtml(user.email||'')+'</div></div><div class="menu-arrow">&gt;</div></div></div></div>'; } h+='<div style="height:20px"></div>'; document.getElementById('prof-sb').innerHTML=h; paintNavProfile();
 }
 function openEditProf(){ var p=S.profile; document.getElementById('edit-name').value=p.name||''; document.getElementById('edit-handle').value=p.handle||''; document.getElementById('edit-bio').value=p.bio||''; var avEl=document.getElementById('edit-av'); if(avEl) avEl.innerHTML=p.avatar?'<img src="'+p.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">':(p.name?p.name[0].toUpperCase():'S'); openM('edit-modal');
 }
@@ -2619,7 +2705,7 @@ function applyTheme(){
     r.style.setProperty('--text-muted','rgba(0,0,0,.32)');
     r.style.setProperty('--surface','#FFFFFF');
     r.style.setProperty('--surface-secondary','#EEEEEE');
-    r.style.setProperty('--danger','#E5484D');
+    r.style.setProperty('--danger','#e5484d');
     r.style.setProperty('--danger-hover','#C73B40');
   } else {
     r.style.setProperty('--bg','#000000');
@@ -2643,7 +2729,7 @@ function applyTheme(){
     r.style.setProperty('--text-muted','rgba(255,255,255,.32)');
     r.style.setProperty('--surface','#111111');
     r.style.setProperty('--surface-secondary','#1a1a1a');
-    r.style.setProperty('--danger','#E5484D');
+    r.style.setProperty('--danger','#e5484d');
     r.style.setProperty('--danger-hover','#C73B40');
   }
   r.style.setProperty('--sh','none');
@@ -2825,149 +2911,18 @@ var parts = []; if (n.primaryNiche) parts.push(n.primaryNiche); else if (n.conte
 } /* ============================================= */
 /* DIRECTOR */
 /* ============================================= */
-function buildDirectorContext() { /* Returns creator profile context only. The Director identity and instructions are handled server-side by /api/director.js. FUTURE: this function can be replaced with a server-side Supabase profile lookup. */
-var n = S.niche||{}; var pf=S.platformFocus||{}; var ae=S.aesthetic||{}; var gr=S.gear||{}; var lines = [];
-var niche=n.primaryNiche||n.contentType; if(niche) lines.push('Niche: '+niche);
-if(n.secondaryNiche) lines.push('Also shoots: '+n.secondaryNiche);
-var plat=pf.primaryPlatform||(pf.platforms&&pf.platforms[0])||n.platform; if(plat) lines.push('Primary platform: '+plat);
-if(pf.platforms&&pf.platforms.length) lines.push('Platforms: '+pf.platforms.join(', '));
-if(pf.contentStyles&&pf.contentStyles.length) lines.push('Content styles: '+pf.contentStyles.join(', '));
-var skill=n.experienceLevel||n.skillLevel; if(skill) lines.push('Skill level: '+skill);
-var goals=Array.isArray(n.goals)?n.goals.join(', '):(n.goals||''); if(goals) lines.push('Goals: '+goals);
-if(ae.aesthetics&&ae.aesthetics.length) lines.push('Visual aesthetic: '+ae.aesthetics.join(', '));
-if(ae.colorPalette&&ae.colorPalette.length) lines.push('Preferred colour palette: '+ae.colorPalette.join(', '));
-if(ae.lighting) lines.push('Lighting preference: '+ae.lighting);
-if(ae.cameraMovements&&ae.cameraMovements.length) lines.push('Camera movement: '+ae.cameraMovements.join(', '));
-if(ae.shotStyles&&ae.shotStyles.length) lines.push('Shot styles: '+ae.shotStyles.join(', '));
-if(ae.pacing) lines.push('Pacing: '+ae.pacing);
-if(ae.transitionStyle) lines.push('Transitions: '+ae.transitionStyle);
-var gearBits=[]; ['camera','lens','drone','microphone','lighting','gimbal'].forEach(function(k){ if(gr[k]) gearBits.push(k+': '+gr[k]); });
-if(gr.editingSoftware&&gr.editingSoftware.length) gearBits.push('Edit: '+gr.editingSoftware.join(', '));
-if(gearBits.length) lines.push('Gear: '+gearBits.join(' | '));
-else if(n.gear) lines.push('Gear: '+n.gear);
-if(n.style) lines.push('Style notes: '+n.style);
-if(n.extraContext) lines.push('Extra context: '+n.extraContext);
-if(S.dirActiveIdea){ var di=S.dirActiveIdea; lines.push('ACTIVE IDEA: '+ (di.title||'')); if(di.category) lines.push('Format: '+di.category); if(di.hook) lines.push('SELECTED PRIMARY HOOK (lock script to this promise): '+di.hook); if(di.primaryHook&&di.primaryHook!==di.hook) lines.push('Original primary hook: '+di.primaryHook); if(di.altHooks&&di.altHooks.length) lines.push('Alternative hooks: '+di.altHooks.filter(Boolean).join(' | ')); if(di.hookWhy) lines.push('Why hook works: '+di.hookWhy); if(di.hookFramework) lines.push('Hook framework: '+di.hookFramework); lines.push('SCRIPT RULE: Open with the selected hook. Body and ending must pay off the curiosity/tension created. Do not abandon the opening promise.'); if(di.shotAngle||di.shot) lines.push('Shot approach: '+(di.shotAngle||di.shot)); if(di.editingStyle) lines.push('Edit style: '+di.editingStyle); if(di.audio) lines.push('Audio: '+di.audio); if(di.sceneLabel) lines.push('Scene: '+di.sceneLabel); }
-/* Phase 4: auto-load active Production Workspace context */
-if(window.PreShootStudio && S.activeProductionId){
-  try{
-    var pctx = PreShootStudio.getDirectorContext(S.activeProductionId);
-    window.__preshootDirectorProduction = pctx;
-    if(pctx && pctx.production){
-      var pp = pctx.production;
-      lines.push('ACTIVE PRODUCTION WORKSPACE');
-      lines.push('Production: '+(pp.name||''));
-      if(pctx.project && pctx.project.name) lines.push('Project: '+pctx.project.name);
-      if(pp.status) lines.push('Status: '+pp.status+(pp.progress!=null?' ('+pp.progress+'%)':''));
-      if(pp.overview){
-        if(pp.overview.platform) lines.push('Platform: '+pp.overview.platform);
-        if(pp.overview.format) lines.push('Format: '+pp.overview.format);
-        if(pp.overview.goal) lines.push('Goal: '+pp.overview.goal);
-        if(pp.overview.summary) lines.push('Summary: '+pp.overview.summary);
-      }
-      if(pp.ideaSnapshot && pp.ideaSnapshot.hook) lines.push('Hook: '+pp.ideaSnapshot.hook);
-      if(pp.scanRef && (pp.scanRef.mainSubject||pp.scanRef.sceneLabel)) lines.push('Scan: '+(pp.scanRef.mainSubject||pp.scanRef.sceneLabel));
-      if(pp.shotList && pp.shotList.length){
-        lines.push('SHOT LIST ('+pp.shotList.length+'):');
-        pp.shotList.slice(0,12).forEach(function(sh){
-          lines.push('Shot '+(sh.order||'')+' ['+(sh.purpose||'')+' / '+(sh.durationSec||'?')+'s]: '+(sh.framing||sh.notes||sh.cameraMovement||''));
-        });
-      }
-      if(pp.scriptLines && pp.scriptLines.length){
-        lines.push('SCRIPT LINES:');
-        pp.scriptLines.slice(0,12).forEach(function(ln){
-          lines.push((ln.shotOrder?('Shot '+ln.shotOrder+': '):'')+'"'+(ln.text||'')+'"');
-        });
-      }
-      lines.push('Adapt all advice to skill level: '+(pctx.skillLevel||'intermediate')+'. User should never need to re-explain this production.');
-    }
-  }catch(e){}
-}
-
-/* Phase 5: health, suggestions, timeline, performance, global home */
-if(window.PreShootStudio){
-  try{
-    if(S.activeProductionId){
-      var p5 = window.__preshootDirectorProduction || PreShootStudio.getDirectorContext(S.activeProductionId);
-      if(p5 && p5.production){
-        if(p5.production.healthScore!=null) lines.push('Production health: '+p5.production.healthScore+'%');
-        if(p5.production.suggestions && p5.production.suggestions.length){
-          lines.push('Director suggestions: '+p5.production.suggestions.map(function(s){return s.text;}).join(' | '));
-        }
-        if(p5.production.timeline && p5.production.timeline.length){
-          var tl = p5.production.timeline.slice(-6).map(function(e){return e.label||e.type;}).join(' → ');
-          lines.push('Timeline: '+tl);
-        }
-        var perf = p5.production.performance||{};
-        var perfBits=[];
-        ['views','likes','comments','watchTime','ctr'].forEach(function(k){ if(perf[k]) perfBits.push(k+': '+perf[k]); });
-        if(perf.pdfName) perfBits.push('PDF: '+perf.pdfName);
-        if(perf.notes) perfBits.push('Notes: '+perf.notes);
-        if(perfBits.length) lines.push('Performance metrics: '+perfBits.join(' | '));
-        lines.push('ACTION RULE: Propose data-changing actions for confirmation only. Never mutate without user Confirm.');
-      }
-    } else {
-      var gctx = PreShootStudio.getDirectorContext(null);
-      window.__preshootDirectorProduction = gctx;
-      if(gctx && gctx.home){
-        lines.push('GLOBAL WORKSPACE CONTEXT');
-        if(gctx.home.continueWorking){
-          var cw=gctx.home.continueWorking;
-          lines.push('Continue working: '+(cw.production&&cw.production.name)+' in '+(cw.project&&cw.project.name)+' ('+(cw.progress||0)+'%)');
-        }
-        if(gctx.home.nextAction && gctx.home.nextAction.text) lines.push('Suggested next: '+gctx.home.nextAction.text);
-        if(gctx.home.recentProductions && gctx.home.recentProductions.length){
-          lines.push('Recent productions: '+gctx.home.recentProductions.map(function(r){return r.name+' ['+r.status+' · '+r.health+'%]';}).join(', '));
-        }
-      }
-      lines.push('ACTION RULE: Propose workspace actions for confirmation. Never mutate without user Confirm.');
-    }
-  }catch(e){}
-}
-
-/* Phase 5B/5C: shared workspace collaboration context only (never personal data) */
-if(window.PreShootWorkspace && PreShootWorkspace.isShared && PreShootWorkspace.isShared()){
-  try{
-    var wctx = PreShootWorkspace.getContext();
-    lines.push('SHARED WORKSPACE: '+(wctx.activeWorkspaceName||'Workspace')+' (role: '+(wctx.activeWorkspaceRole||'')+')');
-    if(wctx.activeWorkspaceRevision!=null) lines.push('Workspace revision: '+wctx.activeWorkspaceRevision);
-    var peers = (wctx.presence||[]).filter(function(p){ return p && p.userId && !(S.authUser && p.userId===S.authUser.id); });
-    if(peers.length){
-      lines.push('People here: '+peers.map(function(p){
-        return (p.displayName||'Collaborator')+(p.editing?' (editing)':'')+(p.activeProductionId?' on a production':'');
-      }).join(', '));
-    }
-    var acts = (wctx.recentActivity||[]).slice(0,6);
-    if(acts.length){
-      lines.push('Recent workspace activity:');
-      acts.forEach(function(a){
-        var who=a.name||'Collaborator';
-        var typ=a.type_label||a.activity_label||(a.change&&a.change.type)||'updated';
-        var ent=a.entity_label||(a.change&&a.change.entityLabel)||'';
-        lines.push('- '+who+': '+typ+(ent?' "'+ent+'"':''));
-      });
-    }
-    var feedback = (wctx.commentFeedback||[]).slice(0,8);
-    if(feedback.length){
-      lines.push('Unresolved collaborative feedback (workspace comments only):');
-      feedback.forEach(function(f){
-        lines.push('- '+(f.author_name||'Collaborator')+' on '+(f.target_type||'item')+': '+(f.body||'').slice(0,120));
-      });
-    }
-    lines.push('COLLAB RULE: Describe known activity and authorized workspace comments only. Never invent edits. Never use private personal Director history from other users.');
-    lines.push('MUTATION RULE: Only owner/editor may mutate Studio. Commenter/viewer may summarize feedback and suggest changes but must not claim Studio was updated.');
-    if(wctx.activeWorkspaceRole==='commenter'||wctx.activeWorkspaceRole==='viewer'){
-      lines.push('CURRENT ROLE IS READ-ONLY FOR MUTATIONS: Do not emit Studio mutation tools. Summarize and suggest only.');
-    }
-  }catch(e){}
-}
-
-if(window.PreShootHooks&&PreShootHooks.buildDirectorPromptSection){ lines.push(PreShootHooks.buildDirectorPromptSection()); }
- var hist = getHistory().slice(0, 5); var lib = getLib().slice(0, 5); if (hist.length) lines.push('Recent scan locations: ' + hist.map(function(h){ return h.sceneLabel || h.sceneType; }).join(', ')); if (lib.length) lines.push('Saved ideas: ' + lib.map(function(i){ return i.title; }).join(', ')); if (S.ideas && S.ideas.length) lines.push('Current session ideas: ' + S.ideas.map(function(i){ return i.title; }).join(', '));
-if (window.PreShootDirectorOS && PreShootDirectorOS.buildOSContext) {
-  try { lines.push(PreShootDirectorOS.buildOSContext({ surface: PreShootDirectorOS.getSurface() })); } catch (e) {}
-}
-return lines.join('\n'); 
+function buildDirectorContext(taskOrOpts) {
+  var task = typeof taskOrOpts === 'string' ? taskOrOpts : (taskOrOpts && taskOrOpts.task);
+  if (!task && window.PreShootDirectorContext && PreShootDirectorContext.inferTask) {
+    var inp = document.getElementById('dir-input');
+    task = PreShootDirectorContext.inferTask(inp && inp.value);
+  }
+  if (window.PreShootDirectorContext && PreShootDirectorContext.build) {
+    var pack = PreShootDirectorContext.build({ task: task || 'general' });
+    window.__preshootDirectorPack = pack;
+    return pack.text;
+  }
+  return '';
 } /* ============================================= */
 /* FORMAT PICKER */
 /* ============================================= */
@@ -3167,7 +3122,10 @@ function addDirMsg(role,text,save){ if(save===undefined) save=false; var msgs=do
 } var _dirStreaming=false; function sendDirector(){ if(_dirStreaming){ if(typeof showToast==='function') showToast('Director is still responding…'); return; } var inp=document.getElementById('dir-input'); var msg=inp?inp.value.trim():''; if(!msg) return; if(window.PreShootAnalytics) PreShootAnalytics.track('director_action_requested',{path:'chat'}); var dt=gs('dir_today',{date:'',count:0}); var today=new Date().toDateString(); if(dt.date!==today) dt={date:today,count:0}; if(dt.count>=50){showToast('50 message daily limit reached');return;} dt.count++; ss('dir_today',dt); inp.value=''; inp.style.height='42px'; var btn=document.getElementById('dir-send-btn'); if(btn) btn.style.opacity='.4'; _dirStreaming=true; addDirMsg('user',msg,true); /* ── Build conversation  history (user/assistant only) ── */
 var conv=getActiveDirConv(); var history=[]; if(conv&&conv.messages&&conv.messages.length){ history=conv.messages.slice(-14).map(function(m){return {role:m.role,content:m.content};}); } /* Remove any trailing user turn, we append the fresh message below */
 while(history.length && history[history.length-1].role==='user') history.pop(); history.push({role:'user',content:msg}); /* ── Build creator context (separate from system prompt) ── // This is passed to /api/director which appends it to the system prompt server-side. // FUTURE: this can be replaced with a Supabase profile fetch from the server. */
-var context = buildDirectorContext();
+var _dirTask = (window.PreShootDirectorContext && PreShootDirectorContext.inferTask) ? PreShootDirectorContext.inferTask(msg) : 'general';
+var _dirPack = (window.PreShootDirectorContext && PreShootDirectorContext.build) ? PreShootDirectorContext.build({ task: _dirTask }) : null;
+window.__preshootDirectorPack = _dirPack;
+var context = (_dirPack && _dirPack.text) ? _dirPack.text : buildDirectorContext(_dirTask);
 if (window.PreShootDirectorOS && PreShootDirectorOS.matchIntent) {
   try {
     var _intent = PreShootDirectorOS.matchIntent(msg, { surface: PreShootDirectorOS.getSurface() });
@@ -3178,8 +3136,13 @@ if (window.PreShootDirectorOS && PreShootDirectorOS.matchIntent) {
     }
   } catch (e) { window.__preshootPendingDirectorIntent = null; }
 }
-var pendingImg=S.dirPendingImage||null; S.dirPendingImage=null; var bub=addDirStreamBubble(); var fullText=''; var sseBuf=''; /* ── Call /api/director, NOT /api/chat ── // director.js injects the Director™ system prompt server-side. // chat.js is left untouched for scan analysis. */
-apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify((function(){ var _b={ messages: history, context: context, stream: true, image: pendingImg||undefined }; if(window.PreShootWorkspace&&PreShootWorkspace.workspaceIdForDirector){ var _w=PreShootWorkspace.workspaceIdForDirector(); if(_w)_b.workspace_id=_w; } return _b; })()) }) .then(function(res){ if(!res.ok){ return res.text().then(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); _dirStreaming=false; if(btn) btn.style.opacity='1'; }).catch(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } if(!res.body||!res.body.getReader){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); _dirStreaming=false; if(btn) btn.style.opacity='1'; return; } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ if(!String(fullText||'').trim()){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); _dirStreaming=false; if(btn) btn.style.opacity='1'; return; } var _displayFull = cleanDirectorText(fullText); if(bub) applyDirBubbleContent(bub, _displayFull);
+var pendingImg=S.dirPendingImage||null; S.dirPendingImage=null; var bub=addDirStreamBubble(); var fullText=''; var sseBuf='';
+var _dirStages = (_dirPack && _dirPack.stages && _dirPack.stages.length) ? _dirPack.stages : ['Preparing reply'];
+var _dirStageI = 0;
+function _dirPaintStage(){ if(fullText||!bub) return; bub.textContent = (_dirStages[_dirStageI]||_dirStages[_dirStages.length-1]) + '...'; }
+_dirPaintStage();
+var _dirStageTimer = setInterval(function(){ if(fullText){ clearInterval(_dirStageTimer); return; } _dirStageI = Math.min(_dirStageI+1, _dirStages.length-1); _dirPaintStage(); }, 1800); /* ── Call /api/director, NOT /api/chat ── // director.js injects the Director™ system prompt server-side. // chat.js is left untouched for scan analysis. */
+apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify((function(){ var _b={ messages: history, context: context, stream: true, image: pendingImg||undefined }; if(window.PreShootWorkspace&&PreShootWorkspace.workspaceIdForDirector){ var _w=PreShootWorkspace.workspaceIdForDirector(); if(_w)_b.workspace_id=_w; } return _b; })()) }) .then(function(res){ if(!res.ok){ return res.text().then(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; }).catch(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } if(!res.body||!res.body.getReader){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; return; } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ if(!String(fullText||'').trim()){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; return; } var _displayFull = cleanDirectorText(fullText); if(bub) applyDirBubbleContent(bub, _displayFull);
 if (window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply) {
   try {
     var _act = PreShootDirectorOS.parseActionFromReply(fullText);
@@ -3195,7 +3158,7 @@ if (window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply) {
     }
   } catch (e) {}
 }
-saveMsgToConv('ai',_displayFull); S.directorHistory.push({role:'user',content:msg}); S.directorHistory.push({role:'assistant',content:_displayFull}); ss('director_history',S.directorHistory); _dirStreaming=false; if(btn) btn.style.opacity='1'; var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; return; } sseBuf+=decoder.decode(r.value,{stream:true}); var lines=sseBuf.split('\n'); sseBuf=lines.pop(); lines.forEach(function(line){ if(!line.startsWith('data: ')) return; var data=line.slice(6).trim(); if(!data||data==='[DONE]') return; try{ var evt=JSON.parse(data); if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){ fullText+=evt.delta.text; if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); var caret=document.createElement('span'); caret.style.cssText='display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px'; bub.appendChild(caret); var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; } } }catch(e){} }); return pump(); }); } return pump(); }) .catch(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); _dirStreaming=false; if(btn) btn.style.opacity='1'; }); 
+saveMsgToConv('ai',_displayFull); S.directorHistory.push({role:'user',content:msg}); S.directorHistory.push({role:'assistant',content:_displayFull}); ss('director_history',S.directorHistory); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; return; } sseBuf+=decoder.decode(r.value,{stream:true}); var lines=sseBuf.split('\n'); sseBuf=lines.pop(); lines.forEach(function(line){ if(!line.startsWith('data: ')) return; var data=line.slice(6).trim(); if(!data||data==='[DONE]') return; try{ var evt=JSON.parse(data); if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){ if(!fullText && _dirStageTimer) clearInterval(_dirStageTimer); fullText+=evt.delta.text; if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); var caret=document.createElement('span'); caret.style.cssText='display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px'; bub.appendChild(caret); var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; } } }catch(e){} }); return pump(); }); } return pump(); }) .catch(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; }); 
 } function clearDirectorChat(){ newDirConversation();
 } /* ── Kinetic grid background on home screen ── */
 var homeKineticGrid = null;

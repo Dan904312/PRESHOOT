@@ -127,6 +127,10 @@
       "dest": "/api/research?__resource=trends"
     },
     {
+      "src": "/api/performance",
+      "dest": "/api/research?__resource=performance"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     },
