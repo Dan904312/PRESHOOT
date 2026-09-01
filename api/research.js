@@ -14,7 +14,8 @@ import {
 import { trackProductEventServer } from '../lib/product-events.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
 import { normalizeAnthropicUsage, estimateAiCostFromUsage } from '../lib/ai-pricing.js';
-import { getTrendDataset, memoryGet, memorySet, sanitizeRegion } from '../lib/trends.js';
+import { getTrendDataset, memoryGet, memorySet, sanitizeRegion, searchTrendsByTopic } from '../lib/trends.js';
+import { detectVideoPlatform, parseYouTubeVideoId } from '../lib/content-performance.js';
 
 const MAX_ITEMS = 5;
 
@@ -450,10 +451,11 @@ async function researchCapCut(ctx) {
   const system = `You are a CapCut template strategist for professional short-form editors.
 Recommend HIGH-QUALITY CapCut template search targets for ONE specific video idea.
 Rules:
-- Match content STYLE (cinematic café promo, speed-ramp car edit, gym transformation montage) — not just the noun.
-- Prefer popular, modern, commercially useful templates: product reveals, lifestyle reels, smooth food transitions, luxury automotive, fitness montages, etc.
-- Avoid outdated/meme-only/low-effort suggestions unless the idea is explicitly meme format.
-- Each recommendation needs a precise CapCut template-center keyword (3–7 words).
+- Match the idea, hook, format, platform, niche, tone, pacing, visual style, and production complexity.
+- Prefer edit STYLE keywords (cinematic cafe promo transitions, automotive speed ramp, gym transformation montage), not a single noun.
+- Do not recommend a template because one keyword overlaps. If the idea is filmmaking, do not return celebrity or unrelated meme templates.
+- CapCut has no public template catalog API. Return search keywords for template-center URLs only. Never invent template IDs or fake previews.
+- Each recommendation needs a precise CapCut template-center keyword (3-7 words).
 - Output JSON only.`;
 
   const user = `Idea context:\n${contextBlock(ctx)}\n\nReturn JSON:
@@ -540,6 +542,7 @@ function resourceOf(req) {
   if (q.__resource) return String(q.__resource);
   const raw = String(req.url || '');
   if (raw.indexOf('/api/trends') >= 0) return 'trends';
+  if (raw.indexOf('/api/performance') >= 0) return 'performance';
   return 'research';
 }
 
@@ -611,15 +614,36 @@ async function handleTrends(req, res) {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const region = sanitizeRegion(q.region || body.region || 'US');
   const force = String(q.refresh || body.refresh || '') === '1';
+  const topic = String(q.q || body.q || '').trim().slice(0, 80);
+  const youtubeKey = process.env.YOUTUBE_API_KEY || process.env.GOOGLE_YOUTUBE_API_KEY || '';
 
   try {
     const dataset = await getTrendDataset({
       region,
       force,
-      youtubeKey: process.env.YOUTUBE_API_KEY || process.env.GOOGLE_YOUTUBE_API_KEY || '',
+      youtubeKey,
       readCache: readPersistedTrends,
       writeCache: writePersistedTrends
     });
+    if (topic) {
+      const searched = await searchTrendsByTopic({
+        query: topic,
+        region,
+        youtubeKey,
+        baseItems: dataset.items || []
+      });
+      return res.status(200).json({
+        ok: true,
+        region,
+        query: topic,
+        fetchedAt: searched.fetchedAt || dataset.fetchedAt,
+        expiresAt: dataset.expiresAt,
+        cache: 'topic',
+        items: searched.items || [],
+        sources: (dataset.sources || []).concat(searched.sources || []),
+        limitations: (dataset.limitations || []).concat(searched.limitations || [])
+      });
+    }
     const payload = {
       ok: true,
       region: dataset.region,
@@ -662,10 +686,123 @@ async function handleTrends(req, res) {
   }
 }
 
+async function handlePerformanceLookup(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: { message: 'Method not allowed' } });
+  }
+  const auth = await requireUser(req);
+  const rl = await gateRouteRateLimit(req, {
+    route: 'performance',
+    max: 20,
+    windowMs: 60 * 1000,
+    userId: auth.error ? null : auth.user.id
+  });
+  if (!rl.allowed) return sendRateLimitResponse(res, rl);
+  if (auth.error) {
+    return res.status(auth.status).json({ error: { message: 'Sign in to analyse a video URL' } });
+  }
+
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const url = String(body.url || '').trim().slice(0, 500);
+  if (!url) {
+    return res.status(400).json({ error: { message: 'Paste a video URL' } });
+  }
+
+  const platform = detectVideoPlatform(url);
+  if (platform === 'tiktok') {
+    return res.status(200).json({
+      ok: false,
+      platform: 'tiktok',
+      mode: 'unavailable',
+      requiredEnv: 'TIKTOK_CLIENT_KEY',
+      message:
+        'TikTok video stats need an approved TikTok API app. TIKTOK_CLIENT_KEY is not configured. PreShoot does not scrape TikTok.'
+    });
+  }
+  if (platform === 'instagram') {
+    return res.status(200).json({
+      ok: false,
+      platform: 'instagram',
+      mode: 'unavailable',
+      requiredEnv: 'INSTAGRAM_ACCESS_TOKEN',
+      message:
+        'Instagram video stats need official Graph API access. INSTAGRAM_ACCESS_TOKEN is not configured. PreShoot does not scrape Instagram.'
+    });
+  }
+  if (platform !== 'youtube') {
+    return res.status(200).json({
+      ok: false,
+      platform: platform || 'unknown',
+      mode: 'unsupported',
+      message: 'Use a YouTube, TikTok, or Instagram URL.'
+    });
+  }
+
+  const videoId = parseYouTubeVideoId(url);
+  if (!videoId) {
+    return res.status(200).json({
+      ok: false,
+      platform: 'youtube',
+      mode: 'invalid',
+      message: 'That does not look like a valid YouTube video URL.'
+    });
+  }
+
+  const key = process.env.YOUTUBE_API_KEY || process.env.GOOGLE_YOUTUBE_API_KEY || '';
+  if (!key) {
+    return res.status(200).json({
+      ok: false,
+      platform: 'youtube',
+      mode: 'unavailable',
+      requiredEnv: 'YOUTUBE_API_KEY',
+      message: 'Set YOUTUBE_API_KEY to fetch public YouTube stats (views and likes).'
+    });
+  }
+
+  try {
+    const details = await youtubeVideos([videoId], key);
+    const row = details[videoId];
+    if (!row) {
+      return res.status(200).json({
+        ok: false,
+        platform: 'youtube',
+        mode: 'empty',
+        message: 'YouTube did not return public metadata for this video.'
+      });
+    }
+    return res.status(200).json({
+      ok: true,
+      platform: 'youtube',
+      mode: 'youtube_data_api',
+      record: {
+        platform: 'youtube',
+        url: 'https://www.youtube.com/watch?v=' + videoId,
+        title: row.title || '',
+        description: (row.description || '').slice(0, 400),
+        publicationDate: row.publishedAt || '',
+        views: row.viewCount != null ? String(row.viewCount) : '',
+        likes: row.likeCount != null ? String(row.likeCount) : '',
+        comments: '',
+        shares: '',
+        creator: row.channelTitle || '',
+        importedAt: new Date().toISOString()
+      }
+    });
+  } catch (e) {
+    return res.status(200).json({
+      ok: false,
+      platform: 'youtube',
+      mode: 'error',
+      message: 'YouTube lookup failed. Try again, or enter metrics manually.'
+    });
+  }
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return handleOptions(req, res);
   if (resourceOf(req) === 'trends') return handleTrends(req, res);
+  if (resourceOf(req) === 'performance') return handlePerformanceLookup(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: { message: 'Method not allowed' } });
 
   const auth = await requireUser(req);
