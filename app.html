@@ -41,16 +41,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
 <title>PreShoot</title>
-<meta name="description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
+<meta name="description" content="Your AI creative director and assistant">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="PreShoot">
 <meta property="og:url" content="https://preshoot.vercel.app/app.html">
-<meta property="og:title" content="PreShoot: AI Creative Production Studio">
-<meta property="og:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
+<meta property="og:title" content="PreShoot">
+<meta property="og:description" content="Your AI creative director and assistant">
 <meta property="og:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="PreShoot: AI Creative Production Studio">
-<meta name="twitter:description" content="PreShoot helps creators and businesses turn ideas into production-ready content with AI-powered strategy, scripts, shot lists, and production planning.">
+<meta name="twitter:title" content="PreShoot">
+<meta name="twitter:description" content="Your AI creative director and assistant">
 <meta name="twitter:image" content="https://preshoot.vercel.app/og/preshoot-cover.jpg">
+<link rel="icon" type="image/png" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
 <script src="/js/kinetic-grid.js"></script>
@@ -2316,7 +2320,13 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replac
 function escapeAttr(s){ return escapeHtml(s).replace(/`/g,'&#96;'); }
 function getAccessToken(){ return (window.supa&&supa.auth.getSession)?supa.auth.getSession().then(function(r){ return (r&&r.data&&r.data.session&&r.data.session.access_token)||null; }).catch(function(){ return null; }):Promise.resolve(null); }
 function apiFetch(url, opts){ opts=opts||{}; opts.headers=Object.assign({},opts.headers||{}); if(!opts.headers['Content-Type']&&opts.body) opts.headers['Content-Type']='application/json'; return getAccessToken().then(function(token){ if(token) opts.headers['Authorization']='Bearer '+token; return fetch(url,opts); }).then(function(r){ if(r.status===403){ r.clone().json().then(function(d){ var err=(d&&((d.error&&d.error.message)||d.error||d.status))||''; if(String(err).indexOf('account_suspended')>=0) handleAccountSuspended(); }).catch(function(){}); } return r; }); }
-function handleAccountSuspended(){ try{ showToast('This account has been suspended. Contact support if this is a mistake.',''); }catch(e){} if(window.supa&&supa.auth&&supa.auth.signOut){ supa.auth.signOut().catch(function(){}); } }
+function handleAccountSuspended(){
+  try{ showToast('This account has been suspended. Contact support if this is a mistake.',''); }catch(e){}
+  try{ ss('auth_user', null); ss('plan', 'free'); ss('plan_checked', 0); }catch(e){}
+  S.authUser = null; S.plan = 'free'; S.entitlement = null;
+  if(window.supa&&supa.auth&&supa.auth.signOut){ supa.auth.signOut().catch(function(){}); }
+  try{ if (S.tab === 'profile') renderProf(); renderHome(); }catch(e){}
+}
 function requireAuthOrPrompt(msg){ if(S.authUser) return true; showToast(msg||'Sign in to continue'); try{ goTab('profile'); }catch(e){} return false; }
 
 function getHistory(){return gs('history',[]);}

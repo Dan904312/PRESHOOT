@@ -35,8 +35,32 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent)}
 .login-err{min-height:16px;margin-top:8px;color:var(--bad);font-size:12px}
 #app{display:none;min-height:100vh}
 .sidebar{position:fixed;inset:0 auto 0 0;width:200px;background:var(--panel);border-right:1px solid var(--line);padding:18px 10px;display:flex;flex-direction:column}
-.brand{font-size:13px;font-weight:650;letter-spacing:-.02em;padding:4px 10px 18px;color:var(--muted)}
+.brand{font-size:13px;font-weight:650;letter-spacing:-.02em;padding:4px 10px 18px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;gap:8px}
 .brand b{color:var(--text);font-weight:700}
+.notif-btn{position:relative;width:32px;height:32px;border-radius:6px;color:var(--muted);flex:none}
+.notif-btn:hover,.notif-btn[aria-expanded="true"]{background:var(--panel2);color:var(--text)}
+.notif-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--bad);color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center;display:none}
+.notif-badge.show{display:block}
+.notif-panel{position:fixed;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--bg);border-left:1px solid var(--line);z-index:65;display:none;flex-direction:column}
+.notif-panel.open{display:flex}
+.notif-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.notif-hd h2{font-size:14px;font-weight:650}
+.notif-list{flex:1;overflow:auto}
+.notif-item{display:block;width:100%;text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);color:inherit}
+.notif-item:hover{background:var(--panel)}
+.notif-item.unread{background:rgba(124,77,255,.06)}
+.notif-item .t{font-weight:600;font-size:13px;margin-bottom:3px}
+.notif-item .d{color:var(--muted);font-size:12px;line-height:1.45}
+.notif-item .m{margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.notif-empty{padding:36px 18px;color:var(--faint);text-align:center;font-size:12px}
+@media(max-width:720px){
+  .sidebar{position:relative;inset:auto;width:100%;border-right:none;border-bottom:1px solid var(--line);flex-direction:row;flex-wrap:wrap;padding:10px}
+  .brand{width:100%;padding:4px 6px 8px}
+  .nav-btn{width:auto}
+  .sidebar-foot{margin-top:0;padding-top:0;border-top:none;margin-left:auto}
+  .main{margin-left:0;padding:16px 14px 48px}
+  .notif-panel{width:100%}
+}
 .nav-btn{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;color:var(--muted);font-size:13px;font-weight:500}
 .nav-btn:hover{background:var(--panel2);color:var(--text)}
 .nav-btn.active{background:rgba(124,77,255,.12);color:var(--text)}
@@ -80,7 +104,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .badge.suspended,.badge.revoked,.badge.cancelled{color:var(--bad);border-color:rgba(248,113,113,.35)}
 .badge.active,.badge.ok{color:var(--ok);border-color:rgba(52,211,153,.35)}
 .badge.promo,.badge.trialing{color:var(--blue);border-color:rgba(96,165,250,.35)}
-.badge.warn,.badge.past_due,.badge.failed{color:var(--warn);border-color:rgba(251,191,36,.35)}
+.badge.warn,.badge.past_due,.badge.failed,.badge.warning{color:var(--warn);border-color:rgba(251,191,36,.35)}
+.badge.critical{color:var(--bad);border-color:rgba(248,113,113,.35)}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .search{width:220px}
 .link{color:var(--text);cursor:pointer;font-weight:600}
@@ -109,6 +134,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .spinner{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:1100px){.metrics,.row,.msg-layout{grid-template-columns:1fr}.sidebar{width:168px}.main{margin-left:168px}}
+@media(max-width:720px){
+  .sidebar{position:relative;inset:auto;width:100%;border-right:none;border-bottom:1px solid var(--line);flex-direction:row;flex-wrap:wrap;padding:10px}
+  .brand{width:100%;padding:4px 6px 8px}
+  .nav-btn{width:auto}
+  .sidebar-foot{margin-top:0;padding-top:0;border-top:none;margin-left:auto}
+  .main{margin-left:0;padding:16px 14px 48px}
+  .notif-panel{width:100%}
+}
 </style>
 </head>
 <body>
@@ -124,7 +157,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
 <div id="app">
   <aside class="sidebar">
-    <div class="brand"><b>PreShoot</b> Admin</div>
+    <div class="brand">
+      <span><b>PreShoot</b> Admin</span>
+      <button type="button" class="notif-btn" id="notif-btn" onclick="toggleNotif(event)" aria-label="Notifications" aria-expanded="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-badge" id="notif-badge">0</span>
+      </button>
+    </div>
     <button class="nav-btn active" data-page="overview" onclick="showPage('overview',this)">Overview</button>
     <button class="nav-btn" data-page="users" onclick="showPage('users',this)">Users</button>
     <button class="nav-btn" data-page="usage" onclick="showPage('usage',this)">Usage</button>
@@ -443,6 +482,16 @@ tr:hover td{background:rgba(255,255,255,.015)}
   </main>
 </div>
 
+<div class="notif-panel" id="notif-panel" role="dialog" aria-label="Admin notifications">
+  <div class="notif-hd">
+    <h2>Notifications</h2>
+    <div class="toolbar">
+      <button class="btn" type="button" onclick="markAllRead()">Mark all read</button>
+      <button class="btn" type="button" onclick="closeNotif()">Close</button>
+    </div>
+  </div>
+  <div class="notif-list" id="notif-list"><div class="notif-empty"><span class="spinner"></span></div></div>
+</div>
 <div class="overlay" id="user-overlay" onclick="if(event.target===this)closeUser()">
   <div class="drawer" id="user-drawer"></div>
 </div>
@@ -532,6 +581,8 @@ function boot() {
   loadDailyAnalytics();
   loadChart('signups', 30);
   loadChart('revenue', 30);
+  loadNotifications();
+  if (!window._notifTimer) window._notifTimer = setInterval(loadNotifications, 45000);
   api('product_overview', {}).then(function (d) {
     if (!d || d.error || !d.ok) return;
     set('ov-activated', (d.activation && d.activation.activated_users) || 0);
@@ -800,42 +851,83 @@ function renderUserDetail(d) {
   }).join('') : '<tr><td colspan="3" class="empty">No memberships</td></tr>';
   html += '</tbody></table>';
   html += '<div class="dialog-actions" style="justify-content:flex-start;margin-top:18px">';
-  if (suspended) html += '<button class="btn ok" onclick="confirmRestore(\'' + esc(u.user_id) + '\',\'' + esc(u.email || '') + '\')">Restore account</button>';
-  else html += '<button class="btn danger" onclick="confirmSuspend(\'' + esc(u.user_id) + '\',\'' + esc(u.email || '') + '\')">Suspend account</button>';
+  if (suspended) html += '<button class="btn ok" data-uid="' + esc(u.user_id) + '" data-email="' + esc(u.email || '') + '" onclick="confirmRestore(this)">Restore account</button>';
+  else html += '<button class="btn danger" data-uid="' + esc(u.user_id) + '" data-email="' + esc(u.email || '') + '" onclick="confirmSuspend(this)">Suspend account</button>';
   html += '</div>';
   $('user-drawer').innerHTML = html;
 }
 
 function openDialog(html) { $('dialog-box').innerHTML = html; $('dialog').classList.add('open'); }
 function closeDialog() { $('dialog').classList.remove('open'); }
-function confirmSuspend(uid, email) {
+function confirmSuspend(btn) {
+  var uid = btn.getAttribute('data-uid');
+  var email = btn.getAttribute('data-email') || '';
   openDialog(
     '<h3>Suspend account</h3><p>This signs the user out, bans Auth sessions, and rejects every authenticated API until restore.</p>' +
     '<input id="dlg-reason" placeholder="Reason (stored for operations)">' +
-    '<input id="dlg-pass" type="password" placeholder="Re-enter admin password">' +
-    '<div class="dialog-actions"><button class="btn" onclick="closeDialog()">Cancel</button>' +
-    '<button class="btn danger" onclick="doSuspend(\'' + esc(uid) + '\',\'' + esc(email) + '\')">Suspend</button></div>'
+    '<input id="dlg-pass" type="password" placeholder="Re-enter admin password" autocomplete="current-password">' +
+    '<div class="dialog-actions"><button class="btn" type="button" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn danger" type="button" id="dlg-suspend-go" data-uid="' + esc(uid) + '" data-email="' + esc(email) + '" onclick="doSuspend(this)">Suspend</button></div>'
   );
 }
-function doSuspend(uid, email) {
+function doSuspend(btn) {
+  var uid = btn.getAttribute('data-uid');
+  var email = btn.getAttribute('data-email') || '';
   var reason = $('dlg-reason').value;
   var pass = $('dlg-pass').value;
+  if (!pass) { showToast('Re-enter the admin password'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Suspending…';
   api('suspend_user', { user_id: uid, email: email, reason: reason, confirm_password: pass }).then(function (d) {
-    if (d.success) { closeDialog(); showToast('Account suspended'); openUser(uid); loadUsers(); loadOverviewStats(); }
-    else showToast(d.message || d.error || 'Failed');
+    if (d && d.success) {
+      closeDialog();
+      showToast(d.message || 'Account suspended');
+      openUser(uid);
+      loadUsers();
+      loadOverviewStats();
+      loadNotifications();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Suspend';
+      showToast((d && (d.message || d.error)) || 'Failed');
+    }
+  }).catch(function () {
+    btn.disabled = false;
+    btn.textContent = 'Suspend';
+    showToast('Network error');
   });
 }
-function confirmRestore(uid, email) {
+function confirmRestore(btn) {
+  var uid = btn.getAttribute('data-uid');
+  var email = btn.getAttribute('data-email') || '';
   openDialog(
     '<h3>Restore account</h3><p>Restores login and API access. Does not grant Pro.</p>' +
-    '<div class="dialog-actions"><button class="btn" onclick="closeDialog()">Cancel</button>' +
-    '<button class="btn ok" onclick="doRestore(\'' + esc(uid) + '\',\'' + esc(email) + '\')">Restore</button></div>'
+    '<div class="dialog-actions"><button class="btn" type="button" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn ok" type="button" data-uid="' + esc(uid) + '" data-email="' + esc(email) + '" onclick="doRestore(this)">Restore</button></div>'
   );
 }
-function doRestore(uid, email) {
+function doRestore(btn) {
+  var uid = btn.getAttribute('data-uid');
+  var email = btn.getAttribute('data-email') || '';
+  btn.disabled = true;
+  btn.textContent = 'Restoring…';
   api('restore_user', { user_id: uid, email: email }).then(function (d) {
-    if (d.success) { closeDialog(); showToast('Account restored'); openUser(uid); loadUsers(); loadOverviewStats(); }
-    else showToast(d.error || 'Failed');
+    if (d && d.success) {
+      closeDialog();
+      showToast('Account restored');
+      openUser(uid);
+      loadUsers();
+      loadOverviewStats();
+      loadNotifications();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Restore';
+      showToast((d && (d.message || d.error)) || 'Failed');
+    }
+  }).catch(function () {
+    btn.disabled = false;
+    btn.textContent = 'Restore';
+    showToast('Network error');
   });
 }
 
@@ -1010,6 +1102,91 @@ var toastT;
 function showToast(msg) {
   var el = $('toast'); el.textContent = msg; el.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(function () { el.classList.remove('show'); }, 3200);
+}
+
+function setNotifBadge(n) {
+  var badge = $('notif-badge');
+  if (!badge) return;
+  var count = Number(n) || 0;
+  badge.textContent = count > 99 ? '99+' : String(count);
+  if (count > 0) badge.classList.add('show');
+  else badge.classList.remove('show');
+}
+function toggleNotif(ev) {
+  if (ev) ev.stopPropagation();
+  var panel = $('notif-panel');
+  var btn = $('notif-btn');
+  if (panel.classList.contains('open')) closeNotif();
+  else {
+    panel.classList.add('open');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    loadNotifications(true);
+  }
+}
+function closeNotif() {
+  var panel = $('notif-panel');
+  var btn = $('notif-btn');
+  panel.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+function loadNotifications(forceList) {
+  api('notifications_list', {}).then(function (d) {
+    if (!d || d.error) {
+      setNotifBadge(0);
+      if (forceList || $('notif-panel').classList.contains('open')) {
+        $('notif-list').innerHTML = '<div class="notif-empty">' + esc(d && (d.message || d.error) || 'Could not load notifications') + '</div>';
+      }
+      return;
+    }
+    setNotifBadge(d.unread || 0);
+    if (forceList || $('notif-panel').classList.contains('open')) renderNotifications(d.notifications || []);
+  }).catch(function () {
+    if (forceList || $('notif-panel').classList.contains('open')) {
+      $('notif-list').innerHTML = '<div class="notif-empty">Could not load notifications</div>';
+    }
+  });
+}
+function renderNotifications(rows) {
+  if (!rows.length) {
+    $('notif-list').innerHTML = '<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+  $('notif-list').innerHTML = rows.map(function (n) {
+    return '<button type="button" class="notif-item' + (n.read_at ? '' : ' unread') + '" data-id="' + esc(n.id) + '" data-href="' + esc(n.href || '') + '" onclick="openNotification(this)">' +
+      '<div class="t">' + esc(n.title) + '</div>' +
+      '<div class="d">' + esc(n.body) + '</div>' +
+      '<div class="m"><span class="badge ' + esc(n.severity) + '">' + esc(n.severity) + '</span>' +
+      '<span class="badge">' + esc(n.type) + '</span>' +
+      '<span class="mono">' + esc(fmtDate(n.created_at)) + '</span></div>' +
+      '</button>';
+  }).join('');
+}
+function openNotification(btn) {
+  var id = btn.getAttribute('data-id');
+  var href = btn.getAttribute('data-href') || '';
+  api('notifications_read', { ids: [id] }).then(function (d) {
+    if (d && d.ok) {
+      setNotifBadge(d.unread || 0);
+      renderNotifications(d.notifications || []);
+    }
+  });
+  closeNotif();
+  if (href.indexOf('users:') === 0) {
+    var uid = href.slice(6);
+    var usersBtn = document.querySelector('.nav-btn[data-page="users"]');
+    showPage('users', usersBtn);
+    if (uid) openUser(uid);
+  } else if (href === 'security' || href === 'system' || href === 'users') {
+    var nav = document.querySelector('.nav-btn[data-page="' + href + '"]');
+    showPage(href, nav);
+  }
+}
+function markAllRead() {
+  api('notifications_read', { mark_all: true }).then(function (d) {
+    if (d && d.error) { showToast(d.error); return; }
+    setNotifBadge(d.unread || 0);
+    renderNotifications(d.notifications || []);
+  });
 }
 </script>
 </body>

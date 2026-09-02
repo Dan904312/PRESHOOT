@@ -143,6 +143,10 @@
       "dest": "/og/$1"
     },
     {
+      "src": "/site.webmanifest",
+      "dest": "/site.webmanifest"
+    },
+    {
       "src": "/admin.html",
       "dest": "/admin.html"
     },
