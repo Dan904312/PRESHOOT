@@ -26,6 +26,7 @@ import {
   persistUserTimezone,
   STREAK_KINDS
 } from '../lib/entitlements.js';
+import { notifySuspendedAuthAttempt } from '../lib/admin-notifications.js';
 
 function resourceOf(req) {
   const q = req.query || {};
@@ -61,6 +62,13 @@ async function handlePlan(req, res, auth) {
 
   if (auth.error) {
     if (auth.error === 'account_suspended') {
+      await notifySuspendedAuthAttempt({
+        userId: auth.user && auth.user.id,
+        email: auth.user && auth.user.email,
+        source: 'check-plan',
+        token: auth.token,
+        blocked: true
+      }).catch(function () {});
       return res.status(403).json({
         plan: 'free',
         status: 'account_suspended',
@@ -211,7 +219,18 @@ async function handleTrack(req, res, auth) {
     });
   }
 
-  if (auth.error) return res.status(auth.status).json({ ok: false, error: auth.error });
+  if (auth.error) {
+    if (auth.error === 'account_suspended') {
+      await notifySuspendedAuthAttempt({
+        userId: auth.user && auth.user.id,
+        email: auth.user && auth.user.email,
+        source: 'track-user',
+        token: auth.token,
+        blocked: true
+      }).catch(function () {});
+    }
+    return res.status(auth.status).json({ ok: false, error: auth.error });
+  }
 
   const user_id = auth.user.id;
   const email = auth.user.email;

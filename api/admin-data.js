@@ -19,6 +19,13 @@ import {
   getAccountStatus,
   fetchAuthUserAdmin
 } from '../lib/account-status.js';
+import {
+  notifyAccountSuspended,
+  notifyAccountRestored,
+  listAdminNotifications,
+  markNotificationsRead,
+  ingestSuspendedLoginAudits
+} from '../lib/admin-notifications.js';
 import { sendTransactionalEmail, emailProviderStatus } from '../lib/email.js';
 import {
   fetchSetting,
@@ -119,7 +126,10 @@ export default async function handler(req, res) {
     recipients,
     confirm_count,
     confirm_large,
-    confirm_password
+    confirm_password,
+    unread_only,
+    ids,
+    mark_all
   } = body;
   const safeSearch = sanitizePostgrestSearch(search);
   const ip = clientIp(req);
@@ -785,13 +795,32 @@ export default async function handler(req, res) {
           by: 'admin',
           email: targetEmail
         });
+        if (!result.ok) {
+          return res.status(500).json({
+            error: 'suspend_failed',
+            message: 'Could not persist account suspension. Check that the users table is writable.'
+          });
+        }
         await writeAdminAudit({
           action: 'user_suspended',
           targetUserId: user_id,
           ip,
-          metadata: { reason: String(reason || '').slice(0, 200) }
+          metadata: { reason: String(reason || '').slice(0, 200), auth_ok: result.authOk !== false }
         });
-        return res.status(200).json({ success: true, status: result.status });
+        await notifyAccountSuspended({
+          userId: user_id,
+          email: targetEmail,
+          reason: reason,
+          blocked: result.authOk !== false
+        });
+        return res.status(200).json({
+          success: true,
+          status: result.status,
+          auth_banned: result.authOk !== false,
+          message: result.authError
+            ? 'Account suspended. Auth session ban could not be confirmed; APIs still reject this account.'
+            : 'Account suspended.'
+        });
       }
 
       case 'restore_user': {
@@ -801,11 +830,21 @@ export default async function handler(req, res) {
           by: 'admin',
           email: typeof email === 'string' ? email : null
         });
+        if (!result.ok) {
+          return res.status(500).json({
+            error: 'restore_failed',
+            message: 'Could not persist account restoration.'
+          });
+        }
         await writeAdminAudit({
           action: 'user_restored',
           targetUserId: user_id,
           ip,
-          metadata: { granted_pro: false }
+          metadata: { granted_pro: false, auth_ok: result.authOk !== false }
+        });
+        await notifyAccountRestored({
+          userId: user_id,
+          email: typeof email === 'string' ? email : null
         });
         return res.status(200).json({ success: true, status: result.status, granted_pro: false });
       }
@@ -1132,6 +1171,41 @@ export default async function handler(req, res) {
           message: provider.configured
             ? null
             : 'No email provider is connected. Messages were recorded as failed. Set RESEND_API_KEY to enable delivery.'
+        });
+      }
+
+      case 'notifications_list': {
+        await ingestSuspendedLoginAudits().catch(function () {});
+        const listed = await listAdminNotifications({
+          unreadOnly: unread_only === true,
+          limit: 50
+        });
+        if (!listed.ok) {
+          return res.status(listed.status === 404 ? 503 : 500).json({
+            error: listed.error || 'notifications_unavailable',
+            message: 'Notification storage is not ready. Run supabase_admin_notifications.sql.'
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          notifications: listed.notifications,
+          unread: listed.unread
+        });
+      }
+
+      case 'notifications_read': {
+        const marked = await markNotificationsRead({
+          ids: Array.isArray(ids) ? ids : undefined,
+          all: mark_all === true
+        });
+        if (!marked.ok) {
+          return res.status(400).json({ error: marked.error || 'mark_failed' });
+        }
+        const listed = await listAdminNotifications({ limit: 50 });
+        return res.status(200).json({
+          ok: true,
+          notifications: listed.notifications || [],
+          unread: listed.unread || 0
         });
       }
 
