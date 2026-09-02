@@ -153,15 +153,36 @@ test('requireUser enforces requireActiveUser', () => {
 test('suspend bans Auth; restore does not grant Pro', () => {
   assert.ok(account.includes('ban_duration'));
   assert.ok(account.includes("scope: 'global'"));
+  assert.ok(account.includes('return=representation'));
+  assert.ok(account.includes('on_conflict=user_id'));
+  assert.ok(account.includes('auth_ban_failed') || account.includes('banned_until'));
   assert.ok(admin.includes("case 'suspend_user'"));
   assert.ok(admin.includes("case 'restore_user'"));
   assert.ok(admin.includes('confirm_password'));
+  assert.ok(admin.includes('suspend_failed'));
   const restoreBlock = admin.split("case 'restore':")[1].split("case '")[0];
   assert.ok(restoreBlock.includes("plan: 'free'"));
   assert.ok(!restoreBlock.includes("plan: 'pro'"));
   const restoreUser = admin.split("case 'restore_user':")[1].split("case '")[0];
   assert.ok(restoreUser.includes('granted_pro: false'));
   assert.ok(!restoreUser.includes("plan: 'pro'"));
+});
+
+test('admin notifications persist and omit secrets', () => {
+  const notifSql = fs.readFileSync(path.join(root, 'supabase_admin_notifications.sql'), 'utf8');
+  const notif = fs.readFileSync(path.join(root, 'lib/admin-notifications.js'), 'utf8');
+  assert.ok(notifSql.includes('CREATE TABLE IF NOT EXISTS admin_notifications'));
+  assert.ok(notifSql.includes('REVOKE ALL ON TABLE admin_notifications FROM anon, authenticated'));
+  assert.ok(notif.includes('suspended_login'));
+  assert.ok(notif.includes('notifySuspendedAuthAttempt'));
+  assert.ok(notif.includes('sessionRefFromToken'));
+  assert.ok(!notif.includes('access_token'));
+  assert.ok(!notif.includes('refresh_token'));
+  assert.ok(admin.includes("case 'notifications_list'"));
+  assert.ok(admin.includes("case 'notifications_read'"));
+  assert.ok(html.includes('id="notif-btn"'));
+  assert.ok(html.includes('id="notif-panel"'));
+  assert.ok(html.includes('Mark all read'));
 });
 
 test('admin API rejects client admin flags and legacy key header', () => {

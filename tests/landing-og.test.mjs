@@ -45,6 +45,9 @@ test('Open Graph and Twitter tags use the PreShoot cover, not the cafe example',
   assert.ok(land.includes('property="og:url" content="https://preshoot.vercel.app/"'));
   assert.ok(land.includes('property="og:type" content="website"'));
   assert.ok(land.includes('name="twitter:card" content="summary_large_image"'));
+  assert.ok(land.includes('<title>PreShoot</title>'));
+  assert.ok(land.includes('content="Your AI creative director and assistant"'));
+  assert.ok(land.includes('property="og:title" content="PreShoot"'));
   const ogBlock = land.slice(0, land.indexOf('</head>'));
   assert.ok(!ogBlock.includes(cafe));
   assert.ok(!ogBlock.includes('og:image') || !ogBlock.includes('unsplash'));
@@ -80,6 +83,8 @@ test('catch-all SPA rewrite does not swallow /og/*', () => {
 test('app.html share URL also points at the same cover', () => {
   assert.ok(app.includes('property="og:image" content="' + ogUrl + '"'));
   assert.ok(app.includes('name="twitter:image" content="' + ogUrl + '"'));
+  assert.ok(app.includes('property="og:title" content="PreShoot"'));
+  assert.ok(app.includes('content="Your AI creative director and assistant"'));
   assert.ok(!app.includes(cafe));
 });
 
