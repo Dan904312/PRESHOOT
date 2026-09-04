@@ -28,7 +28,10 @@ import {
   dedupeTrends,
   isFresh,
   assembleDataset,
-  TREND_TTL_MS
+  TREND_TTL_MS,
+  getTrendDataset,
+  memorySet,
+  memoryClear
 } from '../lib/trends.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -89,6 +92,17 @@ const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'
 const apiFiles = fs.readdirSync(path.join(root, 'api')).filter((f) => f.endsWith('.js'));
 const sql = fs.readFileSync(path.join(root, 'supabase_onboarding_streak.sql'), 'utf8');
 const adminHtml = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+
+async function testAsync(name, fn) {
+  try {
+    await fn();
+    passed += 1;
+    console.log('  ✓', name);
+  } catch (e) {
+    failed += 1;
+    console.error('  ✗', name, '\n   ', e.message);
+  }
+}
 
 console.log('\n== Calendar + trending ==');
 
@@ -378,6 +392,51 @@ test('no paid trend API strings in research/trends', () => {
   assert.ok(!/rapidapi|apify|socialblade|exolyt/i.test(trends));
   assert.ok(!/rapidapi|apify/i.test(research));
   assert.ok(trends.includes('Google Trends'));
+});
+
+test('trend request path does not scrape TikTok or YouTube Charts HTML', () => {
+  const trends = fs.readFileSync(path.join(root, 'lib/trends.js'), 'utf8');
+  const regionFn = trends.slice(trends.indexOf('export function skippedFragileSources'));
+  assert.ok(!regionFn.includes('probeTikTokCreativeCenter()'));
+  assert.ok(!regionFn.includes('probeYouTubeCharts()'));
+  assert.ok(regionFn.includes('skippedFragileSources'));
+  assert.ok(research.includes("route: 'trends-refresh'"));
+  assert.ok(research.includes('fetchJsonWithTimeout'));
+  assert.ok(research.includes('trends_timing'));
+});
+
+test('trending client aborts hung GETs with explicit copy', () => {
+  const js = fs.readFileSync(path.join(root, 'js/trending.js'), 'utf8');
+  assert.ok(js.includes('TREND_FETCH_MS'));
+  assert.ok(js.includes('withTimeout'));
+  assert.ok(js.includes('inflightKey'));
+  assert.ok(js.includes('Trend feed timed out — try Refresh'));
+  assert.ok(js.includes("renderLibrary(true)"));
+  assert.ok(js.includes('refresh=1'));
+});
+
+await testAsync('stale cache is served without calling upstream', async () => {
+  memoryClear();
+  memorySet('US', {
+    fetchedAt: '2020-01-01T00:00:00.000Z',
+    items: [{ id: 'tr_old', platform: 'google', type: 'hashtag', title: 'cached term', url: 'https://trends.google.com/trending?geo=US&q=cached' }],
+    sources: [{ id: 'google', ok: true, count: 1, label: 'Google Trends' }]
+  });
+  const orig = global.fetch;
+  let calls = 0;
+  global.fetch = async function () {
+    calls += 1;
+    throw new Error('upstream should not run');
+  };
+  try {
+    const ds = await getTrendDataset({ region: 'US', force: false });
+    assert.ok(ds.items.length >= 1);
+    assert.strictEqual(ds.cache, 'stale');
+    assert.strictEqual(calls, 0);
+  } finally {
+    global.fetch = orig;
+    memoryClear();
+  }
 });
 
 test('SQL streak kinds include plan/post', () => {
