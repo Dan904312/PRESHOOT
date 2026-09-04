@@ -103,6 +103,20 @@
     return body;
   }
 
+  function studioDirectorContextLines() {
+    var ctxLines = '';
+    try {
+      if (global.PreShootDirectorContext && PreShootDirectorContext.build) {
+        var packCtx = PreShootDirectorContext.build({ task: 'general' });
+        if (packCtx && packCtx.text) ctxLines = packCtx.text;
+      }
+      if (global.PreShootDirectorOS && global.PreShootDirectorOS.buildOSContext) {
+        ctxLines = (ctxLines ? ctxLines + '\n\n' : '') + global.PreShootDirectorOS.buildOSContext();
+      }
+    } catch (e) {}
+    return ctxLines;
+  }
+
   function Studio() {
     return global.PreShootStudio;
   }
@@ -247,6 +261,31 @@
   }
 
   /* ── Studio dashboard ── */
+  function studioPaintSig() {
+    var v = (global.S && global.S.studioView) || {};
+    var ws =
+      global.PreShootWorkspace && PreShootWorkspace.getContext
+        ? PreShootWorkspace.getContext()
+        : null;
+    return [
+      v.mode || 'list',
+      v.projectId || '',
+      v.productionId || '',
+      v.section || '',
+      (ws && (ws.activeWorkspaceId || ws.activeWorkspaceKind)) || 'personal'
+    ].join('|');
+  }
+
+  function markStudioPainted() {
+    global.__preshootStudioSig = studioPaintSig();
+  }
+
+  function studioNeedsRender() {
+    var root = document.getElementById('studio-root');
+    if (!root || !root.querySelector('.studio-shell')) return true;
+    return global.__preshootStudioSig !== studioPaintSig();
+  }
+
   function renderStudio() {
     var root = document.getElementById('studio-root');
     if (!root || !Studio()) return;
@@ -254,14 +293,19 @@
       ? PreShootWorkspace.getContext()
       : null;
     if (ctx && ctx.switching) return;
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.closeStudioMenu) {
+      PreShootWorkspaceUI.closeStudioMenu();
+    }
 
     var view = (global.S && global.S.studioView) || { mode: 'list' };
     if (view.mode === 'project' && view.projectId) {
       renderProjectDetail(root, view.projectId);
+      markStudioPainted();
       return;
     }
     if (view.mode === 'production' && view.productionId) {
       renderProductionDetail(root, view.productionId);
+      markStudioPainted();
       return;
     }
 
@@ -322,6 +366,7 @@
       setTimeout(function () {
         setDirectorGoState('idle');
       }, 0);
+      markStudioPainted();
       return;
     }
 
@@ -396,11 +441,20 @@
     setTimeout(function () {
       setDirectorGoState('idle');
     }, 0);
+    markStudioPainted();
   }
 
   function openProject(projectId) {
     if (!global.S) return;
+    var keepProd = null;
+    if (global.S.activeProductionId && Studio() && Studio().findProduction) {
+      var cur = Studio().findProduction(global.S.activeProductionId);
+      if (cur && cur.project && String(cur.project.id) === String(projectId)) {
+        keepProd = global.S.activeProductionId;
+      }
+    }
     global.S.studioView = { mode: 'project', projectId: projectId };
+    global.S.activeProductionId = keepProd;
     if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
       PreShootWorkspaceRealtime.scheduleTrack();
     }
@@ -421,16 +475,21 @@
       productionId: productionId,
       section: 'overview'
     };
+    global.S.activeProductionId = productionId;
     if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
       PreShootWorkspaceRealtime.scheduleTrack();
     }
-    if (typeof global.goTab === 'function') global.goTab('studio');
-    else renderStudio();
+    if (typeof global.goTab === 'function' && (!global.S || global.S.tab !== 'studio')) {
+      global.goTab('studio');
+    } else {
+      renderStudio();
+    }
   }
 
   function backToList() {
     if (!global.S) return;
     global.S.studioView = { mode: 'list' };
+    global.S.activeProductionId = null;
     if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
       PreShootWorkspaceRealtime.scheduleTrack();
     }
@@ -483,14 +542,12 @@
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.studioMenuButtonHtml) {
       h += PreShootWorkspaceUI.studioMenuButtonHtml();
     }
+    h += '<div class="studio-more-wrap">';
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProjectMenu(\'' +
       esc(projectId) +
-      '\')" aria-label="Project options">⋯</button>';
-    h += '</div>';
-    h += '</div>';
-
-    h += '<div id="st-project-menu" class="st-overflow-menu" hidden>';
+      '\',event)" aria-label="Project options" aria-haspopup="menu">⋯</button>';
+    h += '<div id="st-project-menu" class="st-overflow-menu" hidden role="menu">';
     h +=
       '<button type="button" onclick="PreShootStudioUI.renameProjectPrompt(\'' +
       esc(projectId) +
@@ -507,7 +564,7 @@
       '<button type="button" class="danger" onclick="PreShootStudioUI.deleteProject(\'' +
       esc(projectId) +
       '\')">Delete</button>';
-    h += '</div>';
+    h += '</div></div></div></div>';
 
     if (project.coverImage) {
       h +=
@@ -3149,12 +3206,7 @@
   function requestDirectorExplain(result) {
     var fallback = (result && result.localFallback) || 'Here’s a concise take based on your current production.';
     setDirectorStatus('thinking', statusLabelForIntent((result && result.message) || '') || 'Thinking…');
-    var ctxLines = '';
-    try {
-      if (global.PreShootDirectorOS && global.PreShootDirectorOS.buildOSContext) {
-        ctxLines = global.PreShootDirectorOS.buildOSContext();
-      }
-    } catch (e) {}
+    var ctxLines = studioDirectorContextLines();
     var msg = String((result && result.message) || '').slice(0, 500);
     if (typeof global.apiFetch !== 'function') {
       showDirectorFail('Director couldn’t respond. Please try again.');
@@ -3196,7 +3248,10 @@
         var data = pack.data || {};
         if (!pack.ok) {
           if (isDevHost()) console.warn('[Director explain]', pack.status, data);
-          showDirectorFail('Director couldn’t respond. Please try again.');
+          showDirectorFail(
+            directorApiErrorMessage(data, pack.status) ||
+              'Director couldn’t respond. Please try again.'
+          );
           return;
         }
         var raw = directorReplyText(data) || fallback;
@@ -3275,12 +3330,7 @@
       setDirectorGoState('idle');
       return;
     }
-    var ctxLines = '';
-    try {
-      if (global.PreShootDirectorOS && global.PreShootDirectorOS.buildOSContext) {
-        ctxLines = global.PreShootDirectorOS.buildOSContext();
-      }
-    } catch (e) {}
+    var ctxLines = studioDirectorContextLines();
     setDirectorStatus('thinking', 'Preparing changes…');
     var modeHint =
       mode === 'replace'
@@ -3613,25 +3663,12 @@
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.studioMenuButtonHtml) {
       h += PreShootWorkspaceUI.studioMenuButtonHtml();
     }
+    h += '<div class="studio-more-wrap">';
     h +=
       '<button type="button" class="studio-icon-btn" onclick="PreShootStudioUI.toggleProductionMenu(\'' +
       esc(productionId) +
-      '\')" aria-label="Production options">⋯</button>';
-    h += '</div>';
-    h += '</div>';
-    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.productionActivityHtml) {
-      h += PreShootWorkspaceUI.productionActivityHtml(productionId);
-    }
-    if (
-      global.PreShootWorkspace &&
-      PreShootWorkspace.isShared &&
-      PreShootWorkspace.isShared() &&
-      global.PreShootWorkspaceComments
-    ) {
-      PreShootWorkspaceComments.ensureLoaded(productionId);
-    }
-
-    h += '<div id="st-production-menu" class="st-overflow-menu" hidden>';
+      '\',event)" aria-label="Production options" aria-haspopup="menu">⋯</button>';
+    h += '<div id="st-production-menu" class="st-overflow-menu" hidden role="menu">';
     h +=
       '<button type="button" onclick="PreShootStudioUI.renameProductionPrompt(\'' +
       esc(productionId) +
@@ -3652,9 +3689,19 @@
       '<button type="button" class="danger" onclick="PreShootStudioUI.deleteProduction(\'' +
       esc(productionId) +
       '\')">Delete</button>';
-    h += '</div>';
+    h += '</div></div></div></div>';
 
-    /* Progress stages */
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.productionActivityHtml) {
+      h += PreShootWorkspaceUI.productionActivityHtml(productionId);
+    }
+    if (
+      global.PreShootWorkspace &&
+      PreShootWorkspace.isShared &&
+      PreShootWorkspace.isShared() &&
+      global.PreShootWorkspaceComments
+    ) {
+      PreShootWorkspaceComments.ensureLoaded(productionId);
+    }
     h += '<div class="pw-card pw-progress-card">';
     h += '<div class="pw-card-kicker">Production stage</div>';
     h += '<div class="st-stage-rail pw-stage-rail" aria-label="Production stages">';
@@ -3972,16 +4019,34 @@
     });
   }
 
-  function toggleProjectMenu(projectId) {
+  function toggleProjectMenu(projectId, ev) {
     var menu = document.getElementById('st-project-menu');
+    var btn =
+      (ev && ev.currentTarget) ||
+      document.querySelector('[aria-label="Project options"]');
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.toggleAnchoredMenu) {
+      PreShootWorkspaceUI.toggleAnchoredMenu(menu, btn, ev);
+      var other = document.getElementById('st-production-menu');
+      if (other && other !== menu) PreShootWorkspaceUI.closeAnchoredMenu(other);
+      return;
+    }
     if (!menu) return;
     menu.hidden = !menu.hidden;
     var other = document.getElementById('st-production-menu');
     if (other) other.hidden = true;
   }
 
-  function toggleProductionMenu(productionId) {
+  function toggleProductionMenu(productionId, ev) {
     var menu = document.getElementById('st-production-menu');
+    var btn =
+      (ev && ev.currentTarget) ||
+      document.querySelector('[aria-label="Production options"]');
+    if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.toggleAnchoredMenu) {
+      PreShootWorkspaceUI.toggleAnchoredMenu(menu, btn, ev);
+      var other = document.getElementById('st-project-menu');
+      if (other && other !== menu) PreShootWorkspaceUI.closeAnchoredMenu(other);
+      return;
+    }
     if (!menu) return;
     menu.hidden = !menu.hidden;
     var other = document.getElementById('st-project-menu');
@@ -5636,6 +5701,8 @@
     filterAssetFolder: filterAssetFolder,
     seedFromIdea: seedFromIdea,
     submitDirectorCommand: submitDirectorCommand,
+    studioNeedsRender: studioNeedsRender,
+    studioPaintSig: studioPaintSig,
     proposeDirectorAction: proposeDirectorAction,
     confirmDirectorAction: confirmDirectorAction,
     cancelDirectorAction: cancelDirectorAction,

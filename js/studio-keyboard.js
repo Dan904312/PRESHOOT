@@ -1,6 +1,7 @@
 /**
- * Studio mobile keyboard — overlay model (native iOS behaviour).
+ * Studio / Director mobile keyboard — overlay model (native iOS behaviour).
  * Layout never resizes for the keyboard; only scroll the active field into view.
+ * Director chat lifts the composer with --dir-kb instead of shrinking the app shell.
  */
 (function (global) {
   'use strict';
@@ -20,6 +21,10 @@
     );
   }
 
+  function isDirectorActive() {
+    return global.S && global.S.tab === 'director';
+  }
+
   function isFocusableField(el) {
     if (!el || !el.tagName) return false;
     var tag = el.tagName;
@@ -33,6 +38,9 @@
   function scrollContainerFor(el) {
     if (!el) return null;
     if (el.closest && el.closest('#script-fs-ov')) return el.closest('.script-fs-shell') || el.closest('#script-fs-ov');
+    if (el.id === 'dir-input' || (el.closest && el.closest('#screen-director'))) {
+      return global.document.getElementById('dir-msgs');
+    }
     return el.closest('#studio-root') || el.closest('.sb');
   }
 
@@ -42,9 +50,31 @@
     return vv.offsetTop + vv.height;
   }
 
+  function directorKeyboardInset() {
+    var vv = global.visualViewport;
+    if (!vv) return 0;
+    return Math.max(0, Math.round(global.innerHeight - (vv.height + vv.offsetTop)));
+  }
+
+  function syncDirectorKeyboard() {
+    var root = global.document && global.document.documentElement;
+    if (!root) return;
+    var inset = isDirectorActive() && isMobile() ? directorKeyboardInset() : 0;
+    if (inset < 48) inset = 0;
+    root.style.setProperty('--dir-kb', inset + 'px');
+    if (inset && isDirectorActive()) {
+      var msgs = global.document.getElementById('dir-msgs');
+      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    }
+  }
+
   function ensureFieldVisible(el, opts) {
     opts = opts || {};
     if (!el || !isFocusableField(el)) return;
+    if (isDirectorActive()) {
+      syncDirectorKeyboard();
+      return;
+    }
     if (!opts.force && (!isMobile() || !isStudioActive())) return;
 
     var sc = scrollContainerFor(el);
@@ -94,15 +124,22 @@
   }
 
   function onFocusIn(ev) {
-    if (!isMobile() || !isStudioActive()) return;
+    if (!isMobile()) return;
     var el = ev.target;
     if (!isFocusableField(el)) return;
+    if (isDirectorActive()) {
+      syncDirectorKeyboard();
+      return;
+    }
+    if (!isStudioActive()) return;
     rememberScroll();
     ensureFieldVisible(el);
   }
 
   function onFocusOut(ev) {
-    if (!isMobile() || !isStudioActive()) return;
+    if (!isMobile()) return;
+    setTimeout(syncDirectorKeyboard, 280);
+    if (!isStudioActive()) return;
     /* Natural restore — no forced scroll jump when keyboard closes */
     _lastScrollEl = null;
     _lastScrollTop = null;
@@ -115,6 +152,7 @@
       global.visualViewport.addEventListener(
         'resize',
         function () {
+          syncDirectorKeyboard();
           var active = global.document.activeElement;
           if (active && isFocusableField(active) && isMobile() && isStudioActive()) {
             ensureFieldVisible(active, { force: true });
@@ -122,6 +160,7 @@
         },
         { passive: true }
       );
+      global.visualViewport.addEventListener('scroll', syncDirectorKeyboard, { passive: true });
     }
   }
 
@@ -133,6 +172,7 @@
 
   global.PreShootStudioKeyboard = {
     ensureVisible: ensureFieldVisible,
-    isMobile: isMobile
+    isMobile: isMobile,
+    syncDirectorKeyboard: syncDirectorKeyboard
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);

@@ -69,16 +69,21 @@
 
   function getSurface() {
     var S = global.S || {};
-    if (S.tab === 'studio' || (S.studioView && S.studioView.mode)) {
+    if (S.tab === 'studio') {
       if (S.studioView && S.studioView.mode === 'production') return 'production';
       if (S.studioView && S.studioView.mode === 'project') return 'project';
       return 'studio';
     }
-    if (S.activeProductionId) return 'production';
+    if (S.tab === 'director') {
+      var focus = S.dirSessionFocus || {};
+      if (focus.productionId) return 'production';
+      if (focus.projectId) return 'project';
+      return 'home';
+    }
+    if (S.activeProductionId && S.tab === 'results') return 'production';
     if (S.tab === 'library') return 'library';
     if (S.tab === 'menu') return 'menu';
     if (S.tab === 'profile') return 'profile';
-    if (S.tab === 'director') return S.activeProductionId ? 'production' : 'home';
     return S.tab || 'home';
   }
 
@@ -120,13 +125,23 @@
     var Studio = global.PreShootStudio;
     var view = S.studioView || {};
     var surface = getSurface();
+    var focusIds =
+      global.PreShootDirectorContext && PreShootDirectorContext.resolveFocus
+        ? PreShootDirectorContext.resolveFocus()
+        : {
+            productionId: view.productionId || null,
+            projectId: view.projectId || null
+          };
+    if (surface !== 'studio' && surface !== 'production' && surface !== 'project' && S.tab !== 'director') {
+      focusIds = { productionId: null, projectId: null };
+    }
     var ctx = {
       surface: surface,
       section: view.section || null,
       mode: view.mode || null,
       page: S.tab || 'home',
-      productionId: view.productionId || S.activeProductionId || null,
-      projectId: view.projectId || null,
+      productionId: focusIds.productionId || null,
+      projectId: focusIds.projectId || null,
       skillLevel: null,
       platform: null,
       gear: S.gear || null,
@@ -159,6 +174,12 @@
 
     if (Studio && ctx.productionId) {
       var found = Studio.findProduction(ctx.productionId);
+      if (found && found.project) {
+        if (ctx.projectId && String(found.project.id) !== String(ctx.projectId)) {
+          found = null;
+          ctx.productionId = null;
+        }
+      }
       if (found) {
         ctx.projectId = found.project.id;
         ctx.project = { id: found.project.id, name: found.project.name };
@@ -186,7 +207,8 @@
           parentProjectName: found.project.name
         };
       }
-    } else if (Studio && ctx.projectId) {
+    }
+    if (!ctx.production && Studio && ctx.projectId) {
       var p = Studio.findProject(ctx.projectId);
       if (p) {
         ctx.project = { id: p.id, name: p.name };

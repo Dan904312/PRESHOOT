@@ -313,8 +313,17 @@
     }
     h +=
       '<button type="button" onclick="PreShootStudioUI.openSearch();PreShootWorkspaceUI.closeStudioMenu()">Search</button>';
+    if (canEditForMenu()) {
+      h +=
+        '<button type="button" class="studio-menu-new" onclick="PreShootStudioUI.openCreateProject();PreShootWorkspaceUI.closeStudioMenu()">New Project</button>';
+    }
     if (extra) h += extra;
     return h;
+  }
+
+  function canEditForMenu() {
+    var ctx = Ctx() ? Ctx().getContext() : null;
+    return !ctx || !ctx.isShared || ctx.canEdit;
   }
 
   function studioMenuButtonHtml(extra) {
@@ -329,9 +338,95 @@
     );
   }
 
+  function restoreMenuHome(menu) {
+    if (!menu || !menu._anchorHome) return;
+    var home = menu._anchorHome;
+    var next = menu._anchorNext;
+    if (next && next.parentNode === home) home.insertBefore(menu, next);
+    else home.appendChild(menu);
+    menu._anchorHome = null;
+    menu._anchorNext = null;
+  }
+
+  function positionAnchoredMenu(menu, anchor) {
+    if (!menu || !anchor) return;
+    var pad = 8;
+    var vw = window.innerWidth || document.documentElement.clientWidth || 320;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var mw = Math.min(280, Math.max(196, vw - pad * 2));
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '520';
+    menu.style.minWidth = mw + 'px';
+    menu.style.maxWidth = vw - pad * 2 + 'px';
+    menu.style.width = mw + 'px';
+    menu.style.right = 'auto';
+    menu.style.marginTop = '0';
+    menu.style.maxHeight =
+      'min(70dvh, calc(100dvh - 24px - env(safe-area-inset-bottom, 0px)))';
+    menu.style.overflowY = 'auto';
+    var r = anchor.getBoundingClientRect();
+    var left = r.right - mw;
+    if (left < pad) left = pad;
+    if (left + mw > vw - pad) left = Math.max(pad, vw - mw - pad);
+    menu.style.left = left + 'px';
+    menu.style.top = r.bottom + 6 + 'px';
+    var mh = menu.offsetHeight || 0;
+    var top = r.bottom + 6;
+    if (top + mh > vh - pad) {
+      top = Math.max(pad, r.top - mh - 6);
+    }
+    menu.style.top = top + 'px';
+  }
+
+  function closeAnchoredMenu(menu) {
+    if (!menu) return;
+    menu.hidden = true;
+    menu.classList.remove('is-anchored');
+    restoreMenuHome(menu);
+    menu.style.position = '';
+    menu.style.left = '';
+    menu.style.top = '';
+    menu.style.width = '';
+    menu.style.minWidth = '';
+    menu.style.maxWidth = '';
+    menu.style.maxHeight = '';
+    menu.style.zIndex = '';
+    menu.style.right = '';
+    menu.style.marginTop = '';
+    menu.style.overflowY = '';
+  }
+
+  function closeAllAnchoredMenus() {
+    var menus = document.querySelectorAll('.st-overflow-menu.is-anchored, .studio-more-menu');
+    for (var i = 0; i < menus.length; i++) closeAnchoredMenu(menus[i]);
+    var leftover = document.querySelectorAll('.st-overflow-menu');
+    for (var j = 0; j < leftover.length; j++) {
+      leftover[j].hidden = true;
+    }
+  }
+
+  function toggleAnchoredMenu(menu, anchor, ev) {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    if (!menu) return false;
+    var opening = menu.hidden;
+    closeAllAnchoredMenus();
+    if (!opening) return false;
+    if (!menu._anchorHome) {
+      menu._anchorHome = menu.parentNode;
+      menu._anchorNext = menu.nextSibling;
+    }
+    document.body.appendChild(menu);
+    menu.hidden = false;
+    menu.classList.add('is-anchored');
+    positionAnchoredMenu(menu, anchor || menu._anchorHome);
+    return true;
+  }
+
   function closeStudioMenu() {
-    var menus = document.querySelectorAll('.studio-more-menu');
-    for (var i = 0; i < menus.length; i++) menus[i].hidden = true;
+    closeAllAnchoredMenus();
   }
 
   function toggleStudioMenu(ev) {
@@ -340,10 +435,8 @@
       ? ev.currentTarget.closest('.studio-more-wrap')
       : null;
     var menu = wrap ? wrap.querySelector('.studio-more-menu') : null;
-    if (!menu) return;
-    var open = menu.hidden;
-    closeStudioMenu();
-    menu.hidden = !open;
+    var btn = ev && ev.currentTarget;
+    toggleAnchoredMenu(menu, btn, ev);
   }
 
   function studioHeaderActionsHtml() {
@@ -391,7 +484,7 @@
     h += studioMenuButtonHtml();
     if (canEdit) {
       h +=
-        '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
+        '<button type="button" class="studio-btn primary studio-hd-cta" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
     } else {
       h +=
         '<span class="ws-readonly-pill" title="Commenter and viewer roles are read-only">Read only</span>';
@@ -1460,10 +1553,24 @@
     document.addEventListener(
       'click',
       function (e) {
-        if (e.target && e.target.closest && e.target.closest('.studio-more-wrap')) return;
+        if (e.target && e.target.closest && (e.target.closest('.studio-more-wrap') || e.target.closest('.st-overflow-menu'))) return;
         closeStudioMenu();
       },
       false
+    );
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeStudioMenu();
+    });
+    window.addEventListener(
+      'resize',
+      function () {
+        var open = document.querySelector('.st-overflow-menu.is-anchored');
+        if (!open) return;
+        var wrap = open._anchorHome;
+        var btn = wrap && wrap.querySelector ? wrap.querySelector('button, .studio-icon-btn, .studio-more-btn') : null;
+        if (btn) positionAnchoredMenu(open, btn);
+      },
+      { passive: true }
     );
   }
 
@@ -1473,6 +1580,9 @@
     studioMenuButtonHtml: studioMenuButtonHtml,
     toggleStudioMenu: toggleStudioMenu,
     closeStudioMenu: closeStudioMenu,
+    toggleAnchoredMenu: toggleAnchoredMenu,
+    closeAnchoredMenu: closeAnchoredMenu,
+    positionAnchoredMenu: positionAnchoredMenu,
     saveStatusIndicatorHtml: saveStatusIndicatorHtml,
     presenceChipHtml: presenceChipHtml,
     productionPresenceHtml: productionPresenceHtml,

@@ -70,9 +70,108 @@
     return 'insufficient';
   }
 
+  function productionBelongsToProject(productionId, projectId) {
+    if (!productionId || !global.PreShootStudio) return false;
+    try {
+      var found = PreShootStudio.findProduction(productionId);
+      if (!found || !found.project) return false;
+      if (!projectId) return true;
+      return String(found.project.id) === String(projectId);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Live Studio focus only. Does not invent records. Never returns a production
+   * from a different project than the open project view.
+   */
+  function resolveLiveStudioFocus() {
+    var S = global.S || {};
+    var view = S.studioView || {};
+    var productionId = null;
+    var projectId = null;
+
+    if (view.mode === 'production' && view.productionId) {
+      productionId = view.productionId;
+      projectId = view.projectId || null;
+    } else if (view.mode === 'project' && view.projectId) {
+      projectId = view.projectId;
+      var candidate = view.productionId || null;
+      if (candidate && productionBelongsToProject(candidate, projectId)) {
+        productionId = candidate;
+      }
+    }
+
+    if (productionId && global.PreShootStudio) {
+      try {
+        var found = PreShootStudio.findProduction(productionId);
+        if (found && found.project) {
+          projectId = found.project.id;
+        } else {
+          productionId = null;
+        }
+      } catch (e) {
+        productionId = null;
+      }
+    } else if (projectId && global.PreShootStudio && PreShootStudio.findProject) {
+      try {
+        if (!PreShootStudio.findProject(projectId)) projectId = null;
+      } catch (e) {
+        projectId = null;
+      }
+    }
+
+    return { productionId: productionId || null, projectId: projectId || null };
+  }
+
+  /**
+   * @param {object} [opts]
+   * @param {object} [opts.bound] conversation-bound ids
+   */
+  function resolveFocus(opts) {
+    opts = opts || {};
+    var S = global.S || {};
+    var bound = opts.bound || null;
+    var tab = S.tab || '';
+    var fromBound = !!opts.fromBound;
+
+    if (bound && (bound.productionId || bound.projectId)) {
+      var bProd = bound.productionId || null;
+      var bProj = bound.projectId || null;
+      if (bProd && !productionBelongsToProject(bProd, bProj)) {
+        bProd = null;
+      }
+      if (bProd && global.PreShootStudio) {
+        try {
+          var bf = PreShootStudio.findProduction(bProd);
+          if (bf && bf.project) bProj = bf.project.id;
+          else bProd = null;
+        } catch (e) {
+          bProd = null;
+        }
+      }
+      if (bProd || bProj) return { productionId: bProd, projectId: bProj };
+      if (fromBound || tab === 'director') return { productionId: null, projectId: null };
+    }
+
+    if (tab === 'studio') return resolveLiveStudioFocus();
+
+    if (tab === 'director') {
+      var session = S.dirSessionFocus || null;
+      if (!fromBound && session && (session.productionId || session.projectId)) {
+        return resolveFocus({ bound: session, fromBound: true });
+      }
+      return { productionId: null, projectId: null };
+    }
+
+    return { productionId: null, projectId: null };
+  }
+
   /**
    * @param {object} opts
    * @param {string} [opts.task] script | shots | ideas | trends | general
+   * @param {object} [opts.bound]
    */
   function build(opts) {
     opts = opts || {};
@@ -88,15 +187,26 @@
     lines.push('Task: ' + task);
     lines.push('Use sections below in this order of authority. Never treat PreShoot (the app) as the subject of a script, advert, or idea unless the current production is actually about PreShoot.');
 
+    var focus = resolveFocus({ bound: opts.bound || null });
     var pctx = null;
-    if (global.PreShootStudio && S.activeProductionId) {
+    if (global.PreShootStudio && focus.productionId) {
       try {
-        pctx = PreShootStudio.getDirectorContext(S.activeProductionId);
+        pctx = PreShootStudio.getDirectorContext(focus.productionId);
       } catch (e) {
         pctx = null;
       }
     }
+    if ((!pctx || !pctx.project) && focus.projectId && global.PreShootStudio && PreShootStudio.findProject) {
+      try {
+        var pj = PreShootStudio.findProject(focus.projectId);
+        if (pj) {
+          pctx = pctx || { project: null, production: null };
+          pctx.project = { id: pj.id, name: pj.name, description: pj.notes || pj.description || '' };
+        }
+      } catch (e) {}
+    }
     global.__preshootDirectorProduction = pctx;
+    global.__preshootDirectorFocus = focus;
 
     var production = pctx && pctx.production;
     var project = pctx && pctx.project;
@@ -474,6 +584,8 @@
   global.PreShootDirectorContext = {
     build: build,
     inferTask: inferTask,
-    flattenReferences: flattenReferences
+    flattenReferences: flattenReferences,
+    resolveFocus: resolveFocus,
+    resolveLiveStudioFocus: resolveLiveStudioFocus
   };
 })(typeof window !== 'undefined' ? window : this);
