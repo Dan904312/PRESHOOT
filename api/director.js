@@ -439,59 +439,85 @@ export default async function handler(req, res) {
     });
 
     if (stream) {
-      /* Token usage unavailable on SSE path — count request only after the stream finishes. */
+      if (!response.ok) {
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = {};
+        }
+        const msg =
+          (data && data.error && (data.error.message || data.error.type)) ||
+          'Director upstream error ' + response.status;
+        logApiError(auth.user.id, {
+          endpoint: 'director',
+          status: response.status,
+          category: 'upstream'
+        });
+        return res.status(response.status).json({
+          error: { message: String(msg).slice(0, 240) },
+          content: data && data.content
+        });
+      }
+
+      /* Count the request; do not wait for ledger writes before the client sees tokens. */
       logAiRequest(auth.user.id, {
         endpoint: 'director',
         model: anthropicBody.model,
         stream: true,
         workspace: workspaceId ? 'shared' : 'personal'
       });
+      const reader = response.body && response.body.getReader ? response.body.getReader() : null;
+      if (!reader) {
+        return res.status(502).json({ error: { message: 'Director stream unavailable' } });
+      }
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('X-Accel-Buffering', 'no');
-      res.status(response.status);
-      const reader = response.body.getReader();
+      res.status(200);
+      if (typeof res.flushHeaders === 'function') res.flushHeaders();
       const decoder = new TextDecoder();
       let tail = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        res.write(value);
+        const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value || []);
+        res.write(chunk);
+        if (typeof res.flush === 'function') res.flush();
         try {
-          tail = (tail + decoder.decode(value, { stream: true })).slice(-8000);
+          tail = (tail + decoder.decode(chunk, { stream: true })).slice(-8000);
         } catch (e) {
           /* ignore */
         }
       }
-      if (response.ok) {
-        try {
-          await recordCreationActivity(
-            auth.user.id,
-            'director',
-            req.body && req.body.timezone,
-            { workspaceId: workspaceId || null }
-          );
-        } catch (e) {
-          console.error('streak_record_failed', 'director', e && e.message);
-        }
-        const streamUsage = parseAnthropicStreamUsage(tail);
-        const recorded = await recordUsageEvent({
-          user_id: auth.user.id,
-          event_type: 'director_request',
-          provider: 'anthropic',
-          model: anthropicBody.model,
-          input_units: streamUsage.input_tokens,
-          output_units: streamUsage.output_tokens,
-          cache_creation_units: streamUsage.cache_creation_tokens,
-          cache_read_units: streamUsage.cache_read_tokens,
-          status: 'success',
-          metadata: { stream: true, workspace: workspaceId ? 'shared' : 'personal' }
-        });
-        if (!recorded || !recorded.ok) {
-          console.error('director_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
-        }
-      }
+      /* Close the HTTP stream before ledger writes so the client is not blocked. */
       res.end();
+      try {
+        await recordCreationActivity(
+          auth.user.id,
+          'director',
+          req.body && req.body.timezone,
+          { workspaceId: workspaceId || null }
+        );
+      } catch (e) {
+        console.error('streak_record_failed', 'director', e && e.message);
+      }
+      const streamUsage = parseAnthropicStreamUsage(tail);
+      const recorded = await recordUsageEvent({
+        user_id: auth.user.id,
+        event_type: 'director_request',
+        provider: 'anthropic',
+        model: anthropicBody.model,
+        input_units: streamUsage.input_tokens,
+        output_units: streamUsage.output_tokens,
+        cache_creation_units: streamUsage.cache_creation_tokens,
+        cache_read_units: streamUsage.cache_read_tokens,
+        status: 'success',
+        metadata: { stream: true, workspace: workspaceId ? 'shared' : 'personal' }
+      });
+      if (!recorded || !recorded.ok) {
+        console.error('director_usage_record_failed', recorded && recorded.error, recorded && recorded.status);
+      }
       return;
     }
 
@@ -561,5 +587,6 @@ export default async function handler(req, res) {
 }
 
 export const config = {
-  api: { bodyParser: { sizeLimit: '4mb' }, responseLimit: false }
+  api: { bodyParser: { sizeLimit: '4mb' }, responseLimit: false },
+  supportsResponseStreaming: true
 };
