@@ -513,55 +513,77 @@ var dailyOn = { scans: true, dau: true, signups: true, api_cost: false, revenue:
 var DAILY = null;
 var TRACKING = null;
 
+var ADMIN_FETCH_MS = 12000;
+
+function adminFetch(url, bodyObj, timeoutMs) {
+  var ms = timeoutMs || ADMIN_FETCH_MS;
+  var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, ms) : null;
+  return fetch(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(bodyObj),
+    signal: ctrl ? ctrl.signal : undefined
+  }).then(function (r) {
+    return r.json().then(function (d) {
+      return { status: r.status, d: d || {} };
+    }).catch(function () {
+      return { status: r.status, d: { error: 'invalid_json', message: 'Server returned an empty or invalid response.' } };
+    });
+  }).catch(function (e) {
+    var timedOut = !!(e && (e.name === 'AbortError' || /abort/i.test(String(e && e.message || e))));
+    var err = new Error(timedOut ? 'Request timed out. Try again.' : 'Network error');
+    err.timedOut = timedOut;
+    throw err;
+  }).finally(function () {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 function doLogin() {
   var inp = document.getElementById('admin-key-inp');
   var k = (inp.value || '').trim();
   if (!k) return;
   document.getElementById('login-err').textContent = '';
-  fetch('/api/admin-auth', {
-    method: 'POST', credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'login', secret: k })
-  }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-    .then(function (res) {
+  adminFetch('/api/admin-auth', { action: 'login', secret: k }).then(function (res) {
       inp.value = '';
-      if (!res.ok || !res.d.ok) {
+      if (res.status === 503) {
+        document.getElementById('login-err').textContent = (res.d && res.d.message) || 'Server timed out. Retry.';
+        return;
+      }
+      if (!res.d || !res.d.ok) {
         document.getElementById('login-err').textContent = (res.d && res.d.message) || 'Invalid password';
         return;
       }
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       boot();
-    }).catch(function () { document.getElementById('login-err').textContent = 'Server error'; });
+    }).catch(function (e) {
+      inp.value = '';
+      document.getElementById('login-err').textContent = (e && e.message) || 'Server error';
+    });
 }
 function logout() {
-  fetch('/api/admin-auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) })
+  adminFetch('/api/admin-auth', { action: 'logout' }, 8000)
     .catch(function () {}).then(function () { location.reload(); });
 }
 window.onload = function () {
-  fetch('/api/admin-auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'session' }) })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (!d || !d.ok) return;
+  adminFetch('/api/admin-auth', { action: 'session' }).then(function (res) {
+      if (!res.d || !res.d.ok) return;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       boot();
     }).catch(function () {});
 };
 function api(action, params) {
-  return fetch('/api/admin-data', {
-    method: 'POST', credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({ action: action }, params || {}))
-  }).then(function (r) {
-    return r.json().then(function (d) {
-      if (r.status === 401) {
-        document.getElementById('app').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('login-err').textContent = 'Session expired. Sign in again.';
-      }
-      return d;
-    });
+  return adminFetch('/api/admin-data', Object.assign({ action: action }, params || {})).then(function (res) {
+    if (res.status === 401) {
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('login-err').textContent = 'Session expired. Sign in again.';
+    }
+    return res.d;
   });
 }
 function showPage(name, btn) {
@@ -667,6 +689,8 @@ function loadOverviewStats() {
     }
     var alerts = (d.cost_alerts && d.cost_alerts.alerts) || [];
     $('ov-alerts').textContent = alerts.length ? alerts.map(function (a) { return a.message; }).join(' · ') : 'No cost threshold alerts. Optional: ADMIN_DAILY_SPEND_WARN, ADMIN_MONTHLY_SPEND_WARN, ADMIN_USER_SPEND_WARN.';
+  }).catch(function (e) {
+    showToast((e && e.message) || 'Overview timed out');
   });
 }
 function setDailyRange(r, btn) {
@@ -788,13 +812,17 @@ function loadUsers(search) {
         '<td>' + (u.first_seen ? new Date(u.first_seen).toLocaleDateString() : '—') + '</td>' +
         '<td>' + (u.last_seen ? timeAgo(u.last_seen) : '—') + '</td></tr>';
     }).join('');
+  }).catch(function (e) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">' + esc((e && e.message) || 'Request timed out') + '</td></tr>';
   });
 }
 
 function openUser(uid) {
   $('user-overlay').classList.add('open');
   $('user-drawer').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
-  api('user_detail', { user_id: uid }).then(renderUserDetail);
+  api('user_detail', { user_id: uid }).then(renderUserDetail).catch(function (e) {
+    $('user-drawer').innerHTML = '<p>' + esc((e && e.message) || 'Request timed out') + '</p>';
+  });
 }
 function closeUser() { $('user-overlay').classList.remove('open'); }
 function renderUserDetail(d) {
@@ -878,10 +906,17 @@ function doSuspend(btn) {
   if (!pass) { showToast('Re-enter the admin password'); return; }
   btn.disabled = true;
   btn.textContent = 'Suspending…';
-  api('suspend_user', { user_id: uid, email: email, reason: reason, confirm_password: pass }).then(function (d) {
+  api('suspend_user', { user_id: uid, email: email, reason: reason, confirm_password: pass   }).then(function (d) {
     if (d && d.success) {
       closeDialog();
       showToast(d.message || 'Account suspended');
+      openUser(uid);
+      loadUsers();
+      loadOverviewStats();
+      loadNotifications();
+    } else if (d && d.persisted) {
+      closeDialog();
+      showToast(d.message || 'Saved, but Auth ban did not finish. Retry Suspend.');
       openUser(uid);
       loadUsers();
       loadOverviewStats();
@@ -891,10 +926,10 @@ function doSuspend(btn) {
       btn.textContent = 'Suspend';
       showToast((d && (d.message || d.error)) || 'Failed');
     }
-  }).catch(function () {
+  }).catch(function (e) {
     btn.disabled = false;
     btn.textContent = 'Suspend';
-    showToast('Network error');
+    showToast((e && e.message) || 'Network error');
   });
 }
 function confirmRestore(btn) {
@@ -919,15 +954,22 @@ function doRestore(btn) {
       loadUsers();
       loadOverviewStats();
       loadNotifications();
+    } else if (d && d.persisted) {
+      closeDialog();
+      showToast(d.message || 'Saved, but Auth unban did not finish. Retry Restore.');
+      openUser(uid);
+      loadUsers();
+      loadOverviewStats();
+      loadNotifications();
     } else {
       btn.disabled = false;
       btn.textContent = 'Restore';
       showToast((d && (d.message || d.error)) || 'Failed');
     }
-  }).catch(function () {
+  }).catch(function (e) {
     btn.disabled = false;
     btn.textContent = 'Restore';
-    showToast('Network error');
+    showToast((e && e.message) || 'Network error');
   });
 }
 
@@ -951,6 +993,8 @@ function loadUsage() {
     $('usage-break').innerHTML = rows.length ? rows.map(function (r) {
       return '<tr><td>' + esc(r.provider) + '</td><td>' + esc(r.model) + '</td><td>' + esc(r.event_type) + '</td><td>' + r.count + '</td><td>' + moneyApi(r.cost) + '</td></tr>';
     }).join('') : '<tr><td colspan="5" class="empty">No tracked usage in this window</td></tr>';
+  }).catch(function (e) {
+    showToast((e && e.message) || 'Usage timed out');
   });
 }
 
