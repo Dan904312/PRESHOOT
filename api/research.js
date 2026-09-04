@@ -9,12 +9,13 @@ import {
   requireResearchAccess,
   gateRouteRateLimit,
   sendRateLimitResponse,
-  serviceHeaders
+  serviceHeaders,
+  fetchJsonWithTimeout
 } from '../lib/security.js';
 import { trackProductEventServer } from '../lib/product-events.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
 import { normalizeAnthropicUsage, estimateAiCostFromUsage } from '../lib/ai-pricing.js';
-import { getTrendDataset, memoryGet, memorySet, sanitizeRegion, searchTrendsByTopic } from '../lib/trends.js';
+import { getTrendDataset, memoryGet, memorySet, sanitizeRegion, searchTrendsByTopic, isFresh, TREND_TTL_MS } from '../lib/trends.js';
 import { detectVideoPlatform, parseYouTubeVideoId } from '../lib/content-performance.js';
 
 const MAX_ITEMS = 5;
@@ -548,18 +549,20 @@ function resourceOf(req) {
 
 async function readPersistedTrends(region) {
   const mem = memoryGet(region);
-  if (mem && Array.isArray(mem.items)) return mem;
+  if (mem && Array.isArray(mem.items) && mem.items.length) return mem;
   const SUPA_URL = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!SUPA_URL || !key) return mem;
+  const pack = await fetchJsonWithTimeout(
+    `${SUPA_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent('trends_cache_' + region)}&select=value&limit=1`,
+    { headers: serviceHeaders() },
+    2000
+  );
+  if (pack.timedOut || !pack.ok) return mem;
+  const rows = pack.data;
+  const raw = Array.isArray(rows) && rows[0] && rows[0].value;
+  if (!raw) return mem;
   try {
-    const r = await fetch(
-      `${SUPA_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent('trends_cache_' + region)}&select=value&limit=1`,
-      { headers: serviceHeaders() }
-    );
-    const rows = await r.json().catch(() => null);
-    const raw = Array.isArray(rows) && rows[0] && rows[0].value;
-    if (!raw) return mem;
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (parsed && Array.isArray(parsed.items)) {
       memorySet(region, parsed);
@@ -575,9 +578,10 @@ async function writePersistedTrends(region, dataset) {
   memorySet(region, dataset);
   const SUPA_URL = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
-  if (!SUPA_URL || !key || !dataset) return;
-  try {
-    await fetch(`${SUPA_URL}/rest/v1/app_settings`, {
+  if (!SUPA_URL || !key || !dataset || !Array.isArray(dataset.items) || !dataset.items.length) return;
+  await fetchJsonWithTimeout(
+    `${SUPA_URL}/rest/v1/app_settings`,
+    {
       method: 'POST',
       headers: Object.assign({}, serviceHeaders(), {
         Prefer: 'resolution=merge-duplicates,return=minimal'
@@ -587,10 +591,27 @@ async function writePersistedTrends(region, dataset) {
         value: JSON.stringify(dataset),
         updated_at: new Date().toISOString()
       })
-    });
-  } catch (e) {
-    /* memory cache is enough for this instance */
-  }
+    },
+    2000
+  );
+}
+
+function trendPayload(dataset, extras) {
+  extras = extras || {};
+  return Object.assign(
+    {
+      ok: true,
+      region: dataset.region,
+      fetchedAt: dataset.fetchedAt || null,
+      expiresAt: dataset.expiresAt || null,
+      cache: dataset.cache || 'empty',
+      items: dataset.items || [],
+      sources: dataset.sources || [],
+      limitations: dataset.limitations || []
+    },
+    dataset.warning ? { warning: dataset.warning } : {},
+    extras
+  );
 }
 
 async function handleTrends(req, res) {
@@ -598,7 +619,16 @@ async function handleTrends(req, res) {
     return res.status(405).json({ error: { message: 'Method not allowed' } });
   }
 
-  const auth = await requireUser(req);
+  const started = Date.now();
+  const q = req.query || {};
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const region = sanitizeRegion(q.region || body.region || 'US');
+  const force = String(q.refresh || body.refresh || '') === '1';
+  const topic = String(q.q || body.q || '').trim().slice(0, 80);
+
+  const authP = requireUser(req);
+  const cacheP = readPersistedTrends(region);
+  const auth = await authP;
   const rl = await gateRouteRateLimit(req, {
     route: 'trends',
     max: 30,
@@ -610,19 +640,43 @@ async function handleTrends(req, res) {
     return res.status(auth.status).json({ error: { message: 'Sign in to view trending' } });
   }
 
-  const q = req.query || {};
-  const body = req.body && typeof req.body === 'object' ? req.body : {};
-  const region = sanitizeRegion(q.region || body.region || 'US');
-  const force = String(q.refresh || body.refresh || '') === '1';
-  const topic = String(q.q || body.q || '').trim().slice(0, 80);
+  if (force) {
+    const refreshRl = await gateRouteRateLimit(req, {
+      route: 'trends-refresh',
+      max: 4,
+      windowMs: 15 * 60 * 1000,
+      userId: auth.user.id
+    });
+    if (!refreshRl.allowed) {
+      const cached = await cacheP;
+      if (cached && Array.isArray(cached.items) && cached.items.length) {
+        console.error('trends_timing', {
+          region,
+          force: true,
+          cache: 'refresh_rate_limited',
+          items: cached.items.length,
+          ms: Date.now() - started
+        });
+        return res.status(200).json(
+          trendPayload(Object.assign({}, cached, { cache: isFresh(cached, Date.now(), TREND_TTL_MS) ? 'hit' : 'stale' }), {
+            warning: 'refresh_rate_limited'
+          })
+        );
+      }
+      return sendRateLimitResponse(res, refreshRl);
+    }
+  }
+
   const youtubeKey = process.env.YOUTUBE_API_KEY || process.env.GOOGLE_YOUTUBE_API_KEY || '';
 
   try {
+    const cached = await cacheP;
     const dataset = await getTrendDataset({
       region,
       force,
       youtubeKey,
-      readCache: readPersistedTrends,
+      cached,
+      readCache: null,
       writeCache: writePersistedTrends
     });
     if (topic) {
@@ -631,6 +685,13 @@ async function handleTrends(req, res) {
         region,
         youtubeKey,
         baseItems: dataset.items || []
+      });
+      console.error('trends_timing', {
+        region,
+        force,
+        cache: 'topic',
+        items: (searched.items || []).length,
+        ms: Date.now() - started
       });
       return res.status(200).json({
         ok: true,
@@ -641,34 +702,33 @@ async function handleTrends(req, res) {
         cache: 'topic',
         items: searched.items || [],
         sources: (dataset.sources || []).concat(searched.sources || []),
-        limitations: (dataset.limitations || []).concat(searched.limitations || [])
+        limitations: (dataset.limitations || []).concat(searched.limitations || []),
+        warning: dataset.warning || undefined
       });
     }
-    const payload = {
-      ok: true,
-      region: dataset.region,
-      fetchedAt: dataset.fetchedAt,
-      expiresAt: dataset.expiresAt,
-      cache: dataset.cache,
-      items: dataset.items || [],
-      sources: dataset.sources || [],
-      limitations: dataset.limitations || []
-    };
-    return res.status(200).json(payload);
+    console.error('trends_timing', {
+      region,
+      force,
+      cache: dataset.cache || 'empty',
+      items: (dataset.items || []).length,
+      ms: Date.now() - started,
+      warning: dataset.warning || null
+    });
+    return res.status(200).json(trendPayload(dataset));
   } catch (e) {
     const stale = await readPersistedTrends(region);
+    console.error('trends_timing', {
+      region,
+      force,
+      cache: stale && stale.items && stale.items.length ? 'stale' : 'empty',
+      items: stale && stale.items ? stale.items.length : 0,
+      ms: Date.now() - started,
+      warning: 'refresh_failed'
+    });
     if (stale && Array.isArray(stale.items) && stale.items.length) {
-      return res.status(200).json({
-        ok: true,
-        region,
-        fetchedAt: stale.fetchedAt,
-        expiresAt: stale.expiresAt,
-        cache: 'stale',
-        items: stale.items,
-        sources: stale.sources || [],
-        limitations: stale.limitations || [],
-        warning: 'refresh_failed'
-      });
+      return res.status(200).json(
+        trendPayload(Object.assign({}, stale, { cache: 'stale' }), { warning: 'refresh_failed' })
+      );
     }
     return res.status(200).json({
       ok: true,
