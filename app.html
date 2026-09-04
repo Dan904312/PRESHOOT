@@ -63,14 +63,14 @@
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/hook-engine.js?v=391"></script>
 <script src="/js/skeleton.js?v=390"></script>
-<script src="/js/director-context.js?v=391"></script>
+<script src="/js/director-context.js?v=393"></script>
 <script src="/js/creative-research.js?v=390"></script>
 <script src="/js/studio.js?v=390"></script>
 <script src="/js/studio-sync.js?v=320"></script>
 <script src="/js/workspace-sync.js?v=361"></script>
 <script src="/js/workspace-changes.js?v=361"></script>
 <script src="/js/workspace-context.js?v=363"></script>
-<script src="/js/workspace-ui.js?v=385"></script>
+<script src="/js/workspace-ui.js?v=393"></script>
 <script src="/js/workspace-realtime.js?v=360"></script>
 <script src="/js/workspace-comments.js?v=385"></script>
 <script src="/js/analytics.js?v=360"></script>
@@ -79,10 +79,10 @@
 <script src="/js/calendar.js?v=390"></script>
 <script src="/js/trending.js?v=390"></script>
 <script src="/js/director-voice.js?v=388"></script>
-<script src="/js/studio-ui.js?v=390"></script>
+<script src="/js/studio-ui.js?v=393"></script>
 <script src="/js/studio-export.js?v=383"></script>
-<script src="/js/studio-keyboard.js?v=302"></script>
-<script src="/js/director-os.js?v=383"></script>
+<script src="/js/studio-keyboard.js?v=393"></script>
+<script src="/js/director-os.js?v=393"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js?v=386"></script>
 <style>
@@ -142,24 +142,28 @@ button{font-family:var(--fb);cursor:pointer;border:none;background:none}
 @keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 @keyframes pulse{0%,100%{box-shadow:none}} /* SCREENS */
 .screen{position:fixed;top:0;left:0;right:0;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);display:none;flex-direction:column;background:var(--bg);padding-bottom:0;box-sizing:border-box}
-.screen.active{display:flex;animation:screenIn .32s cubic-bezier(0.4,0,.2,1) forwards}
-.screen.exit{animation:screenOut .2s cubic-bezier(0.4,0,1,1) forwards;pointer-events:none}
-@keyframes screenIn{0%{opacity:0}100%{opacity:1}}
+.screen.active{display:flex;animation:screenIn .22s ease forwards}
+.screen.exit{animation:screenOut .16s ease forwards;pointer-events:none}
+@keyframes screenIn{0%{opacity:.72}100%{opacity:1}}
 @keyframes screenOut{0%{opacity:1}100%{opacity:0}}
 .screen.active.no-anim{animation:none!important}
-.sb{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0} /* Spring button press, applied globally */
-.spring-btn{transition:transform .15s cubic-bezier(0.34,1.56,0.64,1)!important}
-.spring-btn:active{transform:scale(.93)!important} /* All buttons and interactive elements */
-button,.bni,.back-btn,.menu-row,.ic,.hist-card,.card-select,.chip,.platform-card,.fmt-btn,.scan-ring,.act-btn,.pw-btn,.ob-btn-p,.yt-btn,.cc-btn,.rate-btn,.rescan-btn,.lib-tab,.seg-btn,.picker-row,.gen-shotlist-btn{ transition:transform .18s cubic-bezier(0.34,1.56,0.64,1), background .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease!important;
+.sb{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
+button,.bni,.back-btn,.menu-row,.ic,.hist-card,.card-select,.chip,.platform-card,.fmt-btn,.scan-ring,.act-btn,.pw-btn,.ob-btn-p,.yt-btn,.cc-btn,.rate-btn,.rescan-btn,.lib-tab,.seg-btn,.picker-row,.gen-shotlist-btn,.studio-btn,.st-prod-card,.st-project-card,.continue-card,.director-card,.ws-switch-btn,.studio-icon-btn,.st-tab,.pw-tool{
+  transition:transform .1s ease, background .15s ease, border-color .15s ease, opacity .12s ease;
 }
-button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-card:active,.card-select:active,.chip:active,.platform-card:active,.fmt-btn:active,.scan-ring:active,.act-btn:active,.pw-btn:active,.ob-btn-p:active,.yt-btn:active,.cc-btn:active,.rate-btn:active,.rescan-btn:active,.lib-tab:active,.seg-btn:active,.picker-row:active,.gen-shotlist-btn:active{ transform:scale(.93)!important;
+button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-card:active,.card-select:active,.chip:active,.platform-card:active,.fmt-btn:active,.scan-ring:active,.act-btn:active,.pw-btn:active,.ob-btn-p:active,.yt-btn:active,.cc-btn:active,.rescan-btn:active,.lib-tab:active,.seg-btn:active,.picker-row:active,.gen-shotlist-btn:active,.studio-btn:active,.st-prod-card:active,.st-project-card:active,.continue-card:active,.director-card:active,.ws-switch-btn:active,.studio-icon-btn:active,.st-tab:active,.pw-tool:active,
+.is-pressed{transform:scale(.98)}
+.bni:active,.bni.is-pressed{transform:scale(.97)}
+.scan-ring:active,.scan-ring.is-pressed{transform:scale(.98);animation:none}
+button:disabled,.studio-btn:disabled,.dir-cmd-go:disabled{transform:none!important}
+button:focus-visible,.bni:focus-visible,.studio-btn:focus-visible,.ws-switch-btn:focus-visible,.studio-icon-btn:focus-visible,.st-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){
+  .screen.active,.screen.exit,.studio-fade{animation:none!important}
+  button,.bni,.back-btn,.menu-row,.ic,.hist-card,.card-select,.chip,.platform-card,.fmt-btn,.scan-ring,.act-btn,.pw-btn,.studio-btn,.st-prod-card,.st-project-card,.continue-card,.director-card,.ws-switch-btn,.studio-icon-btn,.st-tab,.pw-tool,.bni-ico,.bni-scan{
+    transition:background .12s ease, border-color .12s ease, opacity .12s ease, color .12s ease!important
+  }
+  button:active,.bni:active,.is-pressed,.scan-ring:active,.fmt-btn:active,.studio-btn:active,.bni-scan:active{transform:none!important}
 }
-/* Nav items smaller press */
-.bni:active{transform:scale(.88)!important}
-/* Scan ring larger spring */
-.scan-ring:active{transform:scale(.9)!important;animation:none!important}
-/* Chips subtle press */
-.chip:active,.seg-btn:active,.lib-tab:active{transform:scale(.92)!important} /* Modal sheet spring entrance */
 .modal-ov{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.0);backdrop-filter:blur(0px);display:none;align-items:flex-end;transition:background .3s ease,backdrop-filter .3s ease}
 .modal-ov.open{display:flex;background:rgba(0,0,0,.8);backdrop-filter:blur(8px)}
 .modal-sheet{width:100%;background:var(--s1);border-radius:24px 24px 0 0;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .44s cubic-bezier(0.34,1.2,0.64,1);padding-bottom:calc(32px + env(safe-area-inset-bottom));box-shadow:0 -8px 40px rgba(0,0,0,.6)}
@@ -180,15 +184,15 @@ button:active,.bni:active,.back-btn:active,.menu-row:active,.ic:active,.hist-car
 .info-tip-box{animation:tipIn .32s cubic-bezier(0.34,1.4,0.64,1) both}
 @keyframes tipIn{0%{opacity:0;transform:scale(.85) translateY(16px)}100%{opacity:1;transform:scale(1) translateY(0)}} /* ── iPhone Dock Nav ── */
 .bnav{position:fixed;z-index:200;left:max(var(--bnav-side),env(safe-area-inset-left,0px));right:max(var(--bnav-side),env(safe-area-inset-right,0px));bottom:var(--bnav-inset-bottom);top:auto;height:var(--bnav-h);background:var(--s1);backdrop-filter:blur(40px) saturate(160%);-webkit-backdrop-filter:blur(40px) saturate(160%);border-radius:999px;border:1px solid var(--border);box-shadow:0 10px 40px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.06) inset;display:flex;align-items:center;padding:0 8px;overflow:visible;transform:none}
-.bni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:4px 0;min-width:0;overflow:visible;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
-.bni:active{transform:scale(.86)}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:4px 0;min-width:0;overflow:visible;transition:transform .1s ease}
+.bni:active,.bni.is-pressed{transform:scale(.97)}
 .scan-ring-label{font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 .bni-ico{display:flex!important;align-items:center;justify-content:center;width:24px;height:24px;line-height:0;color:rgba(255,255,255,.32)}
 .bni-lbl{font-size:9px;font-weight:700;letter-spacing:.5px;color:rgba(255,255,255,.28);text-transform:uppercase;transition:color .18s ease}
 .bni.active .bni-ico{color:var(--accent);transform:scale(1.1) translateY(-1px)}
 .bni.active .bni-lbl{color:var(--accent)}
-.bni-scan{width:56px;height:56px;min-width:56px;min-height:56px;flex-shrink:0;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px rgba(255,255,255,.18),0 8px 24px rgba(0,0,0,.45);margin-top:-28px;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s;color:var(--on-accent)}
-.bni-scan:active{transform:scale(.88)}
+.bni-scan{width:56px;height:56px;min-width:56px;min-height:56px;flex-shrink:0;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px rgba(255,255,255,.18),0 8px 24px rgba(0,0,0,.45);margin-top:-28px;transition:transform .1s ease,box-shadow .15s ease;color:var(--on-accent)}
+.bni-scan:active,.bni-scan.is-pressed{transform:scale(.97)}
 .bni-scan svg,.bni-scan .ico-svg{color:var(--on-accent);stroke:var(--on-accent)}
 #nav-profile,#nav-prof-ico,.bni-ico{overflow:visible;position:relative}
 #nav-prof-ico{width:24px;height:24px}
@@ -995,7 +999,7 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .fmt-info-btn:active{background:var(--s2);border-color:var(--accent);color:var(--accent)}
 
 /* Director */
-#screen-director{background:var(--bg);padding-bottom:0!important;display:none;flex-direction:column;min-height:0}
+#screen-director{background:var(--bg);padding-bottom:var(--dir-kb,0px)!important;display:none;flex-direction:column;min-height:0}
 #screen-director.active{display:flex}
 .dir-hd,.dir-pills-wrap,.dir-composer{flex-shrink:0}
 .dir-msgs{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px;display:flex;flex-direction:column;gap:12px;user-select:text;-webkit-user-select:text}
@@ -1007,6 +1011,11 @@ body{-webkit-font-smoothing:antialiased;letter-spacing:-.011em;background:var(--
 .dir-view-full:active{opacity:.7}
 #dir-full-msg-body{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-height:min(60vh,480px);overflow-y:auto;font-size:14px;line-height:1.65;color:var(--text)}
 .dir-composer{position:relative;z-index:5;padding:10px 14px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);display:flex;gap:9px;align-items:flex-end;background:var(--s1)}
+.dir-composer.is-busy #dir-input{opacity:.72}
+.dir-composer.is-busy #dir-send-btn{opacity:.45;pointer-events:none}
+#dir-send-btn:disabled{opacity:.4;cursor:default}
+.dir-retry{display:inline-flex;margin-top:8px;padding:7px 10px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.dir-error-note{margin-top:6px;font-size:12px;color:var(--text2);line-height:1.45}
 .dir-pills-wrap{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
 @media(pointer:fine){
   .dir-msgs{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
@@ -1071,8 +1080,8 @@ html.theme-light .bni-scan{box-shadow:0 0 0 1.5px rgba(0,0,0,.08),0 8px 24px rgb
 /* ── Studio (Phase 2) ── */
 #screen-studio{background:var(--bg);position:relative}
 .studio-shell{padding-bottom:120px}
-.studio-fade{animation:studioIn .32s cubic-bezier(.22,1,.36,1) both}
-@keyframes studioIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.studio-fade{animation:studioIn .18s ease both}
+@keyframes studioIn{from{opacity:.82}to{opacity:1}}
 
 /* Full-screen script editor */
 .script-fs-ov{position:fixed;inset:0;z-index:420;height:var(--app-height,100dvh);max-height:var(--app-height,100dvh);background:var(--bg);display:none;flex-direction:column}
@@ -1163,7 +1172,8 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .st-idea-h{font-size:13px;color:var(--text2);line-height:1.5}
 .studio-actions-row{display:flex;flex-wrap:wrap;gap:8px;padding:4px 20px 14px}
 .studio-inline-actions{display:flex;gap:8px;margin-top:8px}
-.st-overflow-menu{position:absolute;right:20px;margin-top:-6px;z-index:5;min-width:160px;background:var(--s1);border:1px solid var(--accent-border);border-radius:14px;padding:6px;box-shadow:0 12px 40px var(--accent-glow);display:flex;flex-direction:column}
+.st-overflow-menu{position:absolute;right:0;margin-top:6px;z-index:40;min-width:160px;max-width:min(280px,calc(100vw - 16px));background:var(--s1);border:1px solid var(--accent-border);border-radius:14px;padding:6px;box-shadow:0 12px 40px var(--accent-glow);display:flex;flex-direction:column;box-sizing:border-box}
+.st-overflow-menu.is-anchored{position:fixed;margin-top:0;z-index:520}
 .st-overflow-menu[hidden]{display:none!important}
 .st-overflow-menu button{appearance:none;border:none;background:transparent;color:var(--text);text-align:left;padding:11px 12px;border-radius:10px;font-size:14px;font-weight:600;font-family:var(--fb);cursor:pointer}
 .st-overflow-menu button:active{background:var(--s2)}
@@ -1209,7 +1219,8 @@ html.script-fs-active,html.script-fs-active body{overflow:hidden}
 .studio-hd-desktop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .studio-more-wrap{position:relative;flex-shrink:0}
 .studio-more-btn{display:none}
-.studio-more-menu{right:0;left:auto;margin-top:8px;min-width:200px;z-index:40}
+.studio-more-menu{right:0;left:auto;margin-top:8px;min-width:200px;z-index:40;max-width:min(280px,calc(100vw - 16px))}
+.studio-more-menu.is-anchored{right:auto;margin-top:0}
 .ws-switch-btn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:8px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;text-align:left;min-width:120px;max-width:180px}
 .ws-switch-btn-kicker{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);font-family:var(--fb)}
 .ws-switch-btn-name{font-size:13px;font-weight:700;font-family:var(--fd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:156px}
@@ -1373,17 +1384,21 @@ select option,
   .ws-member-actions{flex-direction:column;align-items:stretch}
 }
 @media (max-width:768px){
-  #screen-studio,.studio-shell,.studio-hd,.studio-detail-hd{overflow-x:hidden}
+  #screen-studio{overflow-x:hidden}
+  .studio-shell,.studio-hd,.studio-detail-hd{overflow-x:visible}
   .studio-hd,.studio-detail-hd{flex-wrap:wrap;gap:10px;align-items:center}
   .studio-hd-text{flex:1 1 140px;min-width:0}
   .studio-title{font-size:clamp(20px,6.4vw,28px);overflow:hidden;text-overflow:ellipsis}
   .studio-sub{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-  .studio-hd-actions,.studio-hd-tools{width:100%;justify-content:flex-start;flex-wrap:nowrap}
-  .studio-hd-primary{flex:1;min-width:0}
+  .studio-hd-actions{width:100%;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:stretch}
+  .studio-hd-tools{flex:0 0 auto;width:auto;max-width:none;justify-content:flex-end;flex-wrap:nowrap;gap:6px}
+  .studio-hd-primary{flex:1 1 auto;min-width:0}
   .ws-switch-btn{min-width:0;max-width:100%;width:100%;padding:8px 10px}
   .ws-switch-btn-name,.ws-switch-btn-sub{max-width:100%}
   .studio-hd-desktop{display:none!important}
   .studio-more-btn{display:flex!important}
+  .studio-more-btn,.studio-icon-btn,.studio-back{width:44px;height:44px;min-width:44px;min-height:44px}
+  .studio-hd-cta{display:none!important}
   .studio-hd-tools .studio-btn.primary{flex:0 0 auto;white-space:nowrap}
   .pw-section-actions{justify-content:flex-start!important}
   .pw-section-hd{flex-wrap:wrap}
@@ -1819,9 +1834,12 @@ html.dir-voice-active{overflow:hidden}
 }
 
 /* Prevent horizontal overflow without overriding desktop max-widths */
-.screen,.home-inner,.studio-shell,.sb{overflow-x:hidden}
+.screen,.home-inner,.sb{overflow-x:hidden}
+.studio-shell{overflow-x:hidden}
+.studio-hd,.studio-detail-hd{overflow:visible}
+.st-overflow-menu button{min-height:44px}
 .scan-zone{overflow-x:hidden;box-sizing:border-box}
-.st-project-card,.st-prod-card,.continue-card,.director-card,.usage-bar{max-width:100%;box-sizing:border-box}
+.st-project-card,.st-prod-card,.continue-card,.director-card,.usage-bar,.pw-card,.ar-card,.studio-section-row,.pw-section-hd{max-width:100%;box-sizing:border-box;min-width:0}
 
 /* Desktop / large: keep centered, don't force mobile squeeze */
 @media (min-width:640px){
@@ -1859,7 +1877,7 @@ html.dir-voice-active{overflow:hidden}
   }
   #screen-studio .studio-shell{
     transform:none!important;
-    padding-bottom:24px!important;
+    padding-bottom:calc(var(--bnav-space) + 16px)!important;
   }
   #screen-studio .studio-hd,#screen-studio .studio-detail-hd{
     padding-top:max(48px,calc(10px + env(safe-area-inset-top,20px)));
@@ -1869,6 +1887,21 @@ html.dir-voice-active{overflow:hidden}
   #screen-studio .st-tab{flex:1 1 auto;min-width:0;max-width:100%}
   #screen-studio .dir-cmd-bar{gap:6px;padding:7px 8px 7px 10px}
   #screen-studio .dir-cmd-go{padding:0 10px;min-width:44px}
+}
+@media (max-width:430px){
+  #screen-studio .st-tabs{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    overflow:visible;
+  }
+  #screen-studio .st-tab{
+    flex:none;
+    width:100%;
+    max-width:none;
+    white-space:normal;
+    text-align:center;
+    padding:8px 6px;
+  }
 }
 
 /* Hierarchy: primary uses accent, secondary is surface, destructive is red */
@@ -2132,7 +2165,7 @@ html.dir-voice-active{overflow:hidden}
 <div class="screen" id="screen-profile"><div class="sb" id="prof-sb"></div></div> <!-- DIRECTOR SCREEN -->
 <div id="dir-drawer-ov" onclick="closeDirDrawer()" style="display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;transition:opacity .25s ease"></div>
 <div id="dir-drawer" style="position:fixed;top:0;left:0;bottom:0;z-index:701;width:272px;background:var(--s1);border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .35s cubic-bezier(.34,1.18,.64,1);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)"> <div style="padding:56px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0"> <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px">Conversations</div> <button onclick="newDirConversation()" style="width:100%;padding:10px;background:var(--text);color:var(--bg);border-radius:10px;font-size:13px;font-weight:600;font-family:var(--fd);box-shadow:none;border:1px solid var(--text)">+ New chat</button> </div> <div id="dir-conv-list" style="flex:1;overflow-y:auto;padding:8px"></div>
-</div> <div class="screen" id="screen-director" style="padding-bottom:0"> <div style="padding:60px 20px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0;border-bottom:1px solid var(--border)"> <div class="back-btn" onclick="closeDirector()" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <button onclick="openDirDrawer()" style="width:34px;height:34px;border-radius:8px;background:var(--s2);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex-shrink:0;cursor:pointer;padding:0"> <span style="width:14px;height:2px;background:var(--text2);display:block;border-radius:1px"></span> <span style="width:14px;height:2px;background:var(--text2);display:block;border-radius:1px"></span> <span style="width:14px;height:2px;background:var(--text2);display:block;border-radius:1px"></span> </button> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="dir-conv-title">PreShoot Director</div> <div style="font-size:11px;color:var(--text);margin-top:1px;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--text);display:inline-block"></span>AI Active</div> </div> <button onclick="newDirConversation()" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--fb);flex-shrink:0">+ New</button> </div> <div class="dir-pills-wrap" id="dir-pills"></div> <div class="dir-msgs" id="dir-msgs"></div> <div class="dir-composer"> <textarea id="dir-input" placeholder="Ask anything: filming, editing, gear, strategy..." style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--text);outline:none;resize:none;min-height:42px;max-height:120px;font-family:var(--fb);line-height:1.5" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDirector()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea> <button id="dir-send-btn" onclick="sendDirector()" style="width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:14px;font-weight:700;flex-shrink:0;transition:opacity .15s">Send</button> </div>
+</div> <div class="screen" id="screen-director"> <div style="padding:60px 20px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0;border-bottom:1px solid var(--border)"> <div class="back-btn" onclick="closeDirector()" aria-label="Back"><svg class="ico-svg" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6l-6 6 6 6M8 12h11"/></svg></div> <button onclick="openDirDrawer()" style="width:34px;height:34px;border-radius:8px;background:var(--s2);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex-shrink:0;cursor:pointer;padding:0"> <span style="width:14px;height:2px;background:var(--text2);display:block;border-radius:1px"></span> <span style="width:14px;height:2px;background:var(--text2);display:block;border-radius:1px"></span> <span style="width:14px;height:2px;background:var(--text2);display:block;border-radius:1px"></span> </button> <div style="flex:1;min-width:0"> <div style="font-family:var(--fd);font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="dir-conv-title">PreShoot Director</div> <div style="font-size:11px;color:var(--text);margin-top:1px;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--text);display:inline-block"></span>AI Active</div> </div> <button onclick="newDirConversation()" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text2);cursor:pointer;font-family:var(--fb);flex-shrink:0">+ New</button> </div> <div class="dir-pills-wrap" id="dir-pills"></div> <div class="dir-msgs" id="dir-msgs"></div> <div class="dir-composer"> <textarea id="dir-input" placeholder="Ask anything: filming, editing, gear, strategy..." style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:16px;color:var(--text);outline:none;resize:none;min-height:42px;max-height:120px;font-family:var(--fb);line-height:1.5" rows="1" aria-label="Message Director" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();sendDirector()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea> <button id="dir-send-btn" onclick="sendDirector()" aria-label="Send" style="width:42px;height:42px;min-width:42px;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:14px;font-weight:700;flex-shrink:0;transition:opacity .15s">Send</button> </div>
 </div> <!-- NICHE MODAL -->
 <div class="modal-ov" id="niche-modal"> <div class="modal-sheet"> <div class="modal-handle"></div> <div class="modal-hd"><div class="modal-ttl">Creator Profile & Niche</div><div class="modal-x" onclick="closeM('niche-modal')" data-ico="x" data-ico-size="16"></div></div> <div class="modal-body" style="overflow-y:auto;max-height:70vh"> <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Build your creator DNA. The AI uses this to generate ideas that feel like they were made specifically for you.</div> <!-- Primary Niche --> <div class="pers-sec"> <div class="pers-sec-title">Primary Niche</div> <input class="field-inp" id="niche-primary" placeholder="e.g. Car Content, Fitness, Tech Reviews, Fashion"> </div> <!-- Secondary Niche --> <div class="pers-sec"> <div class="pers-sec-title">Secondary Niche (Optional)</div> <input class="field-inp" id="niche-secondary" placeholder="e.g. Lifestyle, Travel, Photography"> </div> <!-- Content Type --> <div class="pers-sec"> <div class="pers-sec-title">Content Type</div> <div class="chip-grid" id="content-type-chips"> <div class="chip" onclick="toggleChip(this,'content-type')">Cinematic</div> <div class="chip" onclick="toggleChip(this,'content-type')">Vlog Style</div> <div class="chip" onclick="toggleChip(this,'content-type')">Tutorial</div> <div class="chip" onclick="toggleChip(this,'content-type')">Fast Edits</div> <div class="chip" onclick="toggleChip(this,'content-type')">Storytelling</div> <div class="chip" onclick="toggleChip(this,'content-type')">Educational</div> <div class="chip" onclick="toggleChip(this,'content-type')">Entertainment</div> <div class="chip" onclick="toggleChip(this,'content-type')">Professional</div> </div> </div> <!-- Experience Level --> <div class="pers-sec"> <div class="pers-sec-title">Experience Level</div> <div class="seg-control" id="exp-level-seg"> <div class="seg-btn" onclick="setSeg(this,'exp-level','beginner')">Beginner</div> <div class="seg-btn active" onclick="setSeg(this,'exp-level','intermediate')">Intermediate</div> <div class="seg-btn" onclick="setSeg(this,'exp-level','advanced')">Advanced</div> </div> </div> <!-- Posting Frequency --> <div class="pers-sec"> <div class="pers-sec-title">Posting Frequency</div> <div class="chip-grid" id="posting-freq-chips"> <div class="chip" onclick="setSingleChip(this,'posting-freq')">Daily</div> <div class="chip" onclick="setSingleChip(this,'posting-freq')">3-5x/week</div> <div class="chip selected" onclick="setSingleChip(this,'posting-freq')">1-2x/week</div> <div class="chip" onclick="setSingleChip(this,'posting-freq')">Occasional</div> </div> </div> <!-- Main Goal --> <div class="pers-sec"> <div class="pers-sec-title">Main Goal</div> <div class="card-select" onclick="toggleCardSelect(this,'goal')"> <div class="card-select-ico" data-ico="megaphone" data-ico-size="20"></div> <div class="card-select-info"> <div class="card-select-title">Grow Followers</div> <div class="card-select-sub">Increase reach and audience size</div> </div> <div class="card-select-check"></div> </div> <div class="card-select" onclick="toggleCardSelect(this,'goal')"> <div class="card-select-ico" data-ico="quality" data-ico-size="20"></div> <div class="card-select-info"> <div class="card-select-title">Improve Quality</div> <div class="card-select-sub">Level up production and storytelling</div> </div> <div class="card-select-check"></div> </div> <div class="card-select" onclick="toggleCardSelect(this,'goal')"> <div class="card-select-ico" data-ico="engagement" data-ico-size="20"></div> <div class="card-select-info"> <div class="card-select-title">Increase Engagement</div> <div class="card-select-sub">More comments, shares, saves</div> </div> <div class="card-select-check"></div> </div> <div class="card-select" onclick="toggleCardSelect(this,'goal')"> <div class="card-select-ico" data-ico="clients" data-ico-size="20"></div> <div class="card-select-info"> <div class="card-select-title">Get Clients</div> <div class="card-select-sub">Land paid opportunities and collaborations</div> </div> <div class="card-select-check"></div> </div> <div class="card-select" onclick="toggleCardSelect(this,'goal')"> <div class="card-select-ico" data-ico="brand" data-ico-size="20"></div> <div class="card-select-info"> <div class="card-select-title">Build Brand</div> <div class="card-select-sub">Establish authority and recognition</div> </div> <div class="card-select-check"></div> </div> <div class="card-select" onclick="toggleCardSelect(this,'goal')"> <div class="card-select-ico" data-ico="cart" data-ico-size="20"></div> <div class="card-select-info"> <div class="card-select-title">Sell Products/Services</div> <div class="card-select-sub">Drive sales and conversions</div> </div> <div class="card-select-check"></div> </div> </div> <!-- Preferred Video Length --> <div class="pers-sec"> <div class="pers-sec-title">Preferred Video Length</div> <div class="chip-grid" id="video-length-chips"> <div class="chip" onclick="setSingleChip(this,'video-length')">15-30 sec</div> <div class="chip selected" onclick="setSingleChip(this,'video-length')">30-60 sec</div> <div class="chip" onclick="setSingleChip(this,'video-length')">1-3 min</div> <div class="chip" onclick="setSingleChip(this,'video-length')">3-10 min</div> <div class="chip" onclick="setSingleChip(this,'video-length')">10+ min</div> </div> </div> <!-- Editing Speed --> <div class="pers-sec"> <div class="pers-sec-title">Editing Pace</div> <div class="seg-control" id="edit-pace-seg"> <div class="seg-btn" onclick="setSeg(this,'edit-pace','slow')">Slow Cinematic</div> <div class="seg-btn active" onclick="setSeg(this,'edit-pace','balanced')">Balanced</div> <div class="seg-btn" onclick="setSeg(this,'edit-pace','fast')">Fast-Paced</div> </div> </div> <!-- Music Style --> <div class="pers-sec"> <div class="pers-sec-title">Music Style</div> <div class="chip-grid" id="music-style-chips"> <div class="chip" onclick="toggleChip(this,'music-style')">Pop</div> <div class="chip" onclick="toggleChip(this,'music-style')">Rock</div> <div class="chip" onclick="toggleChip(this,'music-style')">Electronic</div> <div class="chip" onclick="toggleChip(this,'music-style')">Hip Hop</div> <div class="chip" onclick="toggleChip(this,'music-style')">Orchestral</div> <div class="chip" onclick="toggleChip(this,'music-style')">Vocal</div> <div class="chip" onclick="toggleChip(this,'music-style')">No Music</div> <div class="chip" onclick="toggleChip(this,'music-style')">Lo-Fi</div> </div> </div> <!-- Current Audience Size --> <div class="pers-sec"> <div class="pers-sec-title">Current Audience Size</div> <div class="chip-grid" id="audience-size-chips"> <div class="chip" onclick="setSingleChip(this,'audience-size')">Just Starting</div> <div class="chip selected" onclick="setSingleChip(this,'audience-size')">1K - 10K</div> <div class="chip" onclick="setSingleChip(this,'audience-size')">10K - 50K</div> <div class="chip" onclick="setSingleChip(this,'audience-size')">50K - 100K</div> <div class="chip" onclick="setSingleChip(this,'audience-size')">100K+</div> </div> </div> <!-- Biggest Struggle --> <div class="pers-sec"> <div class="pers-sec-title">Biggest Content Struggle</div> <select class="field-inp" id="biggest-struggle" style="appearance:none"> <option value="">Select your main challenge...</option> <option value="ideas">Coming up with ideas</option> <option value="consistency">Posting consistently</option> <option value="quality">Production quality</option> <option value="editing">Editing speed</option> <option value="engagement">Getting engagement</option> <option value="growth">Growing audience</option> <option value="equipment">Limited equipment</option> <option value="time">Finding time</option> </select> </div> <!-- Filming Locations --> <div class="pers-sec"> <div class="pers-sec-title">Typical Filming Locations</div> <textarea class="field-inp" id="filming-locations" placeholder="e.g. Urban streets, my studio, car meets, gym, outdoor nature spots..." style="min-height:60px;resize:none"></textarea> </div> <button onclick="saveNiche()" style="width:100%;padding:14px;background:var(--accent);color:var(--on-accent);border-radius:var(--r);font-size:15px;font-weight:700;font-family:var(--fd);margin-top:10px">Save Profile</button> </div> </div>
 </div> <!-- PLATFORM FOCUS MODAL -->
@@ -2303,10 +2336,69 @@ function closeM(id) { var el = document.getElementById(id); if (!el) return; el.
 /* Onboarding handlers provided by /js/onboard.js (obInit, obStart, obLogin, obNext, obBack, obSkip, obDone) */
 function showMain() { document.getElementById('screen-onboard').classList.remove('active'); document.getElementById('screen-home').classList.add('active'); document.getElementById('nav-home').classList.add('active'); document.querySelector('.bnav').classList.remove('hidden'); S.tab = 'home'; renderHome();
 } /* ── NAV ── */
-function goTab(tab) { /* Close director if open */
-var dirScreen = document.getElementById('screen-director'); if (dirScreen && dirScreen.classList.contains('active')) { dirScreen.classList.remove('active'); } /* Switch screens instantly, no delays, no timing bugs */
-['home','results','library','studio','menu','profile','plan'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); var sc = document.getElementById('screen-' + tab); var ni = document.getElementById('nav-' + tab); if (sc) { sc.classList.add('no-anim'); sc.classList.add('active'); } if (ni) ni.classList.add('active'); S.tab = tab; if (tab === 'library') renderLib(); if (tab === 'profile') renderProf(); if (tab === 'menu') renderMenu(); if (tab === 'home') renderHome(); if (tab === 'studio' && window.PreShootStudioUI) PreShootStudioUI.renderStudio(); if (tab === 'plan' && window.PreShootCalendar) PreShootCalendar.render(); var bn=document.querySelector('.bnav'); if(bn) bn.classList.remove('hidden');
-} /* ── PICKER ── */
+function afterPaint(fn){
+  var run=function(){ try{ fn(); }catch(e){ if(typeof console!=='undefined') console.warn(e); } };
+  if(window.requestAnimationFrame){
+    requestAnimationFrame(function(){ requestAnimationFrame(run); });
+  } else {
+    setTimeout(run, 0);
+  }
+}
+function goTab(tab) {
+  var dirScreen = document.getElementById('screen-director');
+  if (dirScreen && dirScreen.classList.contains('active')) dirScreen.classList.remove('active');
+  ['home','results','library','studio','menu','profile','plan'].forEach(function(t) {
+    var sc = document.getElementById('screen-' + t);
+    var ni = document.getElementById('nav-' + t);
+    if (sc) { sc.classList.remove('active'); sc.classList.remove('no-anim'); }
+    if (ni) ni.classList.remove('active');
+  });
+  var sc = document.getElementById('screen-' + tab);
+  var ni = document.getElementById('nav-' + tab);
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (sc) {
+    if (reduce) sc.classList.add('no-anim');
+    else sc.classList.remove('no-anim');
+    sc.classList.add('active');
+  }
+  if (ni) ni.classList.add('active');
+  S.tab = tab;
+  var bn=document.querySelector('.bnav');
+  if(bn) bn.classList.remove('hidden');
+  var paint = function(){
+    if (tab === 'library') renderLib();
+    if (tab === 'profile') renderProf();
+    if (tab === 'menu') renderMenu();
+    if (tab === 'home') renderHome();
+    if (tab === 'studio' && window.PreShootStudioUI) {
+      if (!PreShootStudioUI.studioNeedsRender || PreShootStudioUI.studioNeedsRender()) {
+        PreShootStudioUI.renderStudio();
+      }
+    }
+    if (tab === 'plan' && window.PreShootCalendar) PreShootCalendar.render();
+  };
+  afterPaint(paint);
+}
+(function(){
+  if (typeof document === 'undefined' || !document.addEventListener) return;
+  function pressTarget(el){
+    if(!el || !el.closest) return null;
+    return el.closest('button,.bni,.back-btn,.menu-row,.ic,.hist-card,.card-select,.chip,.platform-card,.fmt-btn,.scan-ring,.act-btn,.pw-btn,.studio-btn,.st-prod-card,.st-project-card,.continue-card,.director-card,.ws-switch-btn,.studio-icon-btn,.st-tab,.pw-tool,.lib-tab,.seg-btn,.picker-row,.gen-shotlist-btn');
+  }
+  function clearPress(){
+    var nodes=document.querySelectorAll('.is-pressed');
+    for(var i=0;i<nodes.length;i++) nodes[i].classList.remove('is-pressed');
+  }
+  document.addEventListener('pointerdown', function(e){
+    clearPress();
+    var t=pressTarget(e.target);
+    if(!t || t.disabled) return;
+    t.classList.add('is-pressed');
+  }, {passive:true});
+  document.addEventListener('pointerup', clearPress, {passive:true});
+  document.addEventListener('pointercancel', clearPress, {passive:true});
+})();
+ /* ── PICKER ── */
 function openPicker() { if (!canScan()) { openPaywall('scans'); return; } var mob = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); if (mob) { var ov = document.getElementById('picker-ov'); var sh = document.getElementById('picker-sh'); ov.classList.add('open'); sh.style.transform = 'translateY(100%)'; sh.style.transition = 'none'; setTimeout(function(){sh.style.transition='transform .38s cubic-bezier(.4,0,.2,1)';sh.style.transform='translateY(0)';},10); } else { document.getElementById('cam-in').value=''; document.getElementById('cam-in').click(); }
 }
 function closePicker(e) { if (e && e.target !== document.getElementById('picker-ov')) return; var ov=document.getElementById('picker-ov'); var sh=document.getElementById('picker-sh'); sh.style.transform='translateY(100%)'; setTimeout(function(){ov.classList.remove('open');},380);
@@ -2992,27 +3084,46 @@ if (Math.abs(pull) > THRESHOLD) { var over = Math.abs(pull) - THRESHOLD; pull = 
 function restoreDirectorSession(){
   var msgs=document.getElementById('dir-msgs');
   if(!msgs) return;
+  var live=S.dirSessionFocus||null;
+  function convFitsLive(ctx){
+    ctx=ctx||{};
+    if(!live||!(live.productionId||live.projectId)) return true;
+    if(!ctx.productionId&&!ctx.projectId) return false;
+    if(live.productionId) return String(ctx.productionId||'')===String(live.productionId);
+    return String(ctx.projectId||'')===String(live.projectId||'');
+  }
   var convId=S.activeDirConvId;
   var conv=convId?getDirConv(convId):null;
-  if(!conv||!(conv.messages&&conv.messages.length)){
+  if(!conv||!(conv.messages&&conv.messages.length)||!convFitsLive(conv.context)){
     var all=getDirConvs().slice().sort(function(a,b){return (b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0);});
-    conv=all.find(function(c){return c.messages&&c.messages.length;})||null;
+    conv=all.find(function(c){return c.messages&&c.messages.length&&convFitsLive(c.context);})||null;
     if(conv){ convId=conv.id; S.activeDirConvId=convId; ss('active_dir_conv',convId); }
+    else { convId=null; S.activeDirConvId=null; ss('active_dir_conv',null); }
   }
-  if(conv&&conv.messages&&conv.messages.length){
+  if(conv&&conv.messages&&conv.messages.length&&convFitsLive(conv.context)){
     if(!msgs.children.length) loadDirConversation(convId);
     else {
-      /* already on screen — still refresh title/context */
       var t=document.getElementById('dir-conv-title');
       if(t) t.textContent=conv.title||'PreShoot Director';
-      applyDirContext(conv.context||null);
+      applyDirContext(conv.context||live||null);
     }
     return;
   }
-  if(!msgs.children.length) showDirGreeting();
+  if(msgs.children.length) msgs.innerHTML='';
+  var titleEl=document.getElementById('dir-conv-title');
+  if(titleEl) titleEl.textContent='PreShoot Director';
+  showDirGreeting();
 }
-function openDirector() { if (!(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')) { openPaywall('director'); return; } if(window.PreShootAnalytics) PreShootAnalytics.track('director_opened',{},{dedupeKey:'dir_open'}); if (window.PreShootStudio) { try { window.__preshootDirectorStudio = PreShootStudio.getDirectorCapabilityManifest(); window.__preshootDirectorProduction = PreShootStudio.getDirectorContext(S.activeProductionId || null); } catch (e) {} } ['home','results','library','studio','menu','profile','plan'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); document.getElementById('screen-director').classList.add('active'); S.tab = 'director'; var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.add('hidden'); var pills = document.getElementById('dir-pills'); if (pills) { pills.innerHTML = ['How to film this','Shot list','Editing advice','Gear help','Grow my channel','Caption ideas'].map(function(p) { return '<button onclick="dirPill(this)" style="flex-shrink:0;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:border-color .2s,background .2s,color .2s">' + p + '</button>'; }).join(''); } restoreDirectorSession();
-} function closeDirector() { var ac=getActiveDirConv(); if(ac){ ac.context=captureDirContext(); ac.updatedAt=Date.now(); setDirConvs(getDirConvs()); } if(S.activeDirConvId) ss('active_dir_conv', S.activeDirConvId); document.getElementById('screen-director').classList.remove('active'); document.getElementById('screen-home').classList.add('active'); document.getElementById('nav-home').classList.add('active'); S.tab = 'home'; var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.remove('hidden'); closeDirDrawer();
+function openDirector() { if (!(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')) { openPaywall('director'); return; } if(window.PreShootAnalytics) PreShootAnalytics.track('director_opened',{},{dedupeKey:'dir_open'});
+if (S.tab === 'studio' && window.PreShootDirectorContext && PreShootDirectorContext.resolveLiveStudioFocus) {
+  S.dirSessionFocus = PreShootDirectorContext.resolveLiveStudioFocus();
+} else if (S.activeProductionId) {
+  S.dirSessionFocus = { productionId: S.activeProductionId, projectId: (S.studioView && S.studioView.projectId) || null };
+} else {
+  S.dirSessionFocus = { productionId: null, projectId: null };
+}
+if (window.PreShootStudio) { try { window.__preshootDirectorStudio = PreShootStudio.getDirectorCapabilityManifest(); window.__preshootDirectorProduction = PreShootStudio.getDirectorContext((S.dirSessionFocus && S.dirSessionFocus.productionId) || null); } catch (e) {} } ['home','results','library','studio','menu','profile','plan'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); document.getElementById('screen-director').classList.add('active'); S.tab = 'director'; if (window.PreShootStudioKeyboard && PreShootStudioKeyboard.syncDirectorKeyboard) PreShootStudioKeyboard.syncDirectorKeyboard(); var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.add('hidden'); var pills = document.getElementById('dir-pills'); if (pills) { pills.innerHTML = ['How to film this','Shot list','Editing advice','Gear help','Grow my channel','Caption ideas'].map(function(p) { return '<button onclick="dirPill(this)" style="flex-shrink:0;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:border-color .2s,background .2s,color .2s">' + p + '</button>'; }).join(''); } restoreDirectorSession();
+} function closeDirector() { var ac=getActiveDirConv(); if(ac){ ac.context=captureDirContext(); ac.updatedAt=Date.now(); setDirConvs(getDirConvs()); } if(S.activeDirConvId) ss('active_dir_conv', S.activeDirConvId); document.getElementById('screen-director').classList.remove('active'); document.getElementById('screen-home').classList.add('active'); document.getElementById('nav-home').classList.add('active'); S.tab = 'home'; if (window.PreShootStudioKeyboard && PreShootStudioKeyboard.syncDirectorKeyboard) PreShootStudioKeyboard.syncDirectorKeyboard(); var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.remove('hidden'); closeDirDrawer();
 } function openShotlistDirector() { if (!(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')) { openPaywall('director'); return; } var context = 'I just scanned: ' + (S.sceneInfo.label || 'a location') + '\n'; context += 'Scene type: ' + (S.sceneInfo.type || 'general') + '\n\n'; if (S.ideas && S.ideas.length) { context += 'Generated ideas:\n'; S.ideas.forEach(function(idea, i) { context += (i+1) + '. ' + idea.title + ' (' + idea.category + ')\n'; }); } context += '\nCreate a detailed shotlist with camera angles, movements, and shooting order.'; S.dirActiveIdea=null; S.dirPendingImage=S.scanB64?{data:S.scanB64,mime:S.scanMime||'image/jpeg'}:null; openDirector(); setTimeout(function() { var inp = document.getElementById('dir-input'); if (inp) { inp.value = context; sendDirector(); } }, 100);
 }
 function resolveIdeaImage(src, item){
@@ -3075,9 +3186,10 @@ function scrubDirectorMutationClaims(text){
 }
 function captureDirContext(){
   var view=(S.studioView||{});
+  var focus=(window.PreShootDirectorContext&&PreShootDirectorContext.resolveFocus)?PreShootDirectorContext.resolveFocus({ bound: S.dirSessionFocus||null }):null;
   var ctx={
-    productionId:S.activeProductionId||view.productionId||null,
-    projectId:view.projectId||null,
+    productionId:(focus&&focus.productionId)||null,
+    projectId:(focus&&focus.projectId)||null,
     section:view.section||null,
     surface:(window.PreShootDirectorOS&&PreShootDirectorOS.getSurface)?PreShootDirectorOS.getSurface():(S.tab||'home')
   };
@@ -3094,21 +3206,16 @@ function captureDirContext(){
   return ctx;
 }
 function applyDirContext(ctx){
-  if(!ctx) return;
-  if(ctx.productionId){
-    S.activeProductionId=ctx.productionId;
-    S.studioView=S.studioView||{};
-    S.studioView.mode='production';
-    S.studioView.productionId=ctx.productionId;
-    if(ctx.section) S.studioView.section=ctx.section;
-    if(ctx.projectId) S.studioView.projectId=ctx.projectId;
-    if(window.PreShootStudio){
-      try{ window.__preshootDirectorProduction=PreShootStudio.getDirectorContext(ctx.productionId); }catch(e){}
-    }
-  } else if(ctx.projectId){
-    S.studioView=S.studioView||{};
-    S.studioView.mode='project';
-    S.studioView.projectId=ctx.projectId;
+  if(!ctx){
+    S.dirSessionFocus={ productionId:null, projectId:null };
+    return;
+  }
+  S.dirSessionFocus={
+    productionId:ctx.productionId||null,
+    projectId:ctx.projectId||null
+  };
+  if(ctx.productionId&&window.PreShootStudio){
+    try{ window.__preshootDirectorProduction=PreShootStudio.getDirectorContext(ctx.productionId); }catch(e){}
   }
 }
 function dirPill(btn) { var inp = document.getElementById('dir-input'); if (inp) { inp.value = btn.textContent; inp.focus(); }
@@ -3117,7 +3224,7 @@ function setDirConvs(v){ S.directorConvs=v; ss('director_convs',v); }
 function genDirId(){ return 'c'+Date.now()+Math.random().toString(36).slice(2,5); }
 function getDirConv(id){ return getDirConvs().find(function(c){return c.id===id;})||null; }
 function getActiveDirConv(){ return S.activeDirConvId ? getDirConv(S.activeDirConvId) : null; } function newDirConversation(){ closeDirDrawer(); S.activeDirConvId=null; ss('active_dir_conv',null); var msgs=document.getElementById('dir-msgs'); if(msgs) msgs.innerHTML=''; var t=document.getElementById('dir-conv-title'); if(t) t.textContent='PreShoot Director'; showDirGreeting(); renderDirConvList();
-} function loadDirConversation(id){ closeDirDrawer(); var conv=getDirConv(id); if(!conv) return; S.activeDirConvId=id; ss('active_dir_conv',id); var msgs=document.getElementById('dir-msgs'); if(msgs) msgs.innerHTML=''; var t=document.getElementById('dir-conv-title'); if(t) t.textContent=conv.title||'PreShoot Director'; applyDirContext(conv.context||null); (conv.messages||[]).forEach(function(m){ addDirMsg(m.role==='assistant'?'ai':'user', cleanDirectorText(m.content), false); }); var el=document.getElementById('dir-msgs'); if(el) el.scrollTop=el.scrollHeight; renderDirConvList();
+} function loadDirConversation(id){ closeDirDrawer(); var conv=getDirConv(id); if(!conv) return; S.activeDirConvId=id; ss('active_dir_conv',id); var msgs=document.getElementById('dir-msgs'); if(msgs) msgs.innerHTML=''; var t=document.getElementById('dir-conv-title'); if(t) t.textContent=conv.title||'PreShoot Director'; S.dirSessionFocus=conv.context||{productionId:null,projectId:null}; (conv.messages||[]).forEach(function(m){ addDirMsg(m.role==='assistant'?'ai':'user', cleanDirectorText(m.content), false); }); var el=document.getElementById('dir-msgs'); if(el) el.scrollTop=el.scrollHeight; renderDirConvList();
 } function saveMsgToConv(role, content){ var convs=getDirConvs(); var activeId=S.activeDirConvId; if(!activeId){ activeId=genDirId(); S.activeDirConvId=activeId; ss('active_dir_conv',activeId); var title=content.slice(0,44)+(content.length>44?'\u2026':''); convs.unshift({id:activeId, title:title, createdAt:Date.now(), messages:[]}); var t=document.getElementById('dir-conv-title'); if(t) t.textContent=title; } var conv=convs.find(function(c){return c.id===activeId;}); if(conv){ conv.messages.push({role:role==='ai'?'assistant':'user', content:content, ts:Date.now()}); conv.updatedAt=Date.now(); conv.context=captureDirContext(); if(conv.messages.length>60) conv.messages=conv.messages.slice(-60); } if(convs.length>30) convs=convs.slice(0,30); setDirConvs(convs); renderDirConvList(); scheduleCloudSync();
 } function renderDirConvList(){ var list=document.getElementById('dir-conv-list'); if(!list) return; var convs=getDirConvs(); if(!convs.length){ list.innerHTML='<div style="padding:20px 12px;font-size:12px;color:var(--text3);text-align:center">No conversations yet</div>'; return; } var activeId=S.activeDirConvId; list.innerHTML=convs.map(function(c){ var isActive=c.id===activeId; var d=c.createdAt?new Date(c.createdAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):''; var bg=isActive?'var(--accent-soft)':'transparent'; var bd=isActive?'var(--accent-dim)':'transparent'; var cl=isActive?'var(--accent)':'var(--text)'; var mc=c.messages?Math.ceil(c.messages.length/2):0; return '<div class="dir-ci" data-id="'+c.id+'" style="padding:10px 12px;border-radius:10px;margin-bottom:2px;cursor:pointer;background:'+bg+';border:1px solid '+bd+';transition:background .15s"><div style="font-size:13px;font-weight:600;color:'+cl+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px">'+(c.title||'New chat').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div><div style="font-size:11px;color:var(--text3)">'+d+' \u00b7 '+mc+' messages</div></div>'; }).join(''); list.querySelectorAll('.dir-ci').forEach(function(el){ el.addEventListener('click',function(){ loadDirConversation(el.getAttribute('data-id')); }); });
 } function openDirDrawer(){ renderDirConvList(); var ov=document.getElementById('dir-drawer-ov'); var dr=document.getElementById('dir-drawer'); if(!ov||!dr) return; ov.style.display='block'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ ov.style.opacity='1'; dr.style.transform='translateX(0)'; }); });
@@ -3129,46 +3236,306 @@ function openDirFullMessage(text){ var body=document.getElementById('dir-full-ms
 function applyDirBubbleContent(bub,text){ if(!bub) return; var full=String(text||''); bub._dirFull=full; bub.classList.add('dir-bubble'); var compact=dirTextIsLong(full); bub.innerHTML=''; var body=document.createElement('div'); body.className='dir-bubble-body'+(compact?' is-compact':''); fillDirTextNode(body, full); bub.appendChild(body); if(compact){ var btn=document.createElement('button'); btn.type='button'; btn.className='dir-view-full'; btn.textContent='View full message'; btn.addEventListener('click',function(){ openDirFullMessage(bub._dirFull); }); bub.appendChild(btn); } }
 function addDirMsg(role,text,save){ if(save===undefined) save=false; var msgs=document.getElementById('dir-msgs'); if(!msgs) return null; var wrap=document.createElement('div'); wrap.className='dir-msg-row'; wrap.style.cssText='display:flex;gap:10px;align-items:flex-start;min-width:0;max-width:100%'+(role==='user'?';flex-direction:row-reverse':''); var av=document.createElement('div'); av.style.cssText='width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;'+(role==='ai'?'background:var(--accent-dim);color:var(--accent);font-family:var(--fd)':'background:rgba(255,255,255,.08);color:var(--text3)'); av.textContent=role==='ai'?'D':(S.profile.name?S.profile.name[0].toUpperCase():'U'); var bub=document.createElement('div'); bub.className='dir-bubble'; bub.style.cssText='max-width:min(78%,100%);min-width:0;padding:11px 14px;font-size:14px;line-height:1.65;overflow-wrap:anywhere;word-break:break-word;'+(role==='ai'?'background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px 14px 14px 14px;color:var(--text)':'background:var(--accent-soft);border:1px solid var(--accent-dim);color:var(--text);border-radius:14px 4px 14px 14px'); var display=role==='ai'?cleanDirectorText(text):String(text||''); if(role==='ai') applyDirBubbleContent(bub, display); else fillDirTextNode(bub, display); wrap.appendChild(av); wrap.appendChild(bub); msgs.appendChild(wrap); msgs.scrollTop=msgs.scrollHeight; if(save) saveMsgToConv(role, display); return bub;
 } function addDirStreamBubble(){ var msgs=document.getElementById('dir-msgs'); if(!msgs) return null; var wrap=document.createElement('div'); wrap.className='dir-msg-row'; wrap.style.cssText='display:flex;gap:10px;align-items:flex-start;min-width:0;max-width:100%'; var av=document.createElement('div'); av.style.cssText='width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--accent-dim);color:var(--accent);font-family:var(--fd)'; av.textContent='D'; var bub=document.createElement('div'); bub.className='dir-bubble'; bub.style.cssText='max-width:min(78%,100%);min-width:0;padding:11px 14px;font-size:14px;line-height:1.65;overflow-wrap:anywhere;word-break:break-word;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px 14px 14px 14px;color:var(--text)'; bub.innerHTML='<span style="display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px"></span>'; wrap.appendChild(av); wrap.appendChild(bub); msgs.appendChild(wrap); msgs.scrollTop=msgs.scrollHeight; return bub;
-} var _dirStreaming=false; function sendDirector(){ if(_dirStreaming){ if(typeof showToast==='function') showToast('Director is still responding…'); return; } var inp=document.getElementById('dir-input'); var msg=inp?inp.value.trim():''; if(!msg) return; if(window.PreShootAnalytics) PreShootAnalytics.track('director_action_requested',{path:'chat'}); var dt=gs('dir_today',{date:'',count:0}); var today=new Date().toDateString(); if(dt.date!==today) dt={date:today,count:0}; if(dt.count>=50){showToast('50 message daily limit reached');return;} dt.count++; ss('dir_today',dt); inp.value=''; inp.style.height='42px'; var btn=document.getElementById('dir-send-btn'); if(btn) btn.style.opacity='.4'; _dirStreaming=true; addDirMsg('user',msg,true); /* ── Build conversation  history (user/assistant only) ── */
-var conv=getActiveDirConv(); var history=[]; if(conv&&conv.messages&&conv.messages.length){ history=conv.messages.slice(-14).map(function(m){return {role:m.role,content:m.content};}); } /* Remove any trailing user turn, we append the fresh message below */
-while(history.length && history[history.length-1].role==='user') history.pop(); history.push({role:'user',content:msg}); /* ── Build creator context (separate from system prompt) ── // This is passed to /api/director which appends it to the system prompt server-side. // FUTURE: this can be replaced with a Supabase profile fetch from the server. */
-var _dirTask = (window.PreShootDirectorContext && PreShootDirectorContext.inferTask) ? PreShootDirectorContext.inferTask(msg) : 'general';
-var _dirPack = (window.PreShootDirectorContext && PreShootDirectorContext.build) ? PreShootDirectorContext.build({ task: _dirTask }) : null;
-window.__preshootDirectorPack = _dirPack;
-var context = (_dirPack && _dirPack.text) ? _dirPack.text : buildDirectorContext(_dirTask);
-if (window.PreShootDirectorOS && PreShootDirectorOS.matchIntent) {
-  try {
-    var _intent = PreShootDirectorOS.matchIntent(msg, { surface: PreShootDirectorOS.getSurface() });
-    if (_intent && _intent.confidence >= 0.78) {
-      window.__preshootPendingDirectorIntent = _intent;
-    } else {
-      window.__preshootPendingDirectorIntent = null;
-    }
-  } catch (e) { window.__preshootPendingDirectorIntent = null; }
+} var _dirStreaming=false;
+var _dirLastFailed=null;
+function setDirectorChatBusy(on){
+  _dirStreaming=!!on;
+  var inp=document.getElementById('dir-input');
+  var btn=document.getElementById('dir-send-btn');
+  var composer=document.querySelector('.dir-composer');
+  if(inp){ inp.disabled=!!on; }
+  if(btn){ btn.disabled=!!on; btn.style.opacity=on?'.45':'1'; }
+  if(composer) composer.classList.toggle('is-busy', !!on);
 }
-var pendingImg=S.dirPendingImage||null; S.dirPendingImage=null; var bub=addDirStreamBubble(); var fullText=''; var sseBuf='';
-var _dirStages = (_dirPack && _dirPack.stages && _dirPack.stages.length) ? _dirPack.stages : ['Preparing reply'];
-var _dirStageI = 0;
-function _dirPaintStage(){ if(fullText||!bub) return; bub.textContent = (_dirStages[_dirStageI]||_dirStages[_dirStages.length-1]) + '...'; }
-_dirPaintStage();
-var _dirStageTimer = setInterval(function(){ if(fullText){ clearInterval(_dirStageTimer); return; } _dirStageI = Math.min(_dirStageI+1, _dirStages.length-1); _dirPaintStage(); }, 1800); /* ── Call /api/director, NOT /api/chat ── // director.js injects the Director™ system prompt server-side. // chat.js is left untouched for scan analysis. */
-apiFetch('/api/director',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify((function(){ var _b={ messages: history, context: context, stream: true, image: pendingImg||undefined }; if(window.PreShootWorkspace&&PreShootWorkspace.workspaceIdForDirector){ var _w=PreShootWorkspace.workspaceIdForDirector(); if(_w)_b.workspace_id=_w; } return _b; })()) }) .then(function(res){ if(!res.ok){ return res.text().then(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; }).catch(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; }); } if(!res.body||!res.body.getReader){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; return; } var reader=res.body.getReader(); var decoder=new TextDecoder(); function pump(){ return reader.read().then(function(r){ if(r.done){ if(!String(fullText||'').trim()){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; return; } var _displayFull = cleanDirectorText(fullText); if(bub) applyDirBubbleContent(bub, _displayFull);
-if (window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply) {
-  try {
-    var _act = PreShootDirectorOS.parseActionFromReply(fullText);
-    if (_act) {
-      _displayFull = scrubDirectorMutationClaims(PreShootDirectorOS.stripActionMarker(fullText) || fullText);
-      if (bub) applyDirBubbleContent(bub, _displayFull);
-      setTimeout(function(){ PreShootDirectorOS.proposeToUI(_act); }, 120);
-      window.__preshootPendingDirectorIntent = null;
-      if (window.PreShootAnalytics) PreShootAnalytics.track('director_used', { path: 'chat_action' });
-    } else if (window.__preshootPendingDirectorIntent) {
-      var _pi = window.__preshootPendingDirectorIntent; window.__preshootPendingDirectorIntent = null;
-      setTimeout(function(){ PreShootDirectorOS.proposeToUI(_pi); }, 160);
-    }
-  } catch (e) {}
+function parseDirectorApiError(status, raw){
+  var data=null;
+  var msg='';
+  try{ data=typeof raw==='string' && raw ? JSON.parse(raw) : (raw||null); }catch(e){ data=null; }
+  if(data && data.error){
+    if(typeof data.error==='string') msg=data.error;
+    else msg=data.error.message || data.error.type || '';
+  }
+  msg=String(msg||'').trim();
+  var key=(msg||'').toLowerCase();
+  if(status===401 || key.indexOf('auth')>=0 || key.indexOf('invalid_token')>=0) return 'Sign in to use Director.';
+  if(key.indexOf('pro_required')>=0 || /requires preshoot pro/i.test(msg)) return 'Director requires PreShoot Pro.';
+  if(status===429 || key.indexOf('quota')>=0 || /daily message limit/i.test(msg)) return msg || 'Director daily message limit reached.';
+  if(/workspace/i.test(msg)) return msg.slice(0,200);
+  if(/not configured/i.test(msg)) return 'Director is not configured on this server.';
+  if(msg) return msg.slice(0,200);
+  if(status>=400) return 'Director request failed ('+status+').';
+  return '';
 }
-saveMsgToConv('ai',_displayFull); S.directorHistory.push({role:'user',content:msg}); S.directorHistory.push({role:'assistant',content:_displayFull}); ss('director_history',S.directorHistory); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; return; } sseBuf+=decoder.decode(r.value,{stream:true}); var lines=sseBuf.split('\n'); sseBuf=lines.pop(); lines.forEach(function(line){ if(!line.startsWith('data: ')) return; var data=line.slice(6).trim(); if(!data||data==='[DONE]') return; try{ var evt=JSON.parse(data); if(evt.type==='content_block_delta'&&evt.delta&&evt.delta.type==='text_delta'){ if(!fullText && _dirStageTimer) clearInterval(_dirStageTimer); fullText+=evt.delta.text; if(bub){ bub.textContent=''; fullText.split('\n').forEach(function(line,i){ if(i) bub.appendChild(document.createElement('br')); bub.appendChild(document.createTextNode(line)); }); var caret=document.createElement('span'); caret.style.cssText='display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px'; bub.appendChild(caret); var m2=document.getElementById('dir-msgs'); if(m2) m2.scrollTop=m2.scrollHeight; } } }catch(e){} }); return pump(); }); } return pump(); }) .catch(function(){ if(bub) applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.'); if(_dirStageTimer) clearInterval(_dirStageTimer); if(_dirStageTimer) clearInterval(_dirStageTimer); _dirStreaming=false; if(btn) btn.style.opacity='1'; }); 
+function directorTextFromJson(data){
+  if(!data) return '';
+  if(typeof data==='string') return data.trim();
+  var content=data.content;
+  if(typeof content==='string') return content.trim();
+  if(Array.isArray(content)){
+    var parts=[];
+    content.forEach(function(b){
+      if(!b) return;
+      if(typeof b==='string') parts.push(b);
+      else if(b.text) parts.push(String(b.text));
+    });
+    return parts.join('\n').trim();
+  }
+  if(data.text) return String(data.text).trim();
+  return '';
+}
+function ingestDirectorSseLine(line, acc){
+  line=String(line||'').replace(/\r$/, '');
+  if(line.indexOf('data:')!==0) return acc;
+  var data=line.replace(/^data:\s*/, '').trim();
+  if(!data || data==='[DONE]') return acc;
+  try{
+    var evt=JSON.parse(data);
+    if(evt && evt.type==='error'){
+      acc.error = (evt.error && (evt.error.message||evt.error.type)) || 'Director stream error';
+      return acc;
+    }
+    if(evt && evt.delta && (evt.delta.type==='text_delta' || evt.delta.text)){
+      acc.text += evt.delta.text || '';
+      return acc;
+    }
+    if(evt && evt.type==='content_block_delta' && evt.delta && evt.delta.text){
+      acc.text += evt.delta.text;
+      return acc;
+    }
+    if(evt && evt.type==='content_block_start' && evt.content_block && evt.content_block.text){
+      acc.text += String(evt.content_block.text);
+      return acc;
+    }
+    var fromJson=directorTextFromJson(evt);
+    if(fromJson && !acc.text) acc.text=fromJson;
+  }catch(e){}
+  return acc;
+}
+function paintDirStream(bub, fullText){
+  if(!bub) return;
+  bub.textContent='';
+  String(fullText||'').split('\n').forEach(function(line,i){
+    if(i) bub.appendChild(document.createElement('br'));
+    bub.appendChild(document.createTextNode(line));
+  });
+  var caret=document.createElement('span');
+  caret.style.cssText='display:inline-block;width:2px;height:14px;background:var(--accent);animation:dir-blink .8s steps(1) infinite;vertical-align:text-bottom;border-radius:1px';
+  bub.appendChild(caret);
+  var m2=document.getElementById('dir-msgs');
+  if(m2) m2.scrollTop=m2.scrollHeight;
+}
+function finishDirectorReply(bub, fullText, userMsg, opts){
+  opts=opts||{};
+  var display=cleanDirectorText(fullText);
+  if(window.PreShootDirectorOS && PreShootDirectorOS.parseActionFromReply){
+    try{
+      var act=PreShootDirectorOS.parseActionFromReply(fullText);
+      if(act){
+        display=scrubDirectorMutationClaims(PreShootDirectorOS.stripActionMarker(fullText)||fullText);
+        if(window.PreShootAnalytics) PreShootAnalytics.track('director_used',{path:'chat_action'});
+        setTimeout(function(){ PreShootDirectorOS.proposeToUI(act); }, 120);
+        window.__preshootPendingDirectorIntent=null;
+      } else if(window.__preshootPendingDirectorIntent){
+        var pi=window.__preshootPendingDirectorIntent; window.__preshootPendingDirectorIntent=null;
+        setTimeout(function(){ PreShootDirectorOS.proposeToUI(pi); }, 160);
+      }
+    }catch(e){}
+  }
+  if(bub) applyDirBubbleContent(bub, display);
+  saveMsgToConv('ai', display);
+  S.directorHistory.push({role:'user',content:userMsg});
+  S.directorHistory.push({role:'assistant',content:display});
+  ss('director_history', S.directorHistory);
+  var m2=document.getElementById('dir-msgs');
+  if(m2) m2.scrollTop=m2.scrollHeight;
+}
+function showDirectorChatError(bub, message, retryPayload){
+  var msg=message||'Director couldn’t respond. Please try again.';
+  _dirLastFailed=retryPayload||_dirLastFailed;
+  if(bub){
+    applyDirBubbleContent(bub, msg);
+    var note=document.createElement('div');
+    note.className='dir-error-note';
+    note.textContent='The request did not complete.';
+    bub.appendChild(note);
+    var retry=document.createElement('button');
+    retry.type='button';
+    retry.className='dir-retry';
+    retry.textContent='Retry';
+    retry.addEventListener('click', function(){ retryDirector(); });
+    bub.appendChild(retry);
+  } else if(typeof showToast==='function'){
+    showToast(msg);
+  }
+  try{ console.warn('[Director]', msg, retryPayload&&retryPayload.status); }catch(e){}
+}
+function retryDirector(){
+  if(_dirStreaming){ if(typeof showToast==='function') showToast('Director is still responding…'); return; }
+  var last=_dirLastFailed;
+  if(!last || !last.msg) return;
+  var inp=document.getElementById('dir-input');
+  if(inp) inp.value=last.msg;
+  if(last.image) S.dirPendingImage=last.image;
+  sendDirector({ retry:true });
+}
+function sendDirector(opts){
+  opts=opts||{};
+  if(_dirStreaming){ if(typeof showToast==='function') showToast('Director is still responding…'); return; }
+  var inp=document.getElementById('dir-input');
+  var msg=inp?inp.value.trim():'';
+  if(!msg) return;
+  if(!S.authUser){ if(typeof requireAuthOrPrompt==='function') requireAuthOrPrompt('Sign in to use Director.'); return; }
+  if(window.PreShootAnalytics) PreShootAnalytics.track('director_action_requested',{path:'chat'});
+  var dt=gs('dir_today',{date:'',count:0});
+  var today=new Date().toDateString();
+  if(dt.date!==today) dt={date:today,count:0};
+  if(dt.count>=50){ showToast('50 message daily limit reached'); return; }
+  inp.value='';
+  inp.style.height='42px';
+  setDirectorChatBusy(true);
+  if(!opts.retry) addDirMsg('user', msg, true);
+  var conv=getActiveDirConv();
+  var history=[];
+  if(conv&&conv.messages&&conv.messages.length){
+    history=conv.messages.slice(-14).map(function(m){ return {role:m.role,content:m.content}; });
+  }
+  while(history.length && history[history.length-1].role==='user') history.pop();
+  history.push({role:'user',content:msg});
+  var dirTask=(window.PreShootDirectorContext && PreShootDirectorContext.inferTask)?PreShootDirectorContext.inferTask(msg):'general';
+  var bound=(conv && conv.context) || S.dirSessionFocus || null;
+  var dirPack=(window.PreShootDirectorContext && PreShootDirectorContext.build)?PreShootDirectorContext.build({ task: dirTask, bound: bound }):null;
+  window.__preshootDirectorPack=dirPack;
+  var context=(dirPack && dirPack.text)?dirPack.text:buildDirectorContext(dirTask);
+  if(window.PreShootDirectorOS && PreShootDirectorOS.matchIntent){
+    try{
+      var intent=PreShootDirectorOS.matchIntent(msg,{ surface: PreShootDirectorOS.getSurface() });
+      window.__preshootPendingDirectorIntent=(intent && intent.confidence>=0.78)?intent:null;
+    }catch(e){ window.__preshootPendingDirectorIntent=null; }
+  }
+  var pendingImg=S.dirPendingImage||null;
+  S.dirPendingImage=null;
+  _dirLastFailed={ msg: msg, image: pendingImg };
+  var bub=addDirStreamBubble();
+  var fullText='';
+  var sseBuf='';
+  var dirStages=(dirPack && dirPack.stages && dirPack.stages.length)?dirPack.stages:['Preparing reply'];
+  var dirStageI=0;
+  function paintStage(){ if(fullText||!bub) return; bub.textContent=(dirStages[dirStageI]||dirStages[dirStages.length-1])+'...'; }
+  paintStage();
+  var dirStageTimer=setInterval(function(){
+    if(fullText){ clearInterval(dirStageTimer); return; }
+    dirStageI=Math.min(dirStageI+1, dirStages.length-1);
+    paintStage();
+  }, 1800);
+  function stopStage(){ if(dirStageTimer){ clearInterval(dirStageTimer); dirStageTimer=null; } }
+  function doneBusy(){ stopStage(); setDirectorChatBusy(false); }
+  function bodyFor(stream){
+    var b={ messages: history, context: context, stream: !!stream, image: pendingImg||undefined };
+    if(window.PreShootWorkspace&&PreShootWorkspace.workspaceIdForDirector){
+      var w=PreShootWorkspace.workspaceIdForDirector();
+      if(w) b.workspace_id=w;
+    }
+    if(window.PreShootEntitlements && PreShootEntitlements.tz) b.timezone=PreShootEntitlements.tz();
+    return b;
+  }
+  function succeed(text){
+    dt.count++; ss('dir_today', dt);
+    _dirLastFailed=null;
+    finishDirectorReply(bub, text, msg);
+    doneBusy();
+  }
+  function fail(message, status){
+    showDirectorChatError(bub, message, { msg: msg, image: pendingImg, status: status });
+    doneBusy();
+  }
+  function readJsonResponse(res){
+    return res.text().then(function(raw){
+      var err=parseDirectorApiError(res.status, raw);
+      var data=null;
+      try{ data=raw?JSON.parse(raw):{}; }catch(e){ data={}; }
+      var text=directorTextFromJson(data);
+      return { ok: res.ok, status: res.status, err: err, text: text, raw: raw };
+    });
+  }
+  function consumeSse(res){
+    if(!res.body || !res.body.getReader){
+      return res.text().then(function(raw){
+        var text='';
+        try{ text=directorTextFromJson(JSON.parse(raw||'{}')); }catch(e){}
+        var looksSse=String(raw||'').indexOf('data:')>=0 || String(raw||'').indexOf('event:')>=0;
+        return { text:text, error:'', raw:raw, sse:looksSse };
+      });
+    }
+    var reader=res.body.getReader();
+    var decoder=new TextDecoder();
+    var acc={ text: '', error: '' };
+    var rawAll='';
+    function pump(){
+      return reader.read().then(function(r){
+        if(r.done) return acc;
+        var chunk=decoder.decode(r.value, { stream: true });
+        rawAll += chunk;
+        sseBuf += chunk;
+        var lines=sseBuf.split('\n');
+        sseBuf=lines.pop();
+        lines.forEach(function(line){
+          ingestDirectorSseLine(line, acc);
+        });
+        if(acc.text){
+          if(!fullText) stopStage();
+          fullText=acc.text;
+          paintDirStream(bub, fullText);
+        }
+        return pump();
+      });
+    }
+    return pump().then(function(){
+      if(sseBuf) ingestDirectorSseLine(sseBuf, acc);
+      if(acc.error && !acc.text) return { text:'', error:acc.error, raw:rawAll, sse:true };
+      var text=String(acc.text||'').trim();
+      if(!text && rawAll){
+        try{ text=directorTextFromJson(JSON.parse(rawAll)); }catch(e){}
+      }
+      var looksSse=rawAll.indexOf('data:')>=0 || rawAll.indexOf('event:')>=0;
+      return { text:text, error:'', raw:rawAll, sse:looksSse };
+    });
+  }
+  function postDirector(stream){
+    return apiFetch('/api/director', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(bodyFor(stream))
+    });
+  }
+  postDirector(true).then(function(res){
+    if(!res.ok){
+      return readJsonResponse(res).then(function(pack){
+        fail(pack.err || 'Director couldn’t respond. Please try again.', pack.status);
+      });
+    }
+    return consumeSse(res).then(function(streamPack){
+      var text=String((streamPack&&streamPack.text)||'').trim();
+      if(text){ succeed(text); return; }
+      if(streamPack&&streamPack.error){
+        fail(String(streamPack.error).slice(0,200), res.status);
+        return;
+      }
+      /* Empty SSE already billed the request. Do not send a second Director call. */
+      if(streamPack&&streamPack.sse){
+        fail('Director returned an empty reply. Please try again.', res.status);
+        return;
+      }
+      return postDirector(false).then(function(res2){
+        return readJsonResponse(res2).then(function(pack){
+          if(pack.ok && pack.text){ succeed(pack.text); return; }
+          fail(pack.err || 'Director couldn’t respond. Please try again.', pack.status);
+        });
+      });
+    });
+  }).catch(function(err){
+    try{ console.warn('[Director]', err); }catch(e){}
+    fail('Director couldn’t respond. Check your connection and try again.');
+  });
 } function clearDirectorChat(){ newDirConversation();
 } /* ── Kinetic grid background on home screen ── */
 var homeKineticGrid = null;
