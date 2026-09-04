@@ -140,7 +140,11 @@
           var MH = typeof global.MH === 'number' ? global.MH : 40;
           var localH = global.getHistory();
           if (!localH.length || d.history.length >= localH.length) {
-            global.ss('history', d.history.slice(0, MH));
+            if (typeof global.persistHistory === 'function') {
+              global.persistHistory(d.history.slice(0, MH));
+            } else {
+              global.ss('history', d.history.slice(0, MH));
+            }
           }
         }
       }
@@ -289,7 +293,11 @@
           deletedProductions: [],
           updatedAt: 0
         });
-        global.ss('history', []);
+        if (typeof global.persistHistory === 'function') {
+          global.persistHistory([]);
+        } else {
+          global.ss('history', []);
+        }
         global.ss('library', []);
         global.ss('director_convs', []);
         global.ss('director_history', []);

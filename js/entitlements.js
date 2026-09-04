@@ -34,6 +34,19 @@
     return null;
   }
 
+  function isUsableSnapshot(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (data.status === 'error' || data.status === 'rate_limited' || data.status === 'no_config') return false;
+    if (data.ok === false && data.plan !== 'pro' && data.plan !== 'free') return false;
+    var src = data.entitlement && typeof data.entitlement === 'object' ? Object.assign({}, data, data.entitlement) : data;
+    if (src.plan !== 'pro' && src.plan !== 'free') return false;
+    /* Incomplete error payloads look like { plan:'free', status:'error' } — do not wipe Pro. */
+    if (typeof src.scansUnlimited !== 'boolean' && src.dailyScansRemaining == null && src.director == null) {
+      return false;
+    }
+    return true;
+  }
+
   function apply(data) {
     if (!data || typeof data !== 'object') return;
     if (typeof S === 'undefined') return;
@@ -41,10 +54,12 @@
       if (typeof global.handleAccountSuspended === 'function') global.handleAccountSuspended();
       return;
     }
+    if (!isUsableSnapshot(data)) return;
     if (data.entitlement) data = Object.assign({}, data, data.entitlement);
     S.plan = data.plan === 'pro' ? 'pro' : 'free';
     var streakIn = data.streak || {};
     S.entitlement = {
+      fromServer: true,
       plan: S.plan,
       status: data.status || 'none',
       director: data.director === true,
@@ -82,7 +97,7 @@
       }
     } catch (e) {}
     if (typeof renderHome === 'function') renderHome();
-    if (S.tab === 'profile' && typeof renderProf === 'function') renderProf();
+    if (typeof renderProf === 'function') renderProf();
     var dl = document.getElementById('dir-lock');
     if (dl) dl.style.display = hasDirector() ? 'none' : 'inline';
     if (global.PreShootStreak && PreShootStreak.syncFromEntitlement) {
@@ -93,22 +108,29 @@
     }
   }
 
+  function serverEnt() {
+    if (typeof S === 'undefined' || !S.entitlement || S.entitlement.fromServer !== true) return null;
+    return S.entitlement;
+  }
+
   function hasDirector() {
-    if (typeof S === 'undefined') return false;
-    if (S.plan === 'pro') return true;
-    return !!(S.entitlement && S.entitlement.director);
+    var e = serverEnt();
+    if (!e) return false;
+    if (e.plan === 'pro') return true;
+    return e.director === true;
   }
 
   function hasStudio() {
-    if (typeof S === 'undefined') return false;
-    if (S.plan === 'pro') return true;
-    return !!(S.entitlement && S.entitlement.studio);
+    var e = serverEnt();
+    if (!e) return false;
+    if (e.plan === 'pro') return true;
+    return e.studio === true;
   }
 
   function canScan() {
     if (typeof S === 'undefined') return false;
-    if (S.plan === 'pro') return true;
-    var e = S.entitlement;
+    var e = serverEnt();
+    if (e && (e.plan === 'pro' || e.scansUnlimited === true)) return true;
     if (e) {
       if (e.scansUnlimited) return true;
       if ((e.freeScansRemaining || 0) > 0) return true;
