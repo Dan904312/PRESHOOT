@@ -74,6 +74,13 @@ export default async function handler(req, res) {
     if (action === 'session') {
       const session = await requireAdminSession(req);
       if (!session.ok) {
+        if (session.status === 503) {
+          return res.status(503).json({
+            ok: false,
+            error: session.error || 'session_lookup_timeout',
+            message: 'Session lookup timed out. Retry — you do not need to sign in again.'
+          });
+        }
         clearAdminSessionCookie(res);
         return res.status(session.status || 401).json({
           ok: false,

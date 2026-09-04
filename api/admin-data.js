@@ -6,7 +6,8 @@ import {
   sanitizePostgrestSearch,
   gateRouteRateLimit,
   sendRateLimitResponse,
-  clientIp
+  clientIp,
+  fetchJsonWithTimeout
 } from '../lib/security.js';
 import {
   requireAdminSession,
@@ -30,6 +31,7 @@ import { sendTransactionalEmail, emailProviderStatus } from '../lib/email.js';
 import {
   fetchSetting,
   fetchUsageRollup,
+  fetchUserUsageTotals,
   aggregateRollup,
   countProductErrors,
   fetchAuthAudit,
@@ -93,6 +95,12 @@ export default async function handler(req, res) {
 
   const session = await requireAdminSession(req);
   if (!session.ok) {
+    if (session.status === 503) {
+      return res.status(503).json({
+        error: session.error || 'session_unavailable',
+        message: 'Admin session lookup timed out. Retry — you do not need to sign in again.'
+      });
+    }
     clearAdminSessionCookie(res);
     return res.status(session.status || 401).json({ error: 'Unauthorized' });
   }
@@ -146,42 +154,96 @@ export default async function handler(req, res) {
     return buckets;
   }
 
-  async function jsonArr(url) {
-    const r = await fetch(url, { headers: h });
-    const data = await r.json().catch(() => null);
-    return Array.isArray(data) ? data : [];
+  async function jsonPack(url, timeoutMs) {
+    const pack = await fetchJsonWithTimeout(url, { headers: h }, timeoutMs || 5500);
+    if (pack.timedOut) return { ok: false, timedOut: true, rows: [] };
+    if (!pack.ok) return { ok: false, status: pack.status, rows: [] };
+    return { ok: true, rows: Array.isArray(pack.data) ? pack.data : [] };
+  }
+
+  async function jsonArr(url, timeoutMs) {
+    const pack = await jsonPack(url, timeoutMs);
+    return pack.rows;
+  }
+
+  async function restWrite(url, opts, timeoutMs) {
+    const o = Object.assign({}, opts || {});
+    if (!o.headers) o.headers = h;
+    return fetchJsonWithTimeout(url, o, timeoutMs || 5000);
+  }
+
+  function accountStatusWriteError(action, result) {
+    if (result.misconfigured || result.error === 'schema_missing') {
+      return {
+        status: 503,
+        body: {
+          success: false,
+          error: 'schema_missing',
+          message:
+            'users.account_status is missing. Run sql/users_account_status.sql (or supabase_admin_console.sql) in the Supabase SQL editor, then retry.'
+        }
+      };
+    }
+    if (result.error === 'timeout') {
+      return {
+        status: 503,
+        body: {
+          success: false,
+          error: 'timeout',
+          message:
+            'Database timed out while updating account status. Retry. The account may not be ' +
+            (action === 'restore' ? 'restored' : 'suspended') +
+            '.'
+        }
+      };
+    }
+    return {
+      status: 500,
+      body: {
+        success: false,
+        error: action + '_failed',
+        message: result.detail
+          ? String(result.detail).slice(0, 160)
+          : 'Could not persist account status.'
+      }
+    };
   }
 
   try {
     switch (action) {
       case 'overview_stats': {
         const since = rangeSince(range || '30');
+        const wantAll = (range || '30') === 'all';
         const [
-          usersR,
-          subsR,
-          eventsR,
+          usersPack,
+          subsPack,
+          eventsPack,
           trackingStarted,
-          rollAll,
           rollRange,
           rollToday,
           rollMonth,
           errors,
           ledger
         ] = await Promise.all([
-          fetch(`${SUPA_URL}/rest/v1/users?select=user_id,first_seen,last_seen,total_scans,account_status`, { headers: h }),
-          fetch(`${SUPA_URL}/rest/v1/subscriptions?select=plan,status,billing_interval,started_at,user_id,email`, { headers: h }),
-          fetch(`${SUPA_URL}/rest/v1/subscription_events?select=event_type,amount,created_at`, { headers: h }),
+          jsonPack(`${SUPA_URL}/rest/v1/users?select=user_id,first_seen,last_seen,total_scans,account_status&limit=4000`),
+          jsonPack(`${SUPA_URL}/rest/v1/subscriptions?select=plan,status,billing_interval,started_at,user_id,email&limit=4000`),
+          jsonPack(`${SUPA_URL}/rest/v1/subscription_events?select=event_type,amount,created_at&limit=4000`),
           fetchSetting('usage_tracking_started_at'),
-          fetchUsageRollup(null),
-          fetchUsageRollup(since),
+          fetchUsageRollup(wantAll ? null : since),
           fetchUsageRollup(startOfUtcDay()),
           fetchUsageRollup(startOfUtcMonth()),
           countProductErrors(since || isoDaysAgo(30)),
           probeUsageLedger()
         ]);
-        const users = await usersR.json();
-        const subs = await subsR.json();
-        const events = await eventsR.json();
+        if (usersPack.timedOut || subsPack.timedOut) {
+          return res.status(503).json({
+            error: 'timeout',
+            message: 'Overview timed out talking to the database. Retry.'
+          });
+        }
+        const users = usersPack.rows;
+        const subs = subsPack.rows;
+        const events = eventsPack.rows;
 
         if (!Array.isArray(users) || !Array.isArray(subs)) {
           return res.status(200).json({ error: 'DB error' });
@@ -236,11 +298,11 @@ export default async function handler(req, res) {
         const churnRate = (activeSubs.length + churnedCount) > 0 ? ((churnedCount / (activeSubs.length + churnedCount)) * 100).toFixed(1) : '0.0';
         const avgRevenuePerUser = totalUsers > 0 ? (totalRevenue / totalUsers).toFixed(2) : '0.00';
 
-        const aggAll = aggregateRollup(rollAll);
         const aggRange = aggregateRollup(rollRange);
         const aggToday = aggregateRollup(rollToday);
         const aggMonth = aggregateRollup(rollMonth);
-        const rangeCost = (range || '30') === 'all' ? aggAll.cost : aggRange.cost;
+        const totalScansAllUsers = users.reduce((s, u) => s + (parseInt(u.total_scans, 10) || 0), 0);
+        const rangeCost = aggRange.cost;
         const profit = estimatedProfit(rangeRevenue, rangeCost);
         const alerts = costAlerts(aggToday.cost, aggMonth.cost, aggMonth.byUser);
 
@@ -258,8 +320,8 @@ export default async function handler(req, res) {
           revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
           revenueToday: Math.round(revenueToday * 100) / 100,
           conversionRate, churnRate, avgRevenuePerUser,
-          totalScansAllUsers: aggAll.scans,
-          avgScansPerUser: totalUsers > 0 ? (aggAll.scans / totalUsers).toFixed(1) : '0.0',
+          totalScansAllUsers,
+          avgScansPerUser: totalUsers > 0 ? (totalScansAllUsers / totalUsers).toFixed(1) : '0.0',
           suspendedAccounts,
           usage_tracking_started_at: trackingStarted,
           usage: {
@@ -269,10 +331,10 @@ export default async function handler(req, res) {
             research: aggRange.research,
             ai_requests: aggRange.ai,
             api_cost: moneyUsd(aggRange.cost),
-            scans_all_time: aggAll.scans,
-            director_all_time: aggAll.director,
-            ai_all_time: aggAll.ai,
-            api_cost_all_time: moneyUsd(aggAll.cost),
+            scans_all_time: wantAll ? aggRange.scans : totalScansAllUsers,
+            director_all_time: wantAll ? aggRange.director : 0,
+            ai_all_time: wantAll ? aggRange.ai : 0,
+            api_cost_all_time: wantAll ? moneyUsd(aggRange.cost) : 0,
             api_cost_today: moneyUsd(aggToday.cost),
             api_cost_month: moneyUsd(aggMonth.cost),
             avg_cost_per_scan: aggRange.scans > 0 ? moneyUsd(aggRange.cost / aggRange.scans) : null,
@@ -292,8 +354,7 @@ export default async function handler(req, res) {
         const numDays = Math.min(Math.max(parseInt(days, 10) || 30, 1), 90);
         const since = new Date();
         since.setDate(since.getDate() - numDays);
-        const r = await fetch(`${SUPA_URL}/rest/v1/users?select=first_seen&first_seen=gte.${since.toISOString()}`, { headers: h });
-        const data = await r.json();
+        const data = await jsonArr(`${SUPA_URL}/rest/v1/users?select=first_seen&first_seen=gte.${since.toISOString()}&limit=4000`);
         const buckets = buildDailyBuckets(numDays);
         if (Array.isArray(data)) {
           data.forEach(u => {
@@ -311,8 +372,7 @@ export default async function handler(req, res) {
         const numDays = Math.min(Math.max(parseInt(days, 10) || 30, 1), 90);
         const since = new Date();
         since.setDate(since.getDate() - numDays);
-        const r = await fetch(`${SUPA_URL}/rest/v1/subscription_events?select=created_at,amount,event_type&created_at=gte.${since.toISOString()}`, { headers: h });
-        const data = await r.json();
+        const data = await jsonArr(`${SUPA_URL}/rest/v1/subscription_events?select=created_at,amount,event_type&created_at=gte.${since.toISOString()}&limit=4000`);
         const buckets = buildDailyBuckets(numDays);
         if (Array.isArray(data)) {
           data.forEach(e => {
@@ -416,21 +476,28 @@ export default async function handler(req, res) {
       }
 
       case 'users_list': {
-        let usersUrl = `${SUPA_URL}/rest/v1/users?select=*&order=first_seen.desc&limit=500`;
+        const usersSelect =
+          'user_id,email,name,avatar,provider,first_seen,last_seen,total_scans,account_status,account_status_reason,account_status_at,account_status_by,director_trial_ends_at,studio_trial_ends_at,onboarding_reward_granted';
+        let usersUrl = `${SUPA_URL}/rest/v1/users?select=${usersSelect}&order=first_seen.desc&limit=500`;
         if (safeSearch) {
           usersUrl += `&or=(email.ilike.*${encodeURIComponent(safeSearch)}*,name.ilike.*${encodeURIComponent(safeSearch)}*,user_id.ilike.*${encodeURIComponent(safeSearch)}*)`;
         }
 
-        const [users, subs, members, rollAll, rollDay, trackingStarted] = await Promise.all([
-          jsonArr(usersUrl),
-          jsonArr(`${SUPA_URL}/rest/v1/subscriptions?select=*`),
+        const [usersPack, subs, members, rollDay, trackingStarted] = await Promise.all([
+          jsonPack(usersUrl),
+          jsonArr(`${SUPA_URL}/rest/v1/subscriptions?select=user_id,email,plan,status,billing_interval,notes,started_at,updated_at&limit=2000`),
           jsonArr(`${SUPA_URL}/rest/v1/workspace_members?select=user_id,workspace_id,role&limit=2000`),
-          fetchUsageRollup(null),
           fetchUsageRollup(isoDaysAgo(1)),
           fetchSetting('usage_tracking_started_at')
         ]);
+        if (usersPack.timedOut) {
+          return res.status(503).json({
+            error: 'timeout',
+            message: 'User list timed out. Retry.'
+          });
+        }
+        const users = usersPack.rows;
 
-        const aggAll = aggregateRollup(rollAll);
         const aggDay = aggregateRollup(rollDay);
         const flags = highUsageFlags(aggDay.byUser, 24);
         const flagSet = new Set(flags.map((f) => f.user_id));
@@ -450,7 +517,7 @@ export default async function handler(req, res) {
         const now = Date.now();
         let merged = users.map(u => {
           const sub = subsByUserId[u.user_id] || subsByEmail[u.email] || null;
-          const usage = aggAll.byUser[u.user_id] || { scans: 0, director: 0, research: 0, ai: 0, cost: 0 };
+          const usageDay = aggDay.byUser[u.user_id] || { scans: 0, director: 0, research: 0, ai: 0, cost: 0 };
           const trialActive =
             (u.director_trial_ends_at && new Date(u.director_trial_ends_at).getTime() > now) ||
             (u.studio_trial_ends_at && new Date(u.studio_trial_ends_at).getTime() > now);
@@ -462,10 +529,10 @@ export default async function handler(req, res) {
             provider: u.provider,
             first_seen: u.first_seen,
             last_seen: u.last_seen,
-            total_scans: usage.scans,
-            director_requests: usage.director,
-            ai_requests: usage.ai,
-            api_cost: moneyUsd(usage.cost),
+            total_scans: parseInt(u.total_scans, 10) || 0,
+            director_requests: usageDay.director,
+            ai_requests: usageDay.ai,
+            api_cost: moneyUsd(usageDay.cost),
             plan: isProSub(sub) ? 'pro' : 'free',
             status: sub ? sub.status : 'none',
             account_status: u.account_status === 'suspended' ? 'suspended' : 'active',
@@ -530,13 +597,17 @@ export default async function handler(req, res) {
       case 'user_detail': {
         if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
         const uid = user_id.slice(0, 128);
-        const [users, subs, members, events, usageRows, trackingStarted] = await Promise.all([
-          jsonArr(`${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(uid)}&select=*&limit=1`),
-          jsonArr(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(uid)}&select=*&limit=1`),
+        const [users, subs, members, events, usageRows, trackingStarted, userTotals, rollMonthRows, account, authUser] = await Promise.all([
+          jsonArr(`${SUPA_URL}/rest/v1/users?user_id=eq.${encodeURIComponent(uid)}&select=user_id,email,name,avatar,provider,first_seen,last_seen,total_scans,account_status,onboarding_reward_granted,director_trial_ends_at,studio_trial_ends_at&limit=1`),
+          jsonArr(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(uid)}&select=plan,status,billing_interval,started_at,notes,revoked_at,revoked_reason,email&limit=1`),
           jsonArr(`${SUPA_URL}/rest/v1/workspace_members?user_id=eq.${encodeURIComponent(uid)}&select=workspace_id,role,created_at`),
           jsonArr(`${SUPA_URL}/rest/v1/subscription_events?user_id=eq.${encodeURIComponent(uid)}&select=event_type,amount,created_at&order=created_at.desc&limit=20`),
           jsonArr(`${SUPA_URL}/rest/v1/usage_events?user_id=eq.${encodeURIComponent(uid)}&select=id,event_type,provider,model,input_units,output_units,estimated_cost,status,created_at&order=created_at.desc&limit=40`),
-          fetchSetting('usage_tracking_started_at')
+          fetchSetting('usage_tracking_started_at'),
+          fetchUserUsageTotals(uid),
+          fetchUsageRollup(startOfUtcMonth()),
+          getAccountStatus(uid),
+          fetchAuthUserAdmin(uid)
         ]);
         const user = users[0] || null;
         const sub = subs[0] || null;
@@ -556,10 +627,14 @@ export default async function handler(req, res) {
             joined_at: m.created_at
           }));
         }
-        const rollAll = aggregateRollup(await fetchUsageRollup(null));
-        const rollMonth = aggregateRollup(await fetchUsageRollup(startOfUtcMonth()));
-        const uAll = rollAll.byUser[uid] || { scans: 0, director: 0, ai: 0, cost: 0, research: 0 };
-        const uMonth = rollMonth.byUser[uid] || { scans: 0, director: 0, ai: 0, cost: 0, research: 0 };
+        const uAll = {
+          scans: Math.max(parseInt(user && user.total_scans, 10) || 0, userTotals.scans || 0),
+          director: userTotals.director || 0,
+          research: userTotals.research || 0,
+          ai: userTotals.ai || 0,
+          cost: userTotals.cost || 0
+        };
+        const uMonth = aggregateRollup(rollMonthRows).byUser[uid] || { scans: 0, director: 0, ai: 0, cost: 0, research: 0 };
         const userBreakdown = {};
         usageRows.forEach((row) => {
           const key = [row.provider || 'unknown', row.model || 'unknown', row.event_type].join('|');
@@ -575,8 +650,6 @@ export default async function handler(req, res) {
           userBreakdown[key].count += 1;
           userBreakdown[key].cost += parseFloat(row.estimated_cost) || 0;
         });
-        const account = await getAccountStatus(uid);
-        const authUser = await fetchAuthUserAdmin(uid);
         const revenue = events
           .filter((e) => (e.event_type === 'checkout.completed' || e.event_type === 'payment.succeeded') && e.amount)
           .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
@@ -659,14 +732,17 @@ export default async function handler(req, res) {
 
       case 'usage_overview': {
         const since = rangeSince(range || '30');
-        const [trackingStarted, roll, rollAll, errors] = await Promise.all([
+        const wantAll = (range || '30') === 'all';
+        const [trackingStarted, roll, errors, rollToday, rollMonth] = await Promise.all([
           fetchSetting('usage_tracking_started_at'),
-          fetchUsageRollup(since),
-          fetchUsageRollup(null),
-          countProductErrors(since || isoDaysAgo(30))
+          fetchUsageRollup(wantAll ? null : since),
+          countProductErrors(since || isoDaysAgo(30)),
+          fetchUsageRollup(startOfUtcDay()),
+          fetchUsageRollup(startOfUtcMonth())
         ]);
         const agg = aggregateRollup(roll);
-        const aggAll = aggregateRollup(rollAll);
+        const aggToday = aggregateRollup(rollToday);
+        const aggMonth = aggregateRollup(rollMonth);
         const usersInRange = Object.keys(agg.byUser).filter((id) => id !== '_').length;
         return res.status(200).json({
           usage_tracking_started_at: trackingStarted,
@@ -678,12 +754,19 @@ export default async function handler(req, res) {
           api_cost: moneyUsd(agg.cost),
           avg_cost_per_scan: agg.scans > 0 ? moneyUsd(agg.cost / agg.scans) : null,
           avg_cost_per_active_user: usersInRange > 0 ? moneyUsd(agg.cost / usersInRange) : null,
-          all_time: {
-            scans: aggAll.scans,
-            director: aggAll.director,
-            ai_requests: aggAll.ai,
-            api_cost: moneyUsd(aggAll.cost)
-          },
+          all_time: wantAll
+            ? {
+                scans: agg.scans,
+                director: agg.director,
+                ai_requests: agg.ai,
+                api_cost: moneyUsd(agg.cost)
+              }
+            : {
+                scans: 0,
+                director: 0,
+                ai_requests: 0,
+                api_cost: 0
+              },
           breakdown: agg.breakdown.map((row) => ({
             provider: row.provider,
             model: row.model,
@@ -692,25 +775,19 @@ export default async function handler(req, res) {
             cost: moneyUsd(row.cost)
           })),
           errors,
-          cost_alerts: costAlerts(
-            aggregateRollup(await fetchUsageRollup(startOfUtcDay())).cost,
-            aggregateRollup(await fetchUsageRollup(startOfUtcMonth())).cost,
-            aggregateRollup(await fetchUsageRollup(startOfUtcMonth())).byUser
-          )
+          cost_alerts: costAlerts(aggToday.cost, aggMonth.cost, aggMonth.byUser)
         });
       }
 
       case 'list': {
-        let url = `${SUPA_URL}/rest/v1/subscriptions?select=*&order=created_at.desc&limit=200`;
+        let url = `${SUPA_URL}/rest/v1/subscriptions?select=user_id,email,plan,status,billing_interval,started_at,updated_at,notes&order=created_at.desc&limit=200`;
         if (safeSearch) url += `&or=(email.ilike.*${encodeURIComponent(safeSearch)}*,user_id.ilike.*${encodeURIComponent(safeSearch)}*)`;
-        const r = await fetch(url, { headers: h });
-        const data = await r.json();
-        return res.status(200).json({ subscribers: Array.isArray(data) ? data : [] });
+        const data = await jsonArr(url);
+        return res.status(200).json({ subscribers: data });
       }
 
       case 'stats': {
-        const r = await fetch(`${SUPA_URL}/rest/v1/subscriptions?select=plan,status,billing_interval`, { headers: h });
-        const data = await r.json();
+        const data = await jsonArr(`${SUPA_URL}/rest/v1/subscriptions?select=plan,status,billing_interval&limit=4000`);
         if (!Array.isArray(data)) return res.status(200).json({ error: 'DB error' });
         const active = data.filter(d => isProSub(d));
         const monthly = active.filter(d => d.billing_interval === 'monthly').length;
@@ -728,24 +805,22 @@ export default async function handler(req, res) {
       }
 
       case 'events': {
-        const r = await fetch(`${SUPA_URL}/rest/v1/subscription_events?select=*&order=created_at.desc&limit=50`, { headers: h });
-        const data = await r.json();
-        return res.status(200).json({ events: Array.isArray(data) ? data : [] });
+        const data = await jsonArr(`${SUPA_URL}/rest/v1/subscription_events?select=event_type,email,user_id,amount,created_at&order=created_at.desc&limit=50`);
+        return res.status(200).json({ events: data });
       }
 
       case 'promo_log': {
-        const r = await fetch(`${SUPA_URL}/rest/v1/promo_usage?select=*&order=used_at.desc&limit=100`, { headers: h });
-        const data = await r.json();
-        return res.status(200).json({ usage: Array.isArray(data) ? data : [] });
+        const data = await jsonArr(`${SUPA_URL}/rest/v1/promo_usage?select=code,email,user_id,used_at&order=used_at.desc&limit=100`);
+        return res.status(200).json({ usage: data });
       }
 
       case 'revoke': {
         if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
-        await fetch(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
           method: 'PATCH', headers: h,
           body: JSON.stringify({ plan: 'free', status: 'revoked', revoked_at: new Date().toISOString(), revoked_reason: String(reason || 'Admin revoke').slice(0, 500), updated_at: new Date().toISOString() })
         });
-        await fetch(`${SUPA_URL}/rest/v1/subscription_events`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscription_events`, {
           method: 'POST', headers: h,
           body: JSON.stringify({ user_id, event_type: 'admin.revoked', payload: { reason: String(reason || 'Admin revoke').slice(0, 500) } })
         });
@@ -761,7 +836,7 @@ export default async function handler(req, res) {
       case 'restore': {
         /* Subscription restore must NOT grant Pro. Clear revoke flags only. */
         if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
-        await fetch(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
           method: 'PATCH', headers: h,
           body: JSON.stringify({
             plan: 'free',
@@ -771,7 +846,7 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString()
           })
         });
-        await fetch(`${SUPA_URL}/rest/v1/subscription_events`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscription_events`, {
           method: 'POST', headers: h,
           body: JSON.stringify({ user_id, event_type: 'admin.subscription_restore', payload: {} })
         });
@@ -795,11 +870,9 @@ export default async function handler(req, res) {
           by: 'admin',
           email: targetEmail
         });
-        if (!result.ok) {
-          return res.status(500).json({
-            error: 'suspend_failed',
-            message: 'Could not persist account suspension. Check that the users table is writable.'
-          });
+        if (!result.ok || !result.persisted) {
+          const fail = accountStatusWriteError('suspend', result);
+          return res.status(fail.status).json(fail.body);
         }
         await writeAdminAudit({
           action: 'user_suspended',
@@ -813,13 +886,23 @@ export default async function handler(req, res) {
           reason: reason,
           blocked: result.authOk !== false
         });
+        if (!result.authOk) {
+          return res.status(200).json({
+            success: false,
+            partial: true,
+            persisted: true,
+            status: result.status,
+            auth_banned: false,
+            message:
+              'Account marked suspended in the database, but Auth ban/logout did not complete. Authenticated APIs will reject this account. Retry Suspend to finish the Auth ban.'
+          });
+        }
         return res.status(200).json({
           success: true,
+          persisted: true,
           status: result.status,
-          auth_banned: result.authOk !== false,
-          message: result.authError
-            ? 'Account suspended. Auth session ban could not be confirmed; APIs still reject this account.'
-            : 'Account suspended.'
+          auth_banned: true,
+          message: 'Account suspended.'
         });
       }
 
@@ -830,11 +913,9 @@ export default async function handler(req, res) {
           by: 'admin',
           email: typeof email === 'string' ? email : null
         });
-        if (!result.ok) {
-          return res.status(500).json({
-            error: 'restore_failed',
-            message: 'Could not persist account restoration.'
-          });
+        if (!result.ok || !result.persisted) {
+          const fail = accountStatusWriteError('restore', result);
+          return res.status(fail.status).json(fail.body);
         }
         await writeAdminAudit({
           action: 'user_restored',
@@ -846,18 +927,34 @@ export default async function handler(req, res) {
           userId: user_id,
           email: typeof email === 'string' ? email : null
         });
-        return res.status(200).json({ success: true, status: result.status, granted_pro: false });
+        if (!result.authOk) {
+          return res.status(200).json({
+            success: false,
+            partial: true,
+            persisted: true,
+            status: result.status,
+            granted_pro: false,
+            message:
+              'Account marked active in the database, but Auth unban did not complete. Retry Restore. This does not grant Pro.'
+          });
+        }
+        return res.status(200).json({
+          success: true,
+          persisted: true,
+          status: result.status,
+          granted_pro: false
+        });
       }
 
       case 'grant': {
         if (!email || typeof email !== 'string') return res.status(400).json({ error: 'email required' });
         const uid = (typeof user_id === 'string' && user_id) ? user_id : ('manual_' + Date.now());
-        await fetch(`${SUPA_URL}/rest/v1/subscriptions`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscriptions`, {
           method: 'POST',
           headers: { ...h, Prefer: 'resolution=merge-duplicates' },
           body: JSON.stringify({ user_id: uid, email: email.slice(0, 320), plan: 'pro', status: 'promo', started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         });
-        await fetch(`${SUPA_URL}/rest/v1/subscription_events`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscription_events`, {
           method: 'POST', headers: h,
           body: JSON.stringify({ user_id: uid, email: email.slice(0, 320), event_type: 'admin.granted', payload: { reason: String(reason || 'Manual grant').slice(0, 500) } })
         });
@@ -872,7 +969,7 @@ export default async function handler(req, res) {
 
       case 'note': {
         if (!user_id || typeof user_id !== 'string') return res.status(400).json({ error: 'user_id required' });
-        await fetch(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
+        await restWrite(`${SUPA_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(user_id)}`, {
           method: 'PATCH', headers: h,
           body: JSON.stringify({ notes: String(reason || '').slice(0, 2000), updated_at: new Date().toISOString() })
         });
@@ -1126,7 +1223,7 @@ export default async function handler(req, res) {
               err = String(sent.error || 'provider_failed').slice(0, 80);
             }
           }
-          await fetch(`${SUPA_URL}/rest/v1/admin_email_log`, {
+          await restWrite(`${SUPA_URL}/rest/v1/admin_email_log`, {
             method: 'POST',
             headers: { ...h, Prefer: 'return=minimal' },
             body: JSON.stringify({
