@@ -8,6 +8,8 @@
   var cache = null;
   var cacheKey = '';
   var inflight = null;
+  var inflightKey = '';
+  var TREND_FETCH_MS = 8000;
   var filters = { platform: 'all', category: 'all', region: 'US', q: '' };
 
   var REGION_OPTIONS = [
@@ -74,19 +76,44 @@
     return fetch(url, opts || {});
   }
 
+  function withTimeout(promise, ms) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () {
+        var err = new Error('timeout');
+        err.name = 'AbortError';
+        reject(err);
+      }, ms);
+      promise.then(
+        function (v) {
+          clearTimeout(timer);
+          resolve(v);
+        },
+        function (e) {
+          clearTimeout(timer);
+          reject(e);
+        }
+      );
+    });
+  }
+
   function load(force) {
     var key = currentKey();
     if (!force && cache && cache.items && cacheKey === key) return Promise.resolve(cache);
-    if (inflight) return inflight;
+    if (inflight && inflightKey === key) return inflight;
     var url = '/api/trends?region=' + encodeURIComponent(filters.region || 'US');
     if (filters.q) url += '&q=' + encodeURIComponent(filters.q);
     if (force) url += '&refresh=1';
-    inflight = apiFetch(url, { method: 'GET' })
+    inflightKey = key;
+    inflight = withTimeout(apiFetch(url, { method: 'GET' }), TREND_FETCH_MS)
       .then(function (r) {
         return r.json();
       })
       .then(function (data) {
-        inflight = null;
+        if (inflightKey === key) {
+          inflight = null;
+          inflightKey = '';
+        }
+        if (currentKey() !== key) return cache;
         cacheKey = key;
         if (data && Array.isArray(data.items)) cache = data;
         else {
@@ -95,21 +122,30 @@
             items: [],
             sources: (data && data.sources) || [],
             limitations: (data && data.limitations) || [],
-            warning: (data && (data.warning || data.error && data.error.message)) || 'empty'
+            warning: (data && (data.warning || (data.error && data.error.message))) || 'empty'
           };
         }
         return cache;
       })
-      .catch(function () {
-        inflight = null;
-        if (cache && cacheKey === key) return cache;
+      .catch(function (e) {
+        if (inflightKey === key) {
+          inflight = null;
+          inflightKey = '';
+        }
+        if (currentKey() !== key) return cache;
+        if (cache && cacheKey === key && cache.items && cache.items.length) return cache;
+        var timedOut = !!(e && (e.name === 'AbortError' || /timeout|abort/i.test(String(e && e.message || e))));
         cacheKey = key;
         cache = {
           ok: false,
           items: [],
           sources: [],
-          limitations: ['Trend feed could not be reached. No placeholder data is shown.'],
-          warning: 'network'
+          limitations: [
+            timedOut
+              ? 'Trend feed timed out — try Refresh'
+              : 'Trend feed could not be reached. No placeholder data is shown.'
+          ],
+          warning: timedOut ? 'timeout' : 'network'
         };
         return cache;
       });
@@ -131,7 +167,16 @@
 
   function sourceNote() {
     var sources = (cache && cache.sources) || [];
-    if (!sources.length) return 'Waiting for public sources.';
+    if (cache && (cache.warning === 'timeout' || cache.warning === 'network')) {
+      return 'Trend feed timed out — try Refresh';
+    }
+    if (cache && cache.warning === 'refresh_rate_limited') {
+      return 'Refresh is rate-limited. Showing the last cached feed.';
+    }
+    if (!sources.length) {
+      if (cache && cache.warning === 'unavailable') return 'Public sources returned no items.';
+      return 'Waiting for public sources.';
+    }
     return sources
       .map(function (s) {
         return s.label + (s.ok ? ' · ' + s.count : ' · unavailable');
@@ -299,6 +344,19 @@
       html += ' · Updated ' + esc(new Date(cache.fetchedAt).toLocaleString());
     }
     html += '</div>';
+    if (cache && (cache.warning === 'timeout' || cache.warning === 'network') && !items.length) {
+      html +=
+        '<div class="trend-empty">Trend feed timed out — try Refresh. History and Saved are not affected.</div>';
+      var failLimits = (cache && cache.limitations) || [];
+      if (failLimits.length) {
+        html += '<div class="trend-limits"><div class="trend-sec-hd">Source notes</div><ul>';
+        failLimits.forEach(function (l) {
+          html += '<li>' + esc(l) + '</li>';
+        });
+        html += '</ul></div>';
+      }
+      return html;
+    }
     if (cache && cache.warning === 'unavailable' && !items.length) {
       html +=
         '<div class="trend-empty">Public trend sources did not return data. Nothing here is simulated.</div>';
@@ -319,7 +377,7 @@
     return html;
   }
 
-  function renderLibrary() {
+  function renderLibrary(force) {
     var grid = document.getElementById('lib-grid');
     var countEl = document.getElementById('lib-count');
     if (!grid) return;
@@ -328,7 +386,7 @@
       '<div class="trend-wrap">' +
       (global.PreShootSkeleton ? PreShootSkeleton.list(5) : '<div class="trend-loading">Loading public trends</div>') +
       '</div>';
-    load(false).then(function () {
+    load(!!force).then(function () {
       if (global.S && S.libTab !== 'trending') return;
       grid.innerHTML = '<div class="trend-wrap">' + bodyHtml(null) + '</div>';
       if (countEl) countEl.textContent = String(((cache && cache.items) || []).length) + ' trends';
@@ -447,7 +505,7 @@
   function refresh() {
     cache = null;
     cacheKey = '';
-    if (global.S && S.libTab === 'trending') renderLibrary();
+    if (global.S && S.libTab === 'trending') renderLibrary(true);
     else load(true);
   }
 
