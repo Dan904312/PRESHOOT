@@ -73,7 +73,7 @@
     this.canvas.setAttribute('aria-hidden', 'true');
     this.canvas.style.cssText =
       'position:' + (this.fixed ? 'fixed' : 'absolute') +
-      ';inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;';
+      ';inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;filter:none;';
 
     var theme = '#000000';
     this.container.style.background = theme;
@@ -252,7 +252,7 @@
         var t2 = pr * pr * (3 - 2 * pr);
         var nr = lerpN(NODE_BASE_RADIUS, NODE_ACTIVE_RADIUS, t2);
 
-        if (t2 > 0.3) {
+        if (t2 > 0.3 && !this.reduced) {
           var glowR = nr + lerpN(0, 6, (t2 - 0.3) / 0.7);
           var grd = ctx.createRadialGradient(p.x, p.y, nr * 0.5, p.x, p.y, glowR);
           grd.addColorStop(0, 'rgba(' + theme.glow + ',' + (t2 * 0.3 * I).toFixed(3) + ')');

@@ -66,6 +66,16 @@
       el.style.setProperty('--w', w.toFixed(4));
       el.style.setProperty('--glow', glow.toFixed(3));
       el.style.transform = 'scale(' + scale.toFixed(4) + ')';
+      if (glow < 0.01) {
+        el.style.filter = 'none';
+      } else {
+        el.style.filter =
+          'drop-shadow(0 0 ' +
+          (glow * 16).toFixed(2) +
+          'px rgba(100,210,255,' +
+          (glow * 0.45).toFixed(3) +
+          '))';
+      }
       raf = requestAnimationFrame(tick);
     }
 
@@ -146,20 +156,22 @@
           scrub: true,
           onUpdate: function (self) {
             var p = self.progress;
-            gsap.set('.hero-text-wrapper', { autoAlpha: Math.max(0, 1 - p * 1.35) });
-            if (p > 0.2) {
-              var rise = Math.min(1, (p - 0.2) / 0.45);
-              gsap.set('.main-card', {
-                y: (1 - rise) * (getViewportHeight() + 200),
-                autoAlpha: 1
-              });
-            }
-            if (p > 0.5) {
-              gsap.set(
-                ['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper'],
-                { autoAlpha: Math.min(1, (p - 0.5) / 0.3) }
-              );
-            }
+            var rise = p > 0.18 ? Math.min(1, (p - 0.18) / 0.42) : 0;
+            gsap.set('.main-card', {
+              y: (1 - rise) * (getViewportHeight() + 200),
+              autoAlpha: 1
+            });
+            var content = p > 0.42 ? Math.min(1, (p - 0.42) / 0.28) : 0;
+            gsap.set(
+              ['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper'],
+              { autoAlpha: content }
+            );
+            /* Keep the value prop until card copy/mockup is actually readable. */
+            var hideText = content > 0.65 ? Math.min(1, (content - 0.65) / 0.35) : 0;
+            gsap.set('.hero-text-wrapper', {
+              autoAlpha: Math.max(0, 1 - hideText),
+              filter: 'none'
+            });
           }
         });
       }, root);
@@ -214,7 +226,7 @@
         ['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge'],
         { autoAlpha: 0 }
       );
-      gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, filter: 'blur(30px)' });
+      gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 1, filter: 'none' });
 
       lockScrollToTop();
       markHeroLive();
@@ -255,9 +267,10 @@
         scrollTriggerInstance = scrollTl.scrollTrigger;
 
         scrollTl
+          .to('.bg-grid-theme', { opacity: 0.12, ease: 'power2.inOut', duration: 2 }, 0)
           .to(
-            ['.hero-text-wrapper', '.bg-grid-theme'],
-            { scale: 1.15, filter: 'blur(20px)', opacity: 0.2, ease: 'power2.inOut', duration: 2 },
+            '.hero-text-wrapper',
+            { scale: 1, filter: 'none', opacity: 1, ease: 'none', duration: 0.01 },
             0
           )
           .to('.main-card', { y: 0, ease: 'power3.inOut', duration: 2 }, 0)
@@ -299,10 +312,13 @@
             { x: 0, autoAlpha: 1, scale: 1, ease: 'expo.out', duration: 1.5 },
             '<'
           )
+          .to(
+            '.hero-text-wrapper',
+            { autoAlpha: 0, filter: 'none', ease: 'power2.out', duration: 0.7 },
+            '-=1.2'
+          )
           .to({}, { duration: 2.5 })
-          .set('.hero-text-wrapper', { autoAlpha: 0 })
-          .set('.cta-wrapper', { autoAlpha: 1 })
-          .to({}, { duration: 1.5 })
+          .to('.cta-wrapper', { autoAlpha: 1, scale: 1, filter: 'none', ease: 'power2.out', duration: 0.7 })
           .to(
             ['.mockup-scroll-wrapper', '.card-left-text', '.card-right-text'],
             {
@@ -313,7 +329,8 @@
               ease: 'power3.in',
               duration: 1.2,
               stagger: 0.05
-            }
+            },
+            '-=0.15'
           )
           .to(
             '.main-card',
@@ -330,7 +347,7 @@
             },
             'pullback'
           )
-          .to('.cta-wrapper', { scale: 1, filter: 'blur(0px)', ease: 'expo.inOut', duration: 1.8 }, 'pullback')
+          .to('.cta-wrapper', { scale: 1, filter: 'none', ease: 'expo.inOut', duration: 1.8 }, 'pullback')
           .to('.main-card', {
             y: function () {
               return -getViewportHeight() - 300;
