@@ -85,7 +85,7 @@ async function handlePlan(req, res, auth) {
     return res.status(200).json(ent);
   } catch (err) {
     console.error('check-plan error:', err.message);
-    return res.status(200).json({ plan: 'free', status: 'error' });
+    return res.status(503).json({ ok: false, status: 'error' });
   }
 }
 
