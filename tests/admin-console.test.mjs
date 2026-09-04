@@ -17,6 +17,13 @@ import {
 import { emailProviderStatus } from '../lib/email.js';
 import { recordUsageEvent } from '../lib/usage-ledger.js';
 import { estimatedProfit, mergeDailySeries, buildUtcDayKeys } from '../lib/admin-console.js';
+import {
+  isAccountStatusSchemaError,
+  getAccountStatus,
+  ACCOUNT_ACTIVE,
+  ACCOUNT_SUSPENDED
+} from '../lib/account-status.js';
+import { requireActiveUser, fetchWithTimeout } from '../lib/security.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0;
@@ -148,6 +155,15 @@ test('requireUser enforces requireActiveUser', () => {
   assert.ok(security.includes('export async function requireActiveUser'));
   assert.ok(security.includes('const access = await requireActiveUser(user.id)'));
   assert.ok(security.includes("error: 'account_suspended'"));
+  assert.ok(security.includes("error: 'account_status_unconfigured'"));
+  assert.ok(security.includes("error: 'account_status_unavailable'"));
+  assert.ok(security.includes('fetchJsonWithTimeout'));
+  ['chat', 'director', 'sync', 'workspaces', 'check-plan', 'upload', 'promo', 'billing-portal', 'research'].forEach((name) => {
+    const src = fs.readFileSync(path.join(root, 'api', name + '.js'), 'utf8');
+    assert.ok(src.includes('requireUser'), name + ' must call requireUser');
+  });
+  const webhook = fs.readFileSync(path.join(root, 'api/webhook.js'), 'utf8');
+  assert.ok(!webhook.includes('requireUser'), 'Stripe webhook is not a user JWT route');
 });
 
 test('suspend bans Auth; restore does not grant Pro', () => {
@@ -155,17 +171,57 @@ test('suspend bans Auth; restore does not grant Pro', () => {
   assert.ok(account.includes("scope: 'global'"));
   assert.ok(account.includes('return=representation'));
   assert.ok(account.includes('on_conflict=user_id'));
+  assert.ok(account.includes('isAccountStatusSchemaError'));
+  assert.ok(account.includes("error: 'schema_missing'"));
   assert.ok(account.includes('auth_ban_failed') || account.includes('banned_until'));
+  assert.ok(account.includes('persisted: true'));
   assert.ok(admin.includes("case 'suspend_user'"));
   assert.ok(admin.includes("case 'restore_user'"));
   assert.ok(admin.includes('confirm_password'));
-  assert.ok(admin.includes('suspend_failed'));
+  assert.ok(admin.includes("error: 'schema_missing'"));
+  assert.ok(admin.includes('partial: true'));
   const restoreBlock = admin.split("case 'restore':")[1].split("case '")[0];
   assert.ok(restoreBlock.includes("plan: 'free'"));
   assert.ok(!restoreBlock.includes("plan: 'pro'"));
   const restoreUser = admin.split("case 'restore_user':")[1].split("case '")[0];
   assert.ok(restoreUser.includes('granted_pro: false'));
   assert.ok(!restoreUser.includes("plan: 'pro'"));
+  const suspendUser = admin.split("case 'suspend_user':")[1].split("case '")[0];
+  assert.ok(suspendUser.includes('success: true'));
+  assert.ok(suspendUser.includes('persisted'));
+  const suspendAudit = suspendUser.split('writeAdminAudit')[1] || '';
+  assert.ok(!suspendAudit.includes('confirm_password'));
+});
+
+test('account_status SQL exists in-repo', () => {
+  const focused = fs.readFileSync(path.join(root, 'sql/users_account_status.sql'), 'utf8');
+  assert.ok(focused.includes('ADD COLUMN IF NOT EXISTS account_status'));
+  assert.ok(focused.includes('account_status_reason'));
+  assert.ok(focused.includes('account_status_at'));
+  assert.ok(focused.includes('account_status_by'));
+  assert.ok(focused.includes("CHECK (account_status IN ('active', 'suspended'))"));
+});
+
+test('users_list does not wait on all-time usage rollup', () => {
+  const usersList = admin.split("case 'users_list':")[1].split("case '")[0];
+  assert.ok(!usersList.includes('fetchUsageRollup(null)'));
+  assert.ok(usersList.includes('fetchUsageRollup(isoDaysAgo(1))'));
+  assert.ok(!usersList.includes('select=*'));
+});
+
+test('admin UI times out hung POSTs and never treats hang as success', () => {
+  assert.ok(html.includes('AbortController'));
+  assert.ok(html.includes('ADMIN_FETCH_MS'));
+  assert.ok(html.includes('if (d && d.success)'));
+  assert.ok(html.includes('Request timed out. Try again.'));
+  assert.ok(html.includes("btn.textContent = 'Suspending…'"));
+});
+
+test('admin session timeout does not clear the cookie', () => {
+  const sessionJs = fs.readFileSync(path.join(root, 'lib/admin-session.js'), 'utf8');
+  assert.ok(sessionJs.includes("error: 'session_lookup_timeout'"));
+  assert.ok(admin.includes('session.status === 503'));
+  assert.ok(adminAuth.includes('session.status === 503'));
 });
 
 test('admin notifications persist and omit secrets', () => {
@@ -279,6 +335,131 @@ test('admin APIs stay session-gated and daily analytics is server-side', () => {
   const analyticsSql = fs.readFileSync(path.join(root, 'supabase_admin_analytics.sql'), 'utf8');
   assert.ok(analyticsSql.includes('admin_daily_usage'));
   assert.ok(analyticsSql.includes('GRANT EXECUTE ON FUNCTION admin_daily_usage'));
+});
+
+test('schema errors are operator failures, not active', () => {
+  assert.ok(isAccountStatusSchemaError(400, { code: '42703', message: 'column users.account_status does not exist' }));
+  assert.ok(isAccountStatusSchemaError(400, { code: 'PGRST204' }));
+  assert.ok(!isAccountStatusSchemaError(200, [{ account_status: 'active' }]));
+});
+
+await testAsync('getAccountStatus does not fail-open on missing column', async () => {
+  const prevUrl = process.env.SUPABASE_URL;
+  const prevKey = process.env.SUPABASE_SERVICE_KEY;
+  const origFetch = global.fetch;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_KEY = 'test-service-key';
+  global.fetch = async () => ({
+    ok: false,
+    status: 400,
+    headers: { get: () => null },
+    text: async () => JSON.stringify({ code: '42703', message: 'column users.account_status does not exist' })
+  });
+  try {
+    const row = await getAccountStatus('user-1');
+    assert.notStrictEqual(row.status, ACCOUNT_ACTIVE);
+    assert.strictEqual(row.misconfigured, true);
+    const gate = await requireActiveUser('user-1');
+    assert.strictEqual(gate.error, 'account_status_unconfigured');
+    assert.strictEqual(gate.status, 503);
+  } finally {
+    global.fetch = origFetch;
+    if (prevUrl == null) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = prevUrl;
+    if (prevKey == null) delete process.env.SUPABASE_SERVICE_KEY;
+    else process.env.SUPABASE_SERVICE_KEY = prevKey;
+  }
+});
+
+await testAsync('getAccountStatus does not fail-open on timeout', async () => {
+  const prevUrl = process.env.SUPABASE_URL;
+  const prevKey = process.env.SUPABASE_SERVICE_KEY;
+  const origFetch = global.fetch;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_KEY = 'test-service-key';
+  global.fetch = (url, opts) =>
+    new Promise((resolve, reject) => {
+      if (opts && opts.signal) {
+        opts.signal.addEventListener('abort', () => {
+          const err = new Error('aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      }
+    });
+  try {
+    const row = await getAccountStatus('user-1');
+    assert.notStrictEqual(row.status, ACCOUNT_ACTIVE);
+    assert.strictEqual(row.unavailable, true);
+    const gate = await requireActiveUser('user-1');
+    assert.strictEqual(gate.error, 'account_status_unavailable');
+    assert.strictEqual(gate.status, 503);
+  } finally {
+    global.fetch = origFetch;
+    if (prevUrl == null) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = prevUrl;
+    if (prevKey == null) delete process.env.SUPABASE_SERVICE_KEY;
+    else process.env.SUPABASE_SERVICE_KEY = prevKey;
+  }
+});
+
+await testAsync('requireActiveUser blocks explicit suspended', async () => {
+  const prevUrl = process.env.SUPABASE_URL;
+  const prevKey = process.env.SUPABASE_SERVICE_KEY;
+  const origFetch = global.fetch;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_KEY = 'test-service-key';
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+    text: async () =>
+      JSON.stringify([
+        {
+          account_status: ACCOUNT_SUSPENDED,
+          account_status_reason: 'test',
+          account_status_at: '2026-09-04T00:00:00.000Z',
+          account_status_by: 'admin'
+        }
+      ])
+  });
+  try {
+    const row = await getAccountStatus('user-1');
+    assert.strictEqual(row.status, ACCOUNT_SUSPENDED);
+    const gate = await requireActiveUser('user-1');
+    assert.strictEqual(gate.error, 'account_suspended');
+    assert.strictEqual(gate.status, 403);
+  } finally {
+    global.fetch = origFetch;
+    if (prevUrl == null) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = prevUrl;
+    if (prevKey == null) delete process.env.SUPABASE_SERVICE_KEY;
+    else process.env.SUPABASE_SERVICE_KEY = prevKey;
+  }
+});
+
+await testAsync('fetchWithTimeout aborts hung outbound requests', async () => {
+  const origFetch = global.fetch;
+  global.fetch = (url, opts) =>
+    new Promise((resolve, reject) => {
+      if (opts && opts.signal) {
+        opts.signal.addEventListener('abort', () => {
+          const err = new Error('aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      }
+    });
+  const started = Date.now();
+  try {
+    await fetchWithTimeout('https://example.invalid/slow', {}, 400);
+    assert.fail('should have thrown');
+  } catch (e) {
+    assert.ok(/AbortError|aborted/i.test(String((e && e.name) || '') + ' ' + String((e && e.message) || e)));
+    assert.ok(Date.now() - started < 2000);
+  } finally {
+    global.fetch = origFetch;
+  }
 });
 
 console.log('\nAdmin console results:', passed, 'passed,', failed, 'failed\n');
