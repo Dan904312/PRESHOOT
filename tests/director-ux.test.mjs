@@ -30,6 +30,10 @@ const streakSrc = fs.readFileSync(path.join(root, 'js/streak.js'), 'utf8');
 const calendarSrc = fs.readFileSync(path.join(root, 'js/calendar.js'), 'utf8');
 const trendingSrc = fs.readFileSync(path.join(root, 'js/trending.js'), 'utf8');
 const commentsSrc = fs.readFileSync(path.join(root, 'js/workspace-comments.js'), 'utf8');
+const ctxSrc = fs.readFileSync(path.join(root, 'js/director-context.js'), 'utf8');
+const workspaceUiSrc = fs.readFileSync(path.join(root, 'js/workspace-ui.js'), 'utf8');
+const keyboardSrc = fs.readFileSync(path.join(root, 'js/studio-keyboard.js'), 'utf8');
+const osSrc = fs.readFileSync(path.join(root, 'js/director-os.js'), 'utf8');
 const apiFiles = fs.readdirSync(path.join(root, 'api')).filter((n) => /\.(js|mjs|cjs|ts)$/.test(n));
 
 const emojiRe =
@@ -146,12 +150,54 @@ test('Home scan stack is centered, not pinned to the foot', () => {
   assert.ok(orbSrc.includes('col = (col + v1) * v2 * v3'));
 });
 
-test('Full Director chat resets streaming and shows a friendly empty/error reply', () => {
+test('Full Director chat surfaces errors, retries, and keeps streaming', () => {
   assert.ok(appSrc.includes('Director is still responding'));
-  assert.ok(appSrc.includes('if(!String(fullText||\'\').trim())'));
-  assert.ok(appSrc.includes("applyDirBubbleContent(bub, 'Director couldn’t respond. Please try again.')"));
+  assert.ok(appSrc.includes('function retryDirector'));
+  assert.ok(appSrc.includes('function parseDirectorApiError'));
+  assert.ok(appSrc.includes('function setDirectorChatBusy'));
+  assert.ok(appSrc.includes('Director couldn’t respond. Please try again.'));
   assert.ok(appSrc.includes('workspaceIdForDirector'));
-  assert.ok(appSrc.includes('stream: true'));
+  assert.ok(appSrc.includes('postDirector(true)'));
+  assert.ok(appSrc.includes('Empty SSE already billed'));
+  assert.ok(appSrc.includes('content_block_start'));
+});
+
+test('Director stream closes before usage ledger writes', () => {
+  const streamFn = directorSrc.slice(directorSrc.indexOf('if (stream)'));
+  assert.ok(streamFn.indexOf('res.end()') < streamFn.indexOf('recordUsageEvent'));
+  assert.ok(directorSrc.includes('supportsResponseStreaming: true'));
+  assert.ok(directorSrc.includes("error: { message:"));
+});
+
+test('Director context prefers live Studio production and isolates projects', () => {
+  assert.ok(ctxSrc.includes('function resolveFocus'));
+  assert.ok(ctxSrc.includes('function resolveLiveStudioFocus'));
+  assert.ok(ctxSrc.includes('productionBelongsToProject'));
+  assert.ok(ctxSrc.includes('Never returns a production'));
+  assert.ok(osSrc.includes("if (S.tab === 'studio')"));
+  assert.ok(!osSrc.includes('(S.studioView && S.studioView.mode)'));
+  assert.ok(appSrc.includes('function convFitsLive'));
+  assert.ok(!/function applyDirContext[\s\S]{0,400}studioView\.mode='production'/.test(appSrc));
+});
+
+test('Navigation paints before Studio rebuild and uses immediate press', () => {
+  assert.ok(appSrc.includes('function afterPaint'));
+  assert.ok(appSrc.includes('studioNeedsRender'));
+  assert.ok(appSrc.includes("classList.add('is-pressed')"));
+  assert.ok(appSrc.includes('prefers-reduced-motion:reduce') || appSrc.includes('prefers-reduced-motion: reduce'));
+  assert.ok(studioUiSrc.includes('function studioNeedsRender'));
+});
+
+test('Studio mobile header keeps tools auto-width and menus viewport-anchored', () => {
+  assert.ok(appSrc.includes('.studio-hd-cta{display:none!important}'));
+  assert.ok(appSrc.includes('.studio-hd-tools{flex:0 0 auto;width:auto'));
+  assert.ok(appSrc.includes('width:44px;height:44px;min-width:44px;min-height:44px'));
+  assert.ok(workspaceUiSrc.includes('function toggleAnchoredMenu'));
+  assert.ok(workspaceUiSrc.includes('document.body.appendChild(menu)'));
+  assert.ok(workspaceUiSrc.includes('New Project'));
+  assert.ok(studioUiSrc.includes("aria-haspopup=\"menu\""));
+  assert.ok(appSrc.includes('--dir-kb'));
+  assert.ok(keyboardSrc.includes('syncDirectorKeyboard'));
 });
 
 test('Hobby still has exactly 12 api functions', () => {
