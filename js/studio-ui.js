@@ -312,6 +312,7 @@
     var projects = Studio().listProjects();
     var h = '';
     h += '<div class="studio-shell studio-fade">';
+    h += '<div class="studio-scroll">';
     h += '<div class="studio-hd">';
     h += '<div class="studio-hd-text">';
     h += '<div class="studio-title">Studio</div>';
@@ -340,10 +341,6 @@
     h += '</div></div>';
 
     h += renderStudioRecents();
-    h += renderDirectorCommandBar({
-      placeholder: 'Tell Director what you would like to do',
-      scope: 'studio'
-    });
 
     if (!projects.length) {
       h +=
@@ -361,6 +358,11 @@
           ? '<div class="ws-readonly-pill">Read-only workspace</div>'
           : '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">Create Project</button>') +
         '</div>';
+      h += '</div>';
+      h += renderDirectorCommandBar({
+        placeholder: 'Tell Director what you would like to do',
+        scope: 'studio'
+      });
       h += '</div>';
       root.innerHTML = h;
       setTimeout(function () {
@@ -437,6 +439,11 @@
       h += '</div>';
     }
     h += '</div>';
+    h += renderDirectorCommandBar({
+      placeholder: 'Tell Director what you would like to do',
+      scope: 'studio'
+    });
+    h += '</div>';
     root.innerHTML = h;
     setTimeout(function () {
       setDirectorGoState('idle');
@@ -511,6 +518,7 @@
 
     var h = '';
     h += '<div class="studio-shell studio-fade">';
+    h += '<div class="studio-scroll">';
     h += studioCrumbHtml([
       { label: 'Studio', on: "PreShootStudioUI.backToList()" },
       { label: project.name }
@@ -635,6 +643,7 @@
       h += '</div>';
     }
 
+    h += '</div>';
     h += renderDirectorCommandBar({
       placeholder: 'Ask Director to help with this project…',
       scope: 'project',
@@ -3613,6 +3622,7 @@
 
     var h = '';
     h += '<div class="studio-shell studio-fade pw-shell">';
+    h += '<div class="studio-scroll">';
     h += studioCrumbHtml([
       { label: 'Studio', on: "PreShootStudioUI.backToList()" },
       { label: project.name, on: "PreShootStudioUI.openProject('" + esc(project.id) + "')" },
@@ -3763,6 +3773,7 @@
 
     h += renderDirectorCard(productionId);
 
+    h += '</div>';
     h += '</div>';
     root.innerHTML = h;
     if (section === 'trending' && global.PreShootTrending && PreShootTrending.hydrateStudio) {

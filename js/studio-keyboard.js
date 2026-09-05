@@ -41,6 +41,8 @@
     if (el.id === 'dir-input' || (el.closest && el.closest('#screen-director'))) {
       return global.document.getElementById('dir-msgs');
     }
+    var studioScroll = el.closest && el.closest('.studio-scroll');
+    if (studioScroll) return studioScroll;
     return el.closest('#studio-root') || el.closest('.sb');
   }
 
@@ -66,6 +68,14 @@
       var msgs = global.document.getElementById('dir-msgs');
       if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }
+  }
+
+  function syncStudioKeyboard() {
+    var root = global.document && global.document.documentElement;
+    if (!root) return;
+    var inset = isStudioActive() && isMobile() ? directorKeyboardInset() : 0;
+    if (inset < 48) inset = 0;
+    root.style.setProperty('--studio-kb', inset + 'px');
   }
 
   function ensureFieldVisible(el, opts) {
@@ -117,7 +127,9 @@
   }
 
   function rememberScroll() {
-    var sc = global.document.getElementById('studio-root');
+    var sc =
+      (global.document.querySelector && global.document.querySelector('#studio-root .studio-scroll')) ||
+      global.document.getElementById('studio-root');
     if (!sc) return;
     _lastScrollEl = sc;
     _lastScrollTop = sc.scrollTop;
@@ -133,12 +145,16 @@
     }
     if (!isStudioActive()) return;
     rememberScroll();
+    syncStudioKeyboard();
     ensureFieldVisible(el);
   }
 
   function onFocusOut(ev) {
     if (!isMobile()) return;
-    setTimeout(syncDirectorKeyboard, 280);
+    setTimeout(function () {
+      syncDirectorKeyboard();
+      syncStudioKeyboard();
+    }, 280);
     if (!isStudioActive()) return;
     /* Natural restore — no forced scroll jump when keyboard closes */
     _lastScrollEl = null;
@@ -153,6 +169,7 @@
         'resize',
         function () {
           syncDirectorKeyboard();
+          syncStudioKeyboard();
           var active = global.document.activeElement;
           if (active && isFocusableField(active) && isMobile() && isStudioActive()) {
             ensureFieldVisible(active, { force: true });
@@ -160,7 +177,14 @@
         },
         { passive: true }
       );
-      global.visualViewport.addEventListener('scroll', syncDirectorKeyboard, { passive: true });
+      global.visualViewport.addEventListener(
+        'scroll',
+        function () {
+          syncDirectorKeyboard();
+          syncStudioKeyboard();
+        },
+        { passive: true }
+      );
     }
   }
 
@@ -173,6 +197,7 @@
   global.PreShootStudioKeyboard = {
     ensureVisible: ensureFieldVisible,
     isMobile: isMobile,
-    syncDirectorKeyboard: syncDirectorKeyboard
+    syncDirectorKeyboard: syncDirectorKeyboard,
+    syncStudioKeyboard: syncStudioKeyboard
   };
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
