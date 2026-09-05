@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = fs.readFileSync(path.join(root, 'app.html'), 'utf8');
+const studioUi = fs.readFileSync(path.join(root, 'js/studio-ui.js'), 'utf8');
+const studioKb = fs.readFileSync(path.join(root, 'js/studio-keyboard.js'), 'utf8');
 let passed = 0;
 let failed = 0;
 
@@ -34,10 +36,13 @@ test('dock clearance token includes space plus extra gap', () => {
   assert.ok(app.includes('padding-bottom:var(--bnav-clearance)'));
 });
 
-test('desktop Home cards are wider than the 360px phone column', () => {
-  assert.ok(desktopEnd.includes('--home-card-max:min(100%,560px)'));
+test('desktop Home cards match Library/Calendar column width', () => {
+  assert.ok(desktopEnd.includes('--home-card-max:min(100%,var(--app-col-max))'));
   assert.ok(desktopEnd.includes('--app-col-max:920px'));
-  assert.ok(app.includes('--home-card-max:min(100%,640px)'));
+  assert.ok(desktopEnd.includes('#screen-home .home-inner'));
+  assert.ok(app.includes('--home-card-max:min(100%,var(--app-col-max))'));
+  assert.ok(!desktopEnd.includes('--home-card-max:min(100%,560px)'));
+  assert.ok(!app.includes('--home-card-max:min(100%,640px)'));
   assert.ok(!/min-width:640px\)\{:root\{--home-card-max:360px/.test(app.replace(/\s+/g, '')));
 });
 
@@ -48,13 +53,25 @@ test('Library / Menu / Profile use a real desktop column', () => {
   assert.ok(desktopEnd.includes('max-width:var(--app-col-max)'));
 });
 
-test('Studio Director composer sticks above the dock on desktop', () => {
-  assert.ok(desktopEnd.includes('#screen-studio .studio-shell>.dir-cmd'));
-  assert.ok(desktopEnd.includes('order:20'));
-  assert.ok(desktopEnd.includes('margin-top:auto'));
-  assert.ok(desktopEnd.includes('bottom:calc(var(--bnav-space) + 8px)'));
-  assert.ok(desktopEnd.includes('z-index:190'));
-  assert.ok(app.includes('.studio-shell{overflow-x:visible;overflow-y:visible}'));
+test('Studio uses a scroll pane plus footer composer, not mid-list sticky', () => {
+  assert.ok(app.includes('#screen-studio .studio-scroll'));
+  assert.ok(app.includes('#screen-studio .studio-shell>.dir-cmd'));
+  assert.ok(app.includes('padding-bottom:calc(8px + max(var(--bnav-space), var(--studio-kb, 0px)))'));
+  assert.ok(!desktopEnd.includes('order:20'));
+  assert.ok(!desktopEnd.includes('margin-top:auto'));
+  assert.ok(!desktopEnd.includes('bottom:calc(var(--bnav-space) + 8px)'));
+  assert.ok(!desktopEnd.includes('z-index:190'));
+  assert.ok(studioUi.includes("h += '<div class=\"studio-scroll\">'"));
+  assert.ok(studioUi.includes("placeholder: 'Tell Director what you would like to do'"));
+  const listFn = studioUi.slice(
+    studioUi.indexOf("h += '<div class=\"studio-shell studio-fade\">'"),
+    studioUi.indexOf('function openProject')
+  );
+  const recentsAt = listFn.indexOf('renderStudioRecents()');
+  const cmdAt = listFn.indexOf("placeholder: 'Tell Director what you would like to do'");
+  const scrollCloseBeforeCmd = listFn.lastIndexOf("h += '</div>';", cmdAt);
+  assert.ok(recentsAt > -1 && cmdAt > recentsAt, 'composer must render after recents');
+  assert.ok(scrollCloseBeforeCmd > recentsAt && scrollCloseBeforeCmd < cmdAt, 'composer must sit after studio-scroll closes');
 });
 
 test('toast sits at the top, never over Home CTAs', () => {
@@ -89,6 +106,8 @@ test('mobile Studio keyboard overlay still keeps the composer in-flow', () => {
   assert.ok(kb.includes('#screen-studio .dir-cmd'));
   assert.ok(kb.includes('position:relative'));
   assert.ok(kb.includes('bottom:auto'));
+  assert.ok(studioKb.includes('--studio-kb'));
+  assert.ok(studioKb.includes('.studio-scroll'));
 });
 
 if (failed) {
