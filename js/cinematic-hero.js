@@ -156,22 +156,21 @@
           scrub: true,
           onUpdate: function (self) {
             var p = self.progress;
-            var rise = p > 0.18 ? Math.min(1, (p - 0.18) / 0.42) : 0;
-            gsap.set('.main-card', {
-              y: (1 - rise) * (getViewportHeight() + 200),
-              autoAlpha: 1
-            });
-            var content = p > 0.42 ? Math.min(1, (p - 0.42) / 0.28) : 0;
-            gsap.set(
-              ['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper'],
-              { autoAlpha: content }
-            );
-            /* Keep the value prop until card copy/mockup is actually readable. */
-            var hideText = content > 0.65 ? Math.min(1, (content - 0.65) / 0.35) : 0;
-            gsap.set('.hero-text-wrapper', {
-              autoAlpha: Math.max(0, 1 - hideText),
-              filter: 'none'
-            });
+            /* Headline recedes as soon as scroll starts; card follows. */
+            gsap.set('.hero-text-wrapper', { autoAlpha: Math.max(0, 1 - p * 1.35) });
+            if (p > 0.2) {
+              var rise = Math.min(1, (p - 0.2) / 0.45);
+              gsap.set('.main-card', {
+                y: (1 - rise) * (getViewportHeight() + 200),
+                autoAlpha: 1
+              });
+            }
+            if (p > 0.5) {
+              gsap.set(
+                ['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper'],
+                { autoAlpha: Math.min(1, (p - 0.5) / 0.3) }
+              );
+            }
           }
         });
       }, root);
@@ -267,10 +266,9 @@
         scrollTriggerInstance = scrollTl.scrollTrigger;
 
         scrollTl
-          .to('.bg-grid-theme', { opacity: 0.12, ease: 'power2.inOut', duration: 2 }, 0)
           .to(
-            '.hero-text-wrapper',
-            { scale: 1, filter: 'none', opacity: 1, ease: 'none', duration: 0.01 },
+            ['.hero-text-wrapper', '.bg-grid-theme'],
+            { scale: 1.15, filter: 'blur(20px)', opacity: 0.2, ease: 'power2.inOut', duration: 2 },
             0
           )
           .to('.main-card', { y: 0, ease: 'power3.inOut', duration: 2 }, 0)
@@ -312,13 +310,8 @@
             { x: 0, autoAlpha: 1, scale: 1, ease: 'expo.out', duration: 1.5 },
             '<'
           )
-          .to(
-            '.hero-text-wrapper',
-            { autoAlpha: 0, filter: 'none', ease: 'power2.out', duration: 0.7 },
-            '-=1.2'
-          )
+          .set('.hero-text-wrapper', { autoAlpha: 0 })
           .to({}, { duration: 2.5 })
-          .to('.cta-wrapper', { autoAlpha: 1, scale: 1, filter: 'none', ease: 'power2.out', duration: 0.7 })
           .to(
             ['.mockup-scroll-wrapper', '.card-left-text', '.card-right-text'],
             {
@@ -330,8 +323,14 @@
               duration: 1.2,
               stagger: 0.05
             },
-            '-=0.15'
+            'slide3'
           )
+          .to(
+            '.cta-wrapper',
+            { autoAlpha: 1, scale: 1, filter: 'none', ease: 'power2.out', duration: 1.2 },
+            'slide3'
+          )
+          .to({}, { duration: 1.5 })
           .to(
             '.main-card',
             {
