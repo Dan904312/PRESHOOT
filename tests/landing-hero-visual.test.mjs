@@ -34,32 +34,45 @@ function cssBlock(src, selector) {
 
 console.log('\n== Landing hero visual ==');
 
-test('GSAP never blurs the hero headline or boots the CTA blurred', () => {
-  assert.ok(!/hero-text-wrapper[^\n]{0,120}blur\(/.test(heroJs));
-  assert.ok(!heroJs.includes("filter: 'blur(20px)'"));
+test('CTA boots sharp; headline blur is only the slide-1 exit dissolve', () => {
   assert.ok(!heroJs.includes("filter: 'blur(30px)'"));
-  assert.ok(!heroJs.includes("filter: 'blur(0px)'"));
-  assert.ok(heroJs.includes("filter: 'none'"));
+  assert.ok(heroJs.includes("gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 1, filter: 'none' })"));
+  assert.ok(
+    heroJs.includes("['.hero-text-wrapper', '.bg-grid-theme']"),
+    'slide 1 must dissolve with the card rise, not stay fully opaque'
+  );
+  assert.ok(heroJs.includes("filter: 'blur(20px)'"));
+  assert.ok(
+    !heroJs.includes("{ scale: 1, filter: 'none', opacity: 1, ease: 'none', duration: 0.01 }"),
+    'regression: headline locked at full opacity while slide 2 rises'
+  );
 });
 
-test('headline fade happens after mockup/copy is on; CTA fades in sharp before mockup leaves', () => {
+test('slides are sequential: 1 dissolves at t=0, 2 holds, 3 swaps with 2', () => {
+  const dissolveAt = heroJs.indexOf("['.hero-text-wrapper', '.bg-grid-theme']");
   const mockupAt = heroJs.indexOf(".fromTo(\n            '.mockup-scroll-wrapper'");
-  const hideHeadline = heroJs.indexOf(
-    "'.hero-text-wrapper',\n            { autoAlpha: 0, filter: 'none'"
-  );
-  const ctaIn = heroJs.indexOf(".to('.cta-wrapper', { autoAlpha: 1");
+  const holdAt = heroJs.indexOf('.to({}, { duration: 2.5 })');
+  const slide3 = heroJs.indexOf("'slide3'");
   const mockupOut = heroJs.indexOf(
     "['.mockup-scroll-wrapper', '.card-left-text', '.card-right-text']"
   );
-  assert.ok(mockupAt > 0, 'mockup fromTo missing');
-  assert.ok(hideHeadline > mockupAt, 'headline hide must follow mockup in');
-  assert.ok(ctaIn > hideHeadline, 'CTA must follow headline hide');
-  assert.ok(mockupOut > ctaIn, 'mockup must not leave before CTA is on');
+  const ctaIn = heroJs.indexOf(
+    "'.cta-wrapper',\n            { autoAlpha: 1, scale: 1, filter: 'none'"
+  );
+  assert.ok(dissolveAt > 0 && dissolveAt < mockupAt, 'headline must start exiting before mockup lands');
+  assert.ok(holdAt > mockupAt, 'slide 2 must hold after mockup is on');
+  assert.ok(slide3 > holdAt, 'slide 3 swap must follow the slide 2 hold');
+  assert.ok(mockupOut > 0 && ctaIn > 0);
+  assert.ok(heroJs.includes("'slide3'"), 'slide 2 exit and CTA enter share one label');
+  assert.ok(
+    !heroJs.includes("ease: 'power2.out', duration: 0.7 })\n          .to("),
+    'regression: CTA fade must not start before the slide-2 hold ends'
+  );
 });
 
-test('reduced-motion path keeps the value prop until card content is readable', () => {
-  assert.ok(heroJs.includes('Keep the value prop until card copy/mockup is actually readable'));
-  assert.ok(!heroJs.includes('autoAlpha: Math.max(0, 1 - p * 1.35)'));
+test('reduced-motion fades the headline from the start of scroll', () => {
+  assert.ok(heroJs.includes('autoAlpha: Math.max(0, 1 - p * 1.35)'));
+  assert.ok(!heroJs.includes('Keep the value prop until card copy/mockup is actually readable'));
 });
 
 test('wordmark is a single flex item; Open app sits outside the collapsible link list', () => {
