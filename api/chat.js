@@ -3,6 +3,7 @@ import {
   handleOptions,
   requireUser,
   requireScanAccess,
+  requireGuestScanAccess,
   gateRouteRateLimit,
   sendRateLimitResponse,
   sanitizeImage
@@ -73,24 +74,36 @@ export default async function handler(req, res) {
   });
   if (!rl.allowed) return sendRateLimitResponse(res, rl);
 
+  let user = null;
+  let access = { scanSource: 'guest' };
   if (auth.error) {
-    return res.status(auth.status).json({
-      error: { message: publicScanErrorMessage(auth.status, auth.error) }
-    });
-  }
-
-  const access = await requireScanAccess(auth.user);
-  if (!access.ok) {
-    return res.status(access.status || 403).json({
-      error: { message: publicScanErrorMessage(access.status, access.error) }
-    });
+    if (auth.error !== 'auth_required') {
+      return res.status(auth.status).json({
+        error: { message: publicScanErrorMessage(auth.status, auth.error) }
+      });
+    }
+    const guest = await requireGuestScanAccess(req);
+    if (!guest.ok) {
+      return res.status(guest.status || 429).json({
+        error: { message: publicScanErrorMessage(guest.status, guest.error) }
+      });
+    }
+    access = guest;
+  } else {
+    user = auth.user;
+    access = await requireScanAccess(user);
+    if (!access.ok) {
+      return res.status(access.status || 403).json({
+        error: { message: publicScanErrorMessage(access.status, access.error) }
+      });
+    }
   }
 
   const prepMs = Date.now() - t0;
 
   async function undoOnboardingCredit() {
-    if (access.scanSource === 'onboarding') {
-      await refundOnboardingScan(auth.user.id).catch(function () {});
+    if (user && access.scanSource === 'onboarding') {
+      await refundOnboardingScan(user.id).catch(function () {});
     }
   }
 
@@ -126,11 +139,13 @@ export default async function handler(req, res) {
     }
 
     if (safe.stream) {
-      trackProductEventServer(auth.user.id, 'ai_request', {
-        endpoint: 'chat',
-        model: safe.model,
-        stream: true
-      }).catch(function () {});
+      if (user) {
+        trackProductEventServer(user.id, 'ai_request', {
+          endpoint: 'chat',
+          model: safe.model,
+          stream: true
+        }).catch(function () {});
+      }
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('X-Accel-Buffering', 'no');
@@ -156,9 +171,9 @@ export default async function handler(req, res) {
       /* Close the HTTP stream before ledger writes so the client is not blocked. */
       res.end();
       const tPost = Date.now();
-      if (response.ok) {
+      if (response.ok && user) {
         await persistScanSuccess(
-          auth.user.id,
+          user.id,
           req.body && req.body.timezone,
           safe.model,
           streamUsage,
@@ -184,22 +199,26 @@ export default async function handler(req, res) {
     const parseMs = Date.now() - tParse;
     if (response.ok) {
       const usage = data && data.usage ? normalizeAnthropicUsage(data.usage) : {};
-      trackProductEventServer(auth.user.id, 'ai_request', {
-        endpoint: 'chat',
-        model: safe.model,
-        input_tokens: usage.input_tokens,
-        output_tokens: usage.output_tokens,
-        cost_usd: estimateAiCostFromUsage(safe.model, usage)
-      }).catch(function () {});
+      if (user) {
+        trackProductEventServer(user.id, 'ai_request', {
+          endpoint: 'chat',
+          model: safe.model,
+          input_tokens: usage.input_tokens,
+          output_tokens: usage.output_tokens,
+          cost_usd: estimateAiCostFromUsage(safe.model, usage)
+        }).catch(function () {});
+      }
       res.status(response.status).json(data);
       const tPost = Date.now();
-      await persistScanSuccess(
-        auth.user.id,
-        req.body && req.body.timezone,
-        safe.model,
-        usage,
-        false
-      );
+      if (user) {
+        await persistScanSuccess(
+          user.id,
+          req.body && req.body.timezone,
+          safe.model,
+          usage,
+          false
+        );
+      }
       logScanTiming({
         prep_ms: prepMs,
         anthropic_ttfb_ms: ttfbMs,
@@ -214,11 +233,13 @@ export default async function handler(req, res) {
       return;
     }
 
-    trackProductEventServer(auth.user.id, 'api_error', {
-      endpoint: 'chat',
-      status: response.status,
-      category: 'upstream'
-    }).catch(function () {});
+    if (user) {
+      trackProductEventServer(user.id, 'api_error', {
+        endpoint: 'chat',
+        status: response.status,
+        category: 'upstream'
+      }).catch(function () {});
+    }
     logScanTiming({
       prep_ms: prepMs,
       anthropic_ttfb_ms: ttfbMs,
