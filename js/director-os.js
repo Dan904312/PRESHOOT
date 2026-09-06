@@ -1877,7 +1877,122 @@
     return String(reply || '')
       .replace(/\[\[ACTION:\{[\s\S]*?\}\]\]/g, '')
       .replace(/\[\[SCRIPT:\{[\s\S]*?\}\]\]/g, '')
+      .replace(/\[\[QUICK:\[[\s\S]*?\]\]\]/g, '')
       .trim();
+  }
+
+  var QUICK_CATALOG = {
+    generate_script: {
+      id: 'generate_script',
+      label: 'Generate Script',
+      kind: 'director_action',
+      needsProduction: true,
+      progress: 'Director is creating your script...'
+    },
+    create_shot_list: {
+      id: 'create_shot_list',
+      label: 'Create Shot List',
+      kind: 'director_action',
+      needsProduction: true,
+      progress: 'Director is building your shot list...'
+    },
+    generate_ideas: {
+      id: 'generate_ideas',
+      label: 'Generate Ideas',
+      kind: 'director_action',
+      needsProduction: false,
+      progress: 'Working on ideas...'
+    },
+    create_production: {
+      id: 'create_production',
+      label: 'Create Production',
+      kind: 'director_action',
+      needsProduction: false,
+      progress: 'Creating production...'
+    },
+    refine_concept: {
+      id: 'refine_concept',
+      label: 'Refine Concept',
+      kind: 'director_action',
+      needsProduction: false,
+      progress: 'Director is refining the concept...'
+    },
+    not_now: { id: 'not_now', label: 'Not Now', kind: 'dismiss' }
+  };
+
+  function parseQuickActionsFromReply(reply) {
+    var text = String(reply || '');
+    var m = text.match(/\[\[QUICK:(\[[\s\S]*?\])\]\]/);
+    var out = [];
+    if (!m) return out;
+    try {
+      var arr = JSON.parse(m[1]);
+      if (!Array.isArray(arr)) return out;
+      arr.forEach(function (row) {
+        var id = row && row.id;
+        var cat = QUICK_CATALOG[id];
+        if (!cat) return;
+        out.push(
+          Object.assign({}, cat, {
+            label: (row.label && String(row.label).slice(0, 40)) || cat.label,
+            payload: row.payload && typeof row.payload === 'object' ? row.payload : {}
+          })
+        );
+      });
+    } catch (e) {}
+    return out;
+  }
+
+  function inferQuickActionsFromProposal(act) {
+    if (!act || !act.action) return [];
+    if (act.action === 'generate_sections') {
+      var secs = (act.payload && act.payload.sections) || [];
+      var out = [];
+      if (secs.indexOf('script') >= 0) {
+        out.push(Object.assign({}, QUICK_CATALOG.generate_script, { payload: act.payload || {} }));
+      }
+      if (secs.indexOf('shots') >= 0) {
+        out.push(Object.assign({}, QUICK_CATALOG.create_shot_list, { payload: act.payload || {} }));
+      }
+      if (out.length) out.push(Object.assign({}, QUICK_CATALOG.not_now));
+      return out;
+    }
+    var map = {
+      update_script: 'generate_script',
+      rebuild_shot_list: 'create_shot_list',
+      create_production: 'create_production'
+    };
+    var id = map[act.action];
+    if (!id) return [];
+    return [
+      Object.assign({}, QUICK_CATALOG[id], { payload: act.payload || {} }),
+      Object.assign({}, QUICK_CATALOG.not_now)
+    ];
+  }
+
+  function collectQuickActions(reply, act) {
+    var seen = {};
+    var out = [];
+    parseQuickActionsFromReply(reply)
+      .concat(inferQuickActionsFromProposal(act))
+      .forEach(function (a) {
+        if (!a || !a.id || seen[a.id]) return;
+        seen[a.id] = true;
+        out.push(a);
+      });
+    if (out.length && !seen.not_now) out.push(Object.assign({}, QUICK_CATALOG.not_now));
+    return out;
+  }
+
+  function filterExecutableQuickActions(actions, ctx) {
+    ctx = ctx || {};
+    return (Array.isArray(actions) ? actions : []).filter(function (a) {
+      if (!a || !QUICK_CATALOG[a.id]) return false;
+      if (a.kind === 'dismiss') return true;
+      if (a.needsProduction && !ctx.productionId) return false;
+      if (a.id === 'create_shot_list' && ctx.hasScript === false) return false;
+      return true;
+    });
   }
 
   /* Legacy matchIntent for global chat */
@@ -2058,6 +2173,11 @@
     applyGeneration: applyGeneration,
     matchIntent: matchIntent,
     parseActionFromReply: parseActionFromReply,
+    parseQuickActionsFromReply: parseQuickActionsFromReply,
+    inferQuickActionsFromProposal: inferQuickActionsFromProposal,
+    collectQuickActions: collectQuickActions,
+    filterExecutableQuickActions: filterExecutableQuickActions,
+    QUICK_CATALOG: QUICK_CATALOG,
     parseScriptPatch: parseScriptPatch,
     stripActionMarker: stripActionMarker,
     executeProposed: executeProposed,

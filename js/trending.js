@@ -9,8 +9,11 @@
   var cacheKey = '';
   var inflight = null;
   var inflightKey = '';
+  var loadSeq = 0;
+  var searchTimer = null;
   var TREND_FETCH_MS = 8000;
-  var filters = { platform: 'all', category: 'all', region: 'US', q: '' };
+  var TREND_DEBOUNCE_MS = 420;
+  var filters = { platform: 'all', kind: 'all', niche: '', region: 'US', q: '' };
 
   var REGION_OPTIONS = [
     ['US', 'United States'],
@@ -60,7 +63,7 @@
   }
 
   function currentKey() {
-    return (filters.region || 'US') + '|' + (filters.q || '');
+    return (filters.region || 'US') + '|' + (filters.q || '') + '|' + (filters.niche || '');
   }
 
   function esc(s) {
@@ -100,8 +103,10 @@
     var key = currentKey();
     if (!force && cache && cache.items && cacheKey === key) return Promise.resolve(cache);
     if (inflight && inflightKey === key) return inflight;
+    var seq = ++loadSeq;
     var url = '/api/trends?region=' + encodeURIComponent(filters.region || 'US');
     if (filters.q) url += '&q=' + encodeURIComponent(filters.q);
+    if (filters.niche) url += '&category=' + encodeURIComponent(filters.niche);
     if (force) url += '&refresh=1';
     inflightKey = key;
     inflight = withTimeout(apiFetch(url, { method: 'GET' }), TREND_FETCH_MS)
@@ -113,7 +118,7 @@
           inflight = null;
           inflightKey = '';
         }
-        if (currentKey() !== key) return cache;
+        if (seq !== loadSeq || currentKey() !== key) return cache;
         cacheKey = key;
         if (data && Array.isArray(data.items)) cache = data;
         else {
@@ -132,7 +137,7 @@
           inflight = null;
           inflightKey = '';
         }
-        if (currentKey() !== key) return cache;
+        if (seq !== loadSeq || currentKey() !== key) return cache;
         if (cache && cacheKey === key && cache.items && cache.items.length) return cache;
         var timedOut = !!(e && (e.name === 'AbortError' || /timeout|abort/i.test(String(e && e.message || e))));
         cacheKey = key;
@@ -142,7 +147,7 @@
           sources: [],
           limitations: [
             timedOut
-              ? 'Trend feed timed out — try Refresh'
+              ? 'Trend feed timed out. Try Refresh.'
               : 'Trend feed could not be reached. No placeholder data is shown.'
           ],
           warning: timedOut ? 'timeout' : 'network'
@@ -156,19 +161,19 @@
     var items = (cache && cache.items) || [];
     return items.filter(function (it) {
       if (filters.platform !== 'all' && it.platform !== filters.platform) return false;
-      if (filters.category === 'all') return true;
-      if (filters.category === 'video') return it.type === 'video';
-      if (filters.category === 'music') return it.type === 'music';
-      if (filters.category === 'hashtag') return it.type === 'hashtag' || it.type === 'search';
-      if (filters.category === 'pattern') return it.type === 'hashtag' || it.category === 'search';
-      return it.type === filters.category || it.category === filters.category;
+      if (filters.kind === 'all' || !filters.kind) return true;
+      if (filters.kind === 'video') return it.type === 'video';
+      if (filters.kind === 'music') return it.type === 'music';
+      if (filters.kind === 'news') return it.type === 'news' || it.platform === 'news';
+      if (filters.kind === 'search') return it.type === 'hashtag' || it.category === 'search' || it.sourceType === 'search_interest';
+      return it.type === filters.kind || it.category === filters.kind;
     });
   }
 
   function sourceNote() {
     var sources = (cache && cache.sources) || [];
     if (cache && (cache.warning === 'timeout' || cache.warning === 'network')) {
-      return 'Trend feed timed out — try Refresh';
+      return 'Trend feed timed out. Try Refresh.';
     }
     if (cache && cache.warning === 'refresh_rate_limited') {
       return 'Refresh is rate-limited. Showing the last cached feed.';
@@ -268,34 +273,43 @@
     html +=
       '<input type="search" id="trend-q" class="trend-q" placeholder="Search a topic or niche" value="' +
       esc(filters.q || '') +
-      '" aria-label="Topic search" onkeydown="if(event.key===\'Enter\'){event.preventDefault();PreShootTrending.searchTopic(this.value);}">';
+      '" aria-label="Topic search" oninput="PreShootTrending.onSearchInput(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();PreShootTrending.searchTopic(this.value);}">';
     html +=
       '<button type="button" class="studio-btn primary sm" onclick="PreShootTrending.searchTopic(document.getElementById(\'trend-q\').value)">Search</button>';
-    if (filters.q) {
+    if (filters.q || filters.niche) {
       html +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootTrending.searchTopic(\'\')">Clear</button>';
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootTrending.clearSearch()">Clear</button>';
     }
     html += '</div>';
-    html += '<div class="trend-chips" aria-label="Topic suggestions">';
+    html += '<div class="trend-chips" aria-label="Categories">';
     TOPIC_SUGGESTIONS.forEach(function (t) {
       html +=
         '<button type="button" class="trend-chip' +
-        (filters.q === t ? ' on' : '') +
-        '" onclick="PreShootTrending.searchTopic(' +
-        JSON.stringify(t) +
-        ')">' +
+        (filters.niche === t ? ' on' : '') +
+        '" aria-pressed="' +
+        (filters.niche === t ? 'true' : 'false') +
+        '" onclick="PreShootTrending.selectNiche(\'' +
+        String(t).replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
+        '\')">' +
         esc(t) +
         '</button>';
     });
     html += '</div>';
-    if (filters.q) {
-      html += '<div class="trend-note">Topic: ' + esc(filters.q) + '</div>';
+    if (filters.q || filters.niche) {
+      html +=
+        '<div class="trend-note">Searching ' +
+        esc(filters.q || 'all topics') +
+        (filters.niche ? ' in ' + esc(filters.niche) : '') +
+        ' · ' +
+        esc(regionLabel()) +
+        '</div>';
     }
     html += '<div class="trend-filters">';
     html += '<label>Platform<select onchange="PreShootTrending.setFilter(\'platform\',this.value)">';
     [
       ['all', 'All'],
       ['google', 'Google Trends'],
+      ['news', 'Google News'],
       ['youtube', 'YouTube'],
       ['apple', 'Apple Music']
     ].forEach(function (o) {
@@ -309,19 +323,19 @@
         '</option>';
     });
     html += '</select></label>';
-    html += '<label>Category<select onchange="PreShootTrending.setFilter(\'category\',this.value)">';
+    html += '<label>Kind<select onchange="PreShootTrending.setFilter(\'kind\',this.value)">';
     [
       ['all', 'All'],
+      ['news', 'News'],
       ['video', 'Videos'],
       ['music', 'Music'],
-      ['hashtag', 'Hashtags'],
-      ['pattern', 'Patterns']
+      ['search', 'Search interest']
     ].forEach(function (o) {
       html +=
         '<option value="' +
         o[0] +
         '"' +
-        (filters.category === o[0] ? ' selected' : '') +
+        (filters.kind === o[0] ? ' selected' : '') +
         '>' +
         o[1] +
         '</option>';
@@ -337,7 +351,8 @@
     var items = filteredItems();
     var videos = items.filter(function (i) { return i.type === 'video'; });
     var music = items.filter(function (i) { return i.type === 'music'; });
-    var tags = items.filter(function (i) { return i.type === 'hashtag' || i.category === 'search'; });
+    var news = items.filter(function (i) { return i.type === 'news' || i.platform === 'news'; });
+    var tags = items.filter(function (i) { return i.sourceType === 'search_interest' || i.type === 'hashtag' || i.category === 'search'; });
     var html = filterBar();
     html += '<div class="trend-note">' + esc(sourceNote());
     if (cache && cache.fetchedAt) {
@@ -346,7 +361,9 @@
     html += '</div>';
     if (cache && (cache.warning === 'timeout' || cache.warning === 'network') && !items.length) {
       html +=
-        '<div class="trend-empty">Trend feed timed out — try Refresh. History and Saved are not affected.</div>';
+        '<div class="trend-empty">We could not load trends right now. Try again.</div>';
+      html +=
+        '<button type="button" class="studio-btn primary sm" onclick="PreShootTrending.refresh()">Retry</button>';
       var failLimits = (cache && cache.limitations) || [];
       if (failLimits.length) {
         html += '<div class="trend-limits"><div class="trend-sec-hd">Source notes</div><ul>';
@@ -360,12 +377,29 @@
     if (cache && cache.warning === 'unavailable' && !items.length) {
       html +=
         '<div class="trend-empty">Public trend sources did not return data. Nothing here is simulated.</div>';
+      html +=
+        '<button type="button" class="studio-btn primary sm" onclick="PreShootTrending.refresh()">Retry</button>';
+    }
+    if ((filters.q || filters.niche) && !items.length && !(cache && cache.warning)) {
+      html +=
+        '<div class="trend-empty">No relevant trends found for ' +
+        esc(filters.q || filters.niche) +
+        '. Try a broader topic.</div>';
+    } else if (
+      !items.length &&
+      !filters.q &&
+      !filters.niche &&
+      !(cache && (cache.warning === 'timeout' || cache.warning === 'network' || cache.warning === 'unavailable'))
+    ) {
+      html +=
+        '<div class="trend-empty">No public trends available for ' +
+        esc(regionLabel()) +
+        ' right now.</div>';
     }
     html += section((ico('flame', 14) + ' Trending now'), items.slice(0, 8), productionId, true);
+    html += section('News and search', news.concat(tags).slice(0, 12), productionId);
     html += section('Videos', videos, productionId);
     html += section('Music', music, productionId);
-    html += section('Hashtags', tags, productionId);
-    html += section('Patterns', tags.slice(0, 8), productionId);
     var limits = (cache && cache.limitations) || [];
     if (limits.length) {
       html += '<div class="trend-limits"><div class="trend-sec-hd">Source notes</div><ul>';
@@ -377,28 +411,56 @@
     return html;
   }
 
+  function paintLoaded() {
+    var grid = document.getElementById('lib-grid');
+    var countEl = document.getElementById('lib-count');
+    if (grid && global.S && S.libTab === 'trending') {
+      grid.innerHTML = '<div class="trend-wrap">' + bodyHtml(null) + '</div>';
+      if (countEl) countEl.textContent = String(((cache && cache.items) || []).length) + ' trends';
+    }
+    var studio = document.querySelector('.trend-studio');
+    if (studio && studio.id) {
+      studio.innerHTML = bodyHtml(studio.id.replace('trend-studio-', ''));
+    }
+  }
+
+  function showLoading() {
+    var sk = global.PreShootSkeleton ? PreShootSkeleton.list(5) : '<div class="trend-loading">Loading public trends</div>';
+    var bar = filterBar();
+    var grid = document.getElementById('lib-grid');
+    if (grid && global.S && S.libTab === 'trending') {
+      grid.innerHTML = '<div class="trend-wrap">' + bar + sk + '</div>';
+    }
+    var studio = document.querySelector('.trend-studio');
+    if (studio) {
+      studio.innerHTML = bar + '<div class="trend-studio-inner">' + (global.PreShootSkeleton ? PreShootSkeleton.list(4) : '<div class="trend-loading">Loading public trends</div>') + '</div>';
+    }
+  }
+
   function renderLibrary(force) {
     var grid = document.getElementById('lib-grid');
     var countEl = document.getElementById('lib-count');
     if (!grid) return;
     if (countEl) countEl.textContent = 'Trending';
-    grid.innerHTML =
-      '<div class="trend-wrap">' +
-      (global.PreShootSkeleton ? PreShootSkeleton.list(5) : '<div class="trend-loading">Loading public trends</div>') +
-      '</div>';
+    showLoading();
     load(!!force).then(function () {
-      if (global.S && S.libTab !== 'trending') return;
-      grid.innerHTML = '<div class="trend-wrap">' + bodyHtml(null) + '</div>';
-      if (countEl) countEl.textContent = String(((cache && cache.items) || []).length) + ' trends';
+      if (global.S && S.libTab !== 'trending') {
+        paintLoaded();
+        return;
+      }
+      paintLoaded();
     });
   }
 
   function renderStudioPanel(productionId) {
+    var sk = global.PreShootSkeleton ? PreShootSkeleton.list(4) : '<div class="trend-loading">Loading public trends</div>';
     return (
       '<div class="trend-studio" id="trend-studio-' +
       esc(productionId) +
-      '"><div class="trend-studio-inner">' +
-      (global.PreShootSkeleton ? PreShootSkeleton.list(4) : '<div class="trend-loading">Loading public trends</div>') +
+      '">' +
+      filterBar() +
+      '<div class="trend-studio-inner">' +
+      sk +
       '</div></div>'
     );
   }
@@ -468,45 +530,119 @@
     if (global.PreShootStudioUI && PreShootStudioUI.renderStudio) PreShootStudioUI.renderStudio();
   }
 
+  function refetch() {
+    cache = null;
+    cacheKey = '';
+    showLoading();
+    load(false).then(paintLoaded);
+  }
+
   function setFilter(key, value) {
+    if (key === 'category') key = 'kind';
     filters[key] = value;
     if (key === 'region') {
       try {
         localStorage.setItem('scout_trend_region', value);
       } catch (e) {}
-      cache = null;
-      cacheKey = '';
-      renderLibrary();
+      refetch();
       return;
     }
-    var grid = document.getElementById('lib-grid');
-    if (grid && global.S && S.libTab === 'trending') {
-      grid.innerHTML = '<div class="trend-wrap">' + bodyHtml(null) + '</div>';
-    }
-    var studio = document.querySelector('.trend-studio');
-    if (studio && studio.id) {
-      var pid = studio.id.replace('trend-studio-', '');
-      studio.innerHTML = bodyHtml(pid);
-    }
+    paintLoaded();
   }
 
   function searchTopic(q) {
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
     filters.q = String(q || '').trim().slice(0, 80);
-    cache = null;
-    cacheKey = '';
-    if (global.S && S.libTab === 'trending') renderLibrary();
-    else load(false);
+    refetch();
+  }
+
+  function onSearchInput(q) {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      searchTimer = null;
+      var next = String(q || '').trim().slice(0, 80);
+      if (next === filters.q) return;
+      filters.q = next;
+      refetch();
+    }, TREND_DEBOUNCE_MS);
+  }
+
+  function selectNiche(name) {
+    var next = String(name || '').trim();
+    filters.niche = filters.niche === next ? '' : next;
+    refetch();
+  }
+
+  function clearSearch() {
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+    filters.q = '';
+    filters.niche = '';
+    refetch();
+  }
+
+  var PEEK_LEX = {
+    cars: ['car', 'cars', 'auto', 'automotive', 'vehicle', 'ev', 'motorsport', 'racing'],
+    technology: ['technology', 'tech', 'ai', 'gadget', 'camera', 'software'],
+    videography: ['videography', 'video', 'filmmaking', 'cinematic', 'camera', 'b-roll'],
+    photography: ['photography', 'photo', 'camera', 'lens'],
+    fitness: ['fitness', 'gym', 'workout'],
+    gaming: ['gaming', 'game', 'esports'],
+    fashion: ['fashion', 'style', 'outfit'],
+    music: ['music', 'song', 'album'],
+    food: ['food', 'recipe', 'cooking'],
+    travel: ['travel', 'trip', 'destination'],
+    business: ['business', 'brand', 'marketing'],
+    education: ['education', 'learn', 'tutorial']
+  };
+
+  function peekScore(item, query) {
+    var hay = ((item && item.title) || '') + ' ' + ((item && item.topic) || '');
+    hay = hay.toLowerCase();
+    var q = String(query || '').toLowerCase().trim();
+    if (!q) return 0;
+    if (hay.indexOf(q) >= 0) return 1;
+    var parts = q.split(/[\s,/]+/).filter(function (p) { return p.length > 2; });
+    var extra = [];
+    parts.forEach(function (p) {
+      if (PEEK_LEX[p]) extra = extra.concat(PEEK_LEX[p]);
+    });
+    var terms = parts.concat(extra);
+    var hits = 0;
+    terms.forEach(function (t) {
+      if (t && hay.indexOf(t) >= 0) hits += 1;
+    });
+    return hits ? Math.min(1, 0.3 + hits * 0.2) : 0;
   }
 
   function peek() {
     return ((cache && cache.items) || []).slice(0, 12);
   }
 
+  function peekRelevant(opts) {
+    opts = opts || {};
+    var query = [opts.query, opts.niche, opts.subject, opts.scene].filter(Boolean).join(' ').trim();
+    if (!query) return [];
+    return ((cache && cache.items) || [])
+      .map(function (it) {
+        return { it: it, score: peekScore(it, query) };
+      })
+      .filter(function (row) { return row.score >= 0.34; })
+      .sort(function (a, b) { return b.score - a.score; })
+      .slice(0, 6)
+      .map(function (row) { return row.it; });
+  }
+
   function refresh() {
     cache = null;
     cacheKey = '';
-    if (global.S && S.libTab === 'trending') renderLibrary(true);
-    else load(true);
+    showLoading();
+    load(true).then(paintLoaded);
   }
 
   global.PreShootTrending = {
@@ -517,8 +653,12 @@
     saveToProduction: saveToProduction,
     setFilter: setFilter,
     searchTopic: searchTopic,
+    onSearchInput: onSearchInput,
+    selectNiche: selectNiche,
+    clearSearch: clearSearch,
     refresh: refresh,
     load: load,
-    peek: peek
+    peek: peek,
+    peekRelevant: peekRelevant
   };
 })(typeof window !== 'undefined' ? window : globalThis);

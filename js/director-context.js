@@ -399,9 +399,14 @@
       lines.push('');
       lines.push('=== TRENDS (optional, relevance-gated) ===');
       var trendItems = [];
-      if (global.PreShootTrending && typeof PreShootTrending.peek === 'function') {
+      if (global.PreShootTrending) {
         try {
-          trendItems = PreShootTrending.peek() || [];
+          var peekFn = PreShootTrending.peekRelevant || PreShootTrending.peek;
+          trendItems = peekFn.call(PreShootTrending, {
+            niche: (global.S && S.niche && (S.niche.primaryNiche || S.niche.contentType)) || '',
+            subject: (production && production.name) || '',
+            scene: task
+          }) || [];
         } catch (e) {
           trendItems = [];
         }

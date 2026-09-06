@@ -20,9 +20,12 @@
 
   var _dirFullStore = {};
   var _dirFullSeq = 0;
-  function storeDirFull(text) {
+  function storeDirFull(text, actions) {
     var id = 'df' + (++_dirFullSeq);
-    _dirFullStore[id] = String(text || '');
+    _dirFullStore[id] = {
+      text: String(text || ''),
+      actions: Array.isArray(actions) ? actions : []
+    };
     if (_dirFullSeq > 80) delete _dirFullStore['df' + (_dirFullSeq - 80)];
     return id;
   }
@@ -30,14 +33,80 @@
     var t = String(text || '');
     return t.length > 280 || t.split('\n').length > 5;
   }
-  function viewDirectorFullMessage(id) {
-    var text = _dirFullStore[id] || '';
-    if (typeof global.openDirFullMessage === 'function') global.openDirFullMessage(text);
+  function storedDirRecord(id) {
+    var rec = _dirFullStore[id];
+    if (!rec) return { text: '', actions: [] };
+    if (typeof rec === 'string') return { text: rec, actions: [] };
+    return { text: rec.text || '', actions: rec.actions || [] };
   }
-  function directorExpandableHtml(kind, text) {
+  function viewDirectorFullMessage(id) {
+    var rec = storedDirRecord(id);
+    if (typeof global.openDirFullMessage === 'function') {
+      global.openDirFullMessage(rec.text, rec.actions);
+    }
+  }
+  function directorQuickButtonsHtml(storeId, actions) {
+    var list = Array.isArray(actions) ? actions : [];
+    if (
+      global.PreShootDirectorOS &&
+      global.PreShootDirectorOS.filterExecutableQuickActions
+    ) {
+      var pid =
+        (global.S && global.S.studioView && global.S.studioView.productionId) ||
+        (global.S && global.S.dirSessionFocus && global.S.dirSessionFocus.productionId) ||
+        (global.S && global.S.activeProductionId) ||
+        null;
+      var hasScript;
+      try {
+        var St = Studio();
+        if (pid && St && St.findProduction && St.hasRealScript) {
+          var found = St.findProduction(pid);
+          if (!found) hasScript = false;
+          else {
+            var prod = St.ensureWorkspace ? St.ensureWorkspace(found.production) : found.production;
+            hasScript = !!St.hasRealScript(prod.workspace || {}, prod.ideaSnapshot || {});
+          }
+        }
+      } catch (e) {}
+      list = global.PreShootDirectorOS.filterExecutableQuickActions(list, {
+        productionId: pid,
+        hasScript: hasScript
+      });
+    }
+    if (!list.length) return '';
+    var html = '<div class="dir-quick-actions" data-dir-quick="' + esc(storeId) + '">';
+    list.forEach(function (act) {
+      if (!act || !act.id) return;
+      html +=
+        '<button type="button" class="dir-quick-btn ' +
+        (act.kind === 'dismiss' ? 'ghost' : 'primary') +
+        '" onclick="PreShootStudioUI.runStoredQuickAction(\'' +
+        esc(storeId) +
+        "','" +
+        esc(act.id) +
+        '\')">' +
+        esc(act.label || act.id) +
+        '</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+  function runStoredQuickAction(storeId, actionId) {
+    var rec = storedDirRecord(storeId);
+    var act = null;
+    (rec.actions || []).forEach(function (row) {
+      if (row && row.id === actionId) act = row;
+    });
+    if (!act) return;
+    var host = document.querySelector('[data-dir-quick="' + storeId + '"]');
+    if (typeof global.runDirQuickAction === 'function') {
+      global.runDirQuickAction(act, host);
+    }
+  }
+  function directorExpandableHtml(kind, text, actions) {
     var full = String(text || '');
     var long = dirTextIsLong(full);
-    var id = storeDirFull(full);
+    var id = storeDirFull(full, actions);
     return (
       '<div class="dir-cmd-status-card kind-' +
       esc(kind || 'clarify') +
@@ -52,6 +121,7 @@
           id +
           '\')">View full message</button>'
         : '') +
+      directorQuickButtonsHtml(id, actions) +
       '</div>'
     );
   }
@@ -3272,14 +3342,17 @@
           global.PreShootDirectorOS && global.PreShootDirectorOS.parseActionFromReply
             ? global.PreShootDirectorOS.parseActionFromReply(raw)
             : null;
+        var actions = [];
+        if (global.PreShootDirectorOS && global.PreShootDirectorOS.collectQuickActions) {
+          actions = global.PreShootDirectorOS.collectQuickActions(raw, act);
+        }
         if (act && act.action) {
           setDirectorStatus('thinking', 'Preparing action…');
           proposeDirectorAction(act.action, act.payload || {});
-          return;
         }
         /* Advice only — never claim mutation success / Done */
-        setDirectorPanel(directorExpandableHtml('clarify', text || fallback));
-        setDirectorGoState('idle');
+        setDirectorPanel(directorExpandableHtml('clarify', text || fallback, actions));
+        if (!(act && act.action)) setDirectorGoState('idle');
       })
       .catch(function (err) {
         if (isDevHost() && err) console.warn('[Director explain]', err);
@@ -4260,20 +4333,20 @@
   function generateScript(productionId) {
     if (!studioCanMutate()) {
       toast('This workspace is read-only');
-      return;
+      return false;
     }
-    if (!Studio() || !productionId) return;
+    if (!Studio() || !productionId) return false;
     var found = Studio().findProduction(productionId);
     if (!found) {
       toast('Production not found');
-      return;
+      return false;
     }
     var prod = Studio().ensureWorkspace(found.production);
     var idea = prod.ideaSnapshot || {};
     var ov = (prod.workspace && prod.workspace.overview) || {};
     if (Studio().hasRealScript && Studio().hasRealScript(prod.workspace, idea)) {
       if (!confirm('Replace the current script with a newly generated draft? Your current script will be overwritten.')) {
-        return;
+        return false;
       }
     }
     var niche = (global.S && global.S.niche) || {};
@@ -4304,18 +4377,19 @@
       global.S.studioView.section = 'script';
     }
     requestScriptAiEdit({ productionId: productionId, mode: 'replace', message: prompt });
+    return true;
   }
 
   function generateShotList(productionId) {
     if (!studioCanMutate()) {
       toast('This workspace is read-only');
-      return;
+      return false;
     }
-    if (!Studio() || !Studio().buildShotListFromScript) return;
+    if (!Studio() || !Studio().buildShotListFromScript) return false;
     var found = Studio().findProduction(productionId);
     if (!found) {
       toast('Production not found');
-      return;
+      return false;
     }
     var prod = Studio().ensureWorkspace(found.production);
     var ws = prod.workspace || {};
@@ -4323,23 +4397,24 @@
       toast('Write or generate a script first');
       if (global.S && global.S.studioView) global.S.studioView.section = 'script';
       renderStudio();
-      return;
+      return false;
     }
     if (ws.shotList && ws.shotList.length) {
       if (!confirm('Replace the current shot list? Script stays. Existing shots will be overwritten.')) {
-        return;
+        return false;
       }
     }
     var result = Studio().buildShotListFromScript(productionId, { allowStarter: false });
     if (!result || !result.ok) {
       toast((result && result.message) || 'Could not generate shot list');
-      return;
+      return false;
     }
     toast('Shot list built from script');
     noteStreak('shotlist');
     if (global.S && global.S.studioView) global.S.studioView.section = 'shots';
     renderContinueCard();
     renderStudio();
+    return true;
   }
 
   function copyScript(productionId) {
@@ -4821,6 +4896,7 @@
 
   function cancelDirectorAction() {
     pendingDirectorAction = null;
+    setDirectorGoState('idle');
     if (typeof global.closeM === 'function') global.closeM('dir-action-modal');
   }
 
@@ -5677,6 +5753,7 @@
     directorPlaceholder: directorPlaceholder,
     openDirectorForProduction: openDirectorForProduction,
     viewDirectorFullMessage: viewDirectorFullMessage,
+    runStoredQuickAction: runStoredQuickAction,
     onDirectorInputChange: onDirectorInputChange,
     toggleDirectorVoice: toggleDirectorVoice,
     chooseDirectorClarify: chooseDirectorClarify,
