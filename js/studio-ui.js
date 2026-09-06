@@ -401,8 +401,8 @@
     h += '</div>';
     h += '<div class="studio-hd-actions">';
     if (global.PreShootWorkspaceUI && PreShootWorkspaceUI.studioHeaderActionsHtml) {
-      h += PreShootWorkspaceUI.studioHeaderActionsHtml();
-    } else {
+      h += PreShootWorkspaceUI.studioHeaderActionsHtml({ emptyStudio: !projects.length });
+    } else if (projects.length) {
       h +=
         '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
       h +=
@@ -413,31 +413,30 @@
     h += renderStudioRecents();
 
     if (!projects.length) {
+      var emptyReadOnly = !!(
+        global.PreShootWorkspace &&
+        PreShootWorkspace.isShared &&
+        PreShootWorkspace.isShared() &&
+        PreShootWorkspace.canEdit &&
+        !PreShootWorkspace.canEdit()
+      );
       h +=
         '<div class="studio-empty">' +
         '<div class="studio-empty-ico" aria-hidden="true">' +
         '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>' +
         '</div>' +
         '<div class="studio-empty-t">No projects yet</div>' +
-        '<div class="studio-empty-s">Start with a scan or create a project.</div>' +
-        (global.PreShootWorkspace &&
-        PreShootWorkspace.isShared &&
-        PreShootWorkspace.isShared() &&
-        PreShootWorkspace.canEdit &&
-        !PreShootWorkspace.canEdit()
+        '<div class="studio-empty-s">Scan a scene first, or start a blank campaign folder.</div>' +
+        '<div class="studio-empty-actions">' +
+        '<button type="button" class="studio-btn primary" onclick="startHomeCapture(\'cam\')">Start with a scan</button>' +
+        (emptyReadOnly
           ? '<div class="ws-readonly-pill">Read-only workspace</div>'
-          : '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProject()">Create Project</button>') +
-        '</div>';
-      h += '</div>';
-      h += renderDirectorCommandBar({
-        placeholder: 'Tell Director what you would like to do',
-        scope: 'studio'
-      });
-      h += '</div>';
+          : '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openCreateProject()">Blank project</button>') +
+        '</div></div>';
+      h +=
+        '<div class="studio-director-placeholder is-muted" aria-disabled="true">Director unlocks after you start a project</div>';
+      h += '</div></div>';
       root.innerHTML = h;
-      setTimeout(function () {
-        setDirectorGoState('idle');
-      }, 0);
       markStudioPainted();
       return;
     }
@@ -5122,6 +5121,8 @@
     if (step === 1) {
       h += '<div class="st-step-title">Project name</div>';
       h += '<div class="st-step-sub">What are you creating?</div>';
+      h +=
+        '<div class="st-step-help">Project = campaign folder; you\'ll add productions (individual videos) inside it.</div>';
       h +=
         '<input class="st-input" id="st-new-project-name" placeholder="e.g. Cafe Launch" value="' +
         esc(projectDraft.name) +

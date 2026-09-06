@@ -281,7 +281,8 @@
     );
   }
 
-  function studioMoreItemsHtml(extra) {
+  function studioMoreItemsHtml(extra, opts) {
+    opts = opts || {};
     var ctx = Ctx() ? Ctx().getContext() : null;
     var h = '';
     h +=
@@ -311,11 +312,13 @@
           '<button type="button" onclick="PreShootWorkspaceUI.saveShared();PreShootWorkspaceUI.closeStudioMenu()">Save</button>';
       }
     }
-    h +=
-      '<button type="button" onclick="PreShootStudioUI.openSearch();PreShootWorkspaceUI.closeStudioMenu()">Search</button>';
-    if (canEditForMenu()) {
+    if (!opts.emptyStudio) {
       h +=
-        '<button type="button" class="studio-menu-new" onclick="PreShootStudioUI.openCreateProject();PreShootWorkspaceUI.closeStudioMenu()">New Project</button>';
+        '<button type="button" onclick="PreShootStudioUI.openSearch();PreShootWorkspaceUI.closeStudioMenu()">Search</button>';
+      if (canEditForMenu()) {
+        h +=
+          '<button type="button" class="studio-menu-new" onclick="PreShootStudioUI.openCreateProject();PreShootWorkspaceUI.closeStudioMenu()">New Project</button>';
+      }
     }
     if (extra) h += extra;
     return h;
@@ -326,14 +329,15 @@
     return !ctx || !ctx.isShared || ctx.canEdit;
   }
 
-  function studioMenuButtonHtml(extra) {
+  function studioMenuButtonHtml(extra, opts) {
+    opts = opts || {};
     return (
       '<div class="studio-more-wrap">' +
       '<button type="button" class="studio-icon-btn studio-more-btn" aria-label="Studio menu" aria-haspopup="menu" onclick="PreShootWorkspaceUI.toggleStudioMenu(event)">' +
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg>' +
       '</button>' +
       '<div class="st-overflow-menu studio-more-menu" hidden role="menu">' +
-      studioMoreItemsHtml(extra || '') +
+      studioMoreItemsHtml(extra || '', opts) +
       '</div></div>'
     );
   }
@@ -439,7 +443,8 @@
     toggleAnchoredMenu(menu, btn, ev);
   }
 
-  function studioHeaderActionsHtml() {
+  function studioHeaderActionsHtml(opts) {
+    opts = opts || {};
     var ctx = Ctx() ? Ctx().getContext() : null;
     var canEdit = !ctx || !ctx.isShared || ctx.canEdit;
     var h = '';
@@ -478,11 +483,18 @@
           '<button type="button" class="studio-btn ghost sm" onclick="PreShootWorkspaceUI.saveShared()">Save</button>';
       }
     }
-    h +=
-      '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
+    if (!opts.emptyStudio) {
+      h +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootStudioUI.openSearch()">Search</button>';
+    }
     h += '</div>';
-    h += studioMenuButtonHtml();
-    if (canEdit) {
+    h += studioMenuButtonHtml('', opts);
+    if (opts.emptyStudio) {
+      if (!canEdit) {
+        h +=
+          '<span class="ws-readonly-pill" title="Commenter and viewer roles are read-only">Read only</span>';
+      }
+    } else if (canEdit) {
       h +=
         '<button type="button" class="studio-btn primary studio-hd-cta" onclick="PreShootStudioUI.openCreateProject()">New Project</button>';
     } else {

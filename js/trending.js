@@ -180,7 +180,7 @@
     }
     if (!sources.length) {
       if (cache && cache.warning === 'unavailable') return 'Public sources returned no items.';
-      return 'Waiting for public sources.';
+      return 'No public sources available.';
     }
     return sources
       .map(function (s) {
@@ -347,6 +347,33 @@
     return html;
   }
 
+  function publicFeedWarning(warning) {
+    var w = String(warning || '').toLowerCase();
+    return (
+      w === 'timeout' ||
+      w === 'network' ||
+      w === 'unavailable' ||
+      w === 'empty' ||
+      /sign in|auth|unauthorized|401/.test(w)
+    );
+  }
+
+  function emptyHeroHtml(opts) {
+    opts = opts || {};
+    var html = '<div class="trend-empty-hero">';
+    html += '<div class="trend-empty-ttl">No public trends right now</div>';
+    html +=
+      '<div class="trend-empty">Public sources are empty or offline. This is not your Library. Personal ideas come from a scan.</div>';
+    html +=
+      '<div class="trend-empty-actions"><button type="button" class="studio-btn primary" onclick="startHomeCapture(\'cam\')">Scan for personal ideas</button>';
+    if (opts.retry) {
+      html +=
+        '<button type="button" class="studio-btn ghost" onclick="PreShootTrending.refresh()">Refresh</button>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
   function bodyHtml(productionId) {
     var items = filteredItems();
     var videos = items.filter(function (i) { return i.type === 'video'; });
@@ -359,42 +386,27 @@
       html += ' · Updated ' + esc(new Date(cache.fetchedAt).toLocaleString());
     }
     html += '</div>';
-    if (cache && (cache.warning === 'timeout' || cache.warning === 'network') && !items.length) {
-      html +=
-        '<div class="trend-empty">We could not load trends right now. Try again.</div>';
-      html +=
-        '<button type="button" class="studio-btn primary sm" onclick="PreShootTrending.refresh()">Retry</button>';
-      var failLimits = (cache && cache.limitations) || [];
-      if (failLimits.length) {
+    if (!items.length) {
+      var searched = !!(filters.q || filters.niche);
+      var down = publicFeedWarning(cache && cache.warning);
+      var hardFail = cache && (cache.warning === 'timeout' || cache.warning === 'network');
+      if (searched && !down && cache && cache.ok !== false) {
+        html +=
+          '<div class="trend-empty">No relevant trends found for ' +
+          esc(filters.q || filters.niche) +
+          '. Try a broader topic.</div>';
+      } else {
+        html += emptyHeroHtml({ retry: !!hardFail });
+      }
+      var emptyLimits = (cache && cache.limitations) || [];
+      if (emptyLimits.length) {
         html += '<div class="trend-limits"><div class="trend-sec-hd">Source notes</div><ul>';
-        failLimits.forEach(function (l) {
+        emptyLimits.forEach(function (l) {
           html += '<li>' + esc(l) + '</li>';
         });
         html += '</ul></div>';
       }
       return html;
-    }
-    if (cache && cache.warning === 'unavailable' && !items.length) {
-      html +=
-        '<div class="trend-empty">Public trend sources did not return data. Nothing here is simulated.</div>';
-      html +=
-        '<button type="button" class="studio-btn primary sm" onclick="PreShootTrending.refresh()">Retry</button>';
-    }
-    if ((filters.q || filters.niche) && !items.length && !(cache && cache.warning)) {
-      html +=
-        '<div class="trend-empty">No relevant trends found for ' +
-        esc(filters.q || filters.niche) +
-        '. Try a broader topic.</div>';
-    } else if (
-      !items.length &&
-      !filters.q &&
-      !filters.niche &&
-      !(cache && (cache.warning === 'timeout' || cache.warning === 'network' || cache.warning === 'unavailable'))
-    ) {
-      html +=
-        '<div class="trend-empty">No public trends available for ' +
-        esc(regionLabel()) +
-        ' right now.</div>';
     }
     html += section((ico('flame', 14) + ' Trending now'), items.slice(0, 8), productionId, true);
     html += section('News and search', news.concat(tags).slice(0, 12), productionId);
