@@ -625,6 +625,7 @@ async function handleTrends(req, res) {
   const region = sanitizeRegion(q.region || body.region || 'US');
   const force = String(q.refresh || body.refresh || '') === '1';
   const topic = String(q.q || body.q || '').trim().slice(0, 80);
+  const category = String(q.category || body.category || '').trim().slice(0, 40);
 
   const authP = requireUser(req);
   const cacheP = readPersistedTrends(region);
@@ -679,9 +680,10 @@ async function handleTrends(req, res) {
       readCache: null,
       writeCache: writePersistedTrends
     });
-    if (topic) {
+    if (topic || category) {
       const searched = await searchTrendsByTopic({
         query: topic,
+        category,
         region,
         youtubeKey,
         baseItems: dataset.items || []
@@ -690,6 +692,8 @@ async function handleTrends(req, res) {
         region,
         force,
         cache: 'topic',
+        query: topic || '',
+        category: category || '',
         items: (searched.items || []).length,
         ms: Date.now() - started
       });
@@ -697,6 +701,7 @@ async function handleTrends(req, res) {
         ok: true,
         region,
         query: topic,
+        category,
         fetchedAt: searched.fetchedAt || dataset.fetchedAt,
         expiresAt: dataset.expiresAt,
         cache: 'topic',

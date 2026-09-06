@@ -262,6 +262,11 @@ Mutating actions (rename, move, archive, delete, create, status changes, setting
 When confident, append exactly one machine line at the end of your reply:
 [[ACTION:{"tool":"production","action":"rename_production","payload":{"productionId":"...","name":"..."}}]]
 Keep the human reply to one short sentence above that line.
+If you are offering a clear next creative step (generate the script, create a shot list, generate ideas, create a production, refine the concept), also append exactly one:
+[[QUICK:[{"id":"generate_script","label":"Generate Script"},{"id":"not_now","label":"Not Now"}]]]
+Allowed QUICK ids only: generate_script, create_shot_list, generate_ideas, create_production, refine_concept, not_now.
+Only include a QUICK action when you have enough context and the action can succeed on the current project or production.
+Do not invent other ids. Do not emit QUICK for vague chat.
 If unsure which record to change, ask one clarifying question instead of guessing.
 Do not invent tool names. Prefer existing Studio actions listed in context.
 When execution fails, say so clearly in one or two sentences.`;
