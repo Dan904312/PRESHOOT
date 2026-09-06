@@ -330,10 +330,11 @@ await testAsync('idea injection is relevance-gated and search-empty returns noth
 test('empty, timeout, and location copy stay user-facing', () => {
   assert.ok(trendingSrc.includes('No relevant trends found for '));
   assert.ok(trendingSrc.includes('Try a broader topic.'));
-  assert.ok(trendingSrc.includes('We could not load trends right now. Try again.'));
-  assert.ok(trendingSrc.includes('No public trends available for '));
+  assert.ok(trendingSrc.includes('No public trends right now'));
+  assert.ok(trendingSrc.includes('Scan for personal ideas'));
   assert.ok(trendingSrc.includes('scout_trend_region'));
   assert.ok(!trendingSrc.includes('Trend feed timed out —'));
+  assert.ok(!trendingSrc.includes('Waiting for public sources.'));
 });
 
 await testAsync('live Google News RSS accepts a real topic query', async () => {
