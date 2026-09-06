@@ -89,9 +89,13 @@ test('Director chat keeps full text and offers View full message', () => {
   assert.ok(appSrc.includes('function openDirFullMessage'));
   assert.ok(appSrc.includes('id="dir-full-msg-modal"'));
   assert.ok(appSrc.includes('id="dir-full-msg-body"'));
+  assert.ok(appSrc.includes('id="dir-full-msg-actions"'));
   assert.ok(appSrc.includes('dir-bubble-body'));
   assert.ok(appSrc.includes('is-compact'));
+  assert.ok(appSrc.includes('function runDirQuickAction'));
+  assert.ok(appSrc.includes("Couldn't generate the script. Try again."));
   assert.ok(studioUiSrc.includes('viewDirectorFullMessage'));
+  assert.ok(studioUiSrc.includes('runStoredQuickAction'));
   assert.ok(studioUiSrc.includes('directorExpandableHtml'));
   assert.ok(studioUiSrc.includes('conciseDoneMessage'));
   assert.ok(!studioUiSrc.includes('t.slice(0, 87)'));

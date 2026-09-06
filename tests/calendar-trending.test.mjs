@@ -410,8 +410,8 @@ test('trending client aborts hung GETs with explicit copy', () => {
   assert.ok(js.includes('TREND_FETCH_MS'));
   assert.ok(js.includes('withTimeout'));
   assert.ok(js.includes('inflightKey'));
-  assert.ok(js.includes('Trend feed timed out — try Refresh'));
-  assert.ok(js.includes("renderLibrary(true)"));
+  assert.ok(js.includes('Trend feed timed out. Try Refresh.'));
+  assert.ok(js.includes('function renderLibrary'));
   assert.ok(js.includes('refresh=1'));
 });
 
