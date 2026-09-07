@@ -287,13 +287,14 @@
     return html;
   }
 
-  function sectionNowCopy(section) {
+  function sectionNowCopy(section, prodName) {
+    var forProd = prodName ? ' for ' + prodName : '';
     var map = {
-      overview: { t: 'Overview', n: 'Check the idea, then open Script or Shot List.' },
-      shots: { t: 'Shot List', n: 'Build the shots you will film.' },
-      script: { t: 'Script', n: 'Write what is said on camera.' },
-      refs: { t: 'Assets and references', n: 'Collect YouTube, CapCut, and files.' },
-      assets: { t: 'Assets and references', n: 'Collect YouTube, CapCut, and files.' },
+      overview: { t: 'Overview', n: 'This is this production\'s Plan. Check the idea, then open Script or Shot List.' },
+      shots: { t: 'Shot List', n: 'Shot list' + forProd + '. Build the shots you will film.' },
+      script: { t: 'Script', n: 'Script' + forProd + '. Write what is said on camera.' },
+      refs: { t: 'Assets and references', n: 'Files and refs' + forProd + '.' },
+      assets: { t: 'Assets and references', n: 'Files and refs' + forProd + '.' },
       performance: { t: 'Performance', n: 'Record how the piece landed after posting.' },
       trending: { t: 'Trending', n: 'Optional public trend context.' }
     };
@@ -522,6 +523,7 @@
 
   function openProject(projectId) {
     if (!global.S) return;
+    if (global.PreShootFirstRun && PreShootFirstRun.markStudioOpened) PreShootFirstRun.markStudioOpened();
     var keepProd = null;
     if (global.S.activeProductionId && Studio() && Studio().findProduction) {
       var cur = Studio().findProduction(global.S.activeProductionId);
@@ -539,6 +541,8 @@
 
   function openProduction(productionId) {
     if (!global.S) return;
+    if (global.PreShootFirstRun && PreShootFirstRun.markStudioOpened) PreShootFirstRun.markStudioOpened();
+    if (global.PreShootFirstRun && PreShootFirstRun.dismissTip) PreShootFirstRun.dismissTip('studio');
     Studio().setContinueWorking(productionId);
     var projectId = null;
     try {
@@ -674,11 +678,11 @@
     if (!prods.length) {
       h +=
         '<div class="studio-empty compact">' +
-        '<div class="studio-empty-t">No productions yet.</div>' +
-        '<div class="studio-empty-s">Create a blank production or send an idea from a scan.</div>' +
+        '<div class="studio-empty-t">No productions in this project yet</div>' +
+        '<div class="studio-empty-s">Add a production to plan one video. Overview is that production\'s Plan.</div>' +
         '<button type="button" class="studio-btn primary" onclick="PreShootStudioUI.openCreateProduction(\'' +
         esc(projectId) +
-        '\')">Create Production</button>' +
+        '\')">New production</button>' +
         '</div>';
     } else {
       h += '<div class="st-prod-list">';
@@ -713,11 +717,16 @@
     }
 
     h += '</div>';
-    h += renderDirectorCommandBar({
-      placeholder: 'Ask Director to help with this project…',
-      scope: 'project',
-      projectId: projectId
-    });
+    if (prods.length) {
+      h += renderDirectorCommandBar({
+        placeholder: 'Ask Director to help with this project',
+        scope: 'project',
+        projectId: projectId
+      });
+    } else {
+      h +=
+        '<div class="studio-director-placeholder is-muted" aria-disabled="true">Pick a production first</div>';
+    }
 
     h += '</div>';
     root.innerHTML = h;
@@ -796,6 +805,7 @@
     var h = '';
     h += '<div class="pw-card pw-overview-card">';
     h += '<div class="pw-card-kicker">Production Overview</div>';
+    h += '<div class="pw-section-sub">This is this production\'s Plan</div>';
     h += '<div class="pw-overview-top">';
     if (prod.coverImage) {
       h += '<img class="pw-overview-thumb" src="' + esc(prod.coverImage) + '" alt="">';
@@ -1001,7 +1011,9 @@
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Shot List</div>';
     h +=
-      '<div class="pw-section-sub">Adapted for <strong>' +
+      '<div class="pw-section-sub">Shot list for ' +
+      esc(prod.name || 'this production') +
+      '. Adapted for <strong>' +
       esc(level) +
       '</strong> · each shot maps to a script beat</div></div>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
@@ -1171,7 +1183,10 @@
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Script</div>';
-    h += '<div class="pw-section-sub">What is said: dialogue, voiceover, narration. Not camera or visuals.</div>';
+    h +=
+      '<div class="pw-section-sub">Script for ' +
+      esc(prod.name || 'this production') +
+      '. What is said: dialogue, voiceover, narration. Not camera or visuals.</div>';
     if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
       h += PreShootWorkspaceComments.commentChipHtml(
         productionId,
@@ -1337,7 +1352,7 @@
     var h = '';
     h += '<div class="pw-section-hd"><div><div class="pw-card-kicker">Assets &amp; References</div>';
     h +=
-      '<div class="pw-section-sub">Inspiration and production files for this video</div></div></div>';
+      '<div class="pw-section-sub">Inspiration and files for this production</div></div></div>';
 
     /* ── YouTube ── */
     h += renderRefCategory({
@@ -1345,7 +1360,7 @@
       platform: 'youtube',
       productionId: productionId,
       items: refs.youtube || [],
-      empty: 'No YouTube references saved yet.',
+      empty: 'No YouTube references saved for this production yet.',
       findLabel: 'Find YouTube references',
       broaden: true
     });
@@ -1356,7 +1371,7 @@
       platform: 'capcut',
       productionId: productionId,
       items: refs.capcut || [],
-      empty: 'No CapCut template searches saved yet.',
+      empty: 'No CapCut template searches saved for this production yet.',
       findLabel: 'Find CapCut templates',
       broaden: true
     });
@@ -1407,7 +1422,7 @@
       ];
     }
     if (!assets.length) {
-      h += '<div class="pw-section-sub">No uploads yet. Add footage, photos, audio, or docs.</div>';
+      h += '<div class="pw-section-sub">No uploads in this production yet. Add footage, photos, audio, or docs.</div>';
     } else {
       h += '<div class="ar-asset-list" id="ar-asset-list-' + esc(productionId) + '">';
       assets.forEach(function (a) {
@@ -3706,7 +3721,7 @@
       { label: project.name, on: "PreShootStudioUI.openProject('" + esc(project.id) + "')" },
       { label: prod.name }
     ]);
-    var now = sectionNowCopy(section);
+    var now = sectionNowCopy(section, prod.name);
     h += '<div class="st-now" aria-live="polite">';
     h += '<div class="st-now-k">Now working on</div>';
     h += '<div class="st-now-t">' + esc(now.t) + '</div>';
@@ -3849,6 +3864,9 @@
     h += '</div>';
 
     h += renderDirectorCard(productionId);
+    if (global.PreShootFirstRun && PreShootFirstRun.shouldShowTip && PreShootFirstRun.shouldShowTip('director')) {
+      h += PreShootFirstRun.tipHtml('director');
+    }
 
     h += '</div>';
     h += '</div>';
@@ -4535,7 +4553,9 @@
           esc(cw.production.id) +
           '\')">' +
           '<div class="continue-body">' +
-          '<div class="continue-kicker">Continue Working</div>' +
+          '<div class="continue-kicker">Continue plan: ' +
+          esc(cw.production.name) +
+          '</div>' +
           '<div class="continue-title">' +
           esc(cw.production.name) +
           '</div>' +
@@ -4650,7 +4670,9 @@
         esc(cw.production.id) +
         '\')">' +
         '<div class="continue-body">' +
-        '<div class="continue-kicker">Continue</div>' +
+        '<div class="continue-kicker">Continue plan: ' +
+        esc(cw.production.name) +
+        '</div>' +
         '<div class="continue-title">' +
         esc(cw.production.name) +
         '</div>' +
@@ -5479,6 +5501,8 @@
     };
     if (project) opts.projectId = project.id;
     else opts.newProjectName = Studio().suggestProjectName(idea, sceneInfo);
+    if (global.PreShootFirstRun && PreShootFirstRun.dismissTip) PreShootFirstRun.dismissTip('studio');
+    if (global.PreShootFirstRun && PreShootFirstRun.markStudioOpened) PreShootFirstRun.markStudioOpened();
     completeIdeaImport(Studio().importIdeaIntoStudio(opts), {
       source: 'build',
       toast: 'Opened in Studio'

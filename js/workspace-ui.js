@@ -575,7 +575,14 @@
     var shared = workspaces.filter(function (w) {
       return w.kind === 'shared' && !w.archived_at;
     });
+    var activeName = ctx.isShared
+      ? ctx.activeWorkspaceName || 'Shared workspace'
+      : 'Personal';
     var h = '';
+    h +=
+      '<div class="ws-signed-note">Active workspace: ' +
+      esc(activeName) +
+      '. Switching syncs this Studio. Shared workspaces let a team plan productions together.</div>';
     h += '<div class="ws-sec-label">Personal</div>';
     h += '<div class="ws-list">';
     var personalActive = !ctx.isShared;
@@ -613,8 +620,14 @@
     });
     h += '</div>';
 
+    var createCls =
+      global.PreShootFirstRun && PreShootFirstRun.gate && PreShootFirstRun.gate() < 1
+        ? 'studio-btn ghost'
+        : 'studio-btn primary';
     h +=
-      '<button type="button" class="studio-btn primary" style="width:100%;margin-top:14px" onclick="PreShootWorkspaceUI.openCreate()">Create Workspace</button>';
+      '<button type="button" class="' +
+      createCls +
+      '" style="width:100%;margin-top:14px" onclick="PreShootWorkspaceUI.openCreate()">Create Workspace</button>';
     h +=
       '<div class="ws-sec-label" style="margin-top:18px">Have a join code?</div>' +
       '<div class="ws-join-form">' +

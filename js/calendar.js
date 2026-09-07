@@ -473,6 +473,16 @@
     return true;
   }
 
+  function isPlanContentPrimary() {
+    if (isPreScanEmpty()) return false;
+    if (isShared()) return true;
+    var FR = global.PreShootFirstRun;
+    if (FR && typeof FR.getActivation === 'function') {
+      return FR.getActivation().gate >= 2;
+    }
+    return true;
+  }
+
   function renderDayList(iso) {
     var list = eventsOn(iso);
     var html = '<div class="plan-day-hd"><div class="plan-day-title">' + esc(iso) + '</div>';
@@ -531,10 +541,10 @@
         html += '</div></div>';
       });
     }
-    if (canEdit() && !isPreScanEmpty()) {
+    if (canEdit() && !isPreScanEmpty() && isPlanContentPrimary()) {
       html +=
         '<button type="button" class="studio-btn primary" style="width:100%;margin-top:12px" onclick="PreShootCalendar.openPlanForm()">+ Plan Content</button>';
-    } else if (canEdit() && isPreScanEmpty()) {
+    } else if (canEdit()) {
       html +=
         '<button type="button" class="studio-btn ghost" style="width:100%;margin-top:12px" onclick="PreShootCalendar.openPlanForm()">Plan content later</button>';
     } else {
