@@ -521,9 +521,38 @@
     if (Ctx() && Ctx().applyReadOnlyClass) Ctx().applyReadOnlyClass();
   }
 
+  function renderGuestWorkspaceNote(kind) {
+    var heading = kind === 'create' ? 'Sign in to create a shared workspace' : 'Sign in to sync and share';
+    var body =
+      kind === 'create'
+        ? 'Shared workspaces let a team plan productions together. Sign in to create one. Your personal Studio on this device stays available without an account.'
+        : 'Workspaces let you switch between a personal Studio and shared team folders. Sign in to sync and share. Scanning and local Studio still work without an account.';
+    return (
+      '<div class="ws-guest-note">' +
+      '<div class="ws-guest-ttl">' +
+      esc(heading) +
+      '</div>' +
+      '<p>' +
+      esc(body) +
+      '</p>' +
+      '<button type="button" class="studio-btn primary" style="width:100%" onclick="closeM(\'ws-switcher-modal\');if(typeof goTab===\'function\')goTab(\'profile\')">Sign in</button>' +
+      '</div>'
+    );
+  }
+
+  function showGuestWorkspaceExplain(kind) {
+    var body = document.getElementById('ws-switcher-body');
+    if (body) {
+      body.innerHTML = renderGuestWorkspaceNote(kind);
+      openM('ws-switcher-modal');
+      return;
+    }
+    if (typeof global.goTab === 'function') global.goTab('profile');
+  }
+
   function openSwitcher() {
     if (!global.S || !global.S.authUser) {
-      toast('Sign in to manage workspaces');
+      showGuestWorkspaceExplain('switcher');
       return;
     }
     var body = document.getElementById('ws-switcher-body');
@@ -635,6 +664,10 @@
   }
 
   function openCreate() {
+    if (!global.S || !global.S.authUser) {
+      showGuestWorkspaceExplain('create');
+      return;
+    }
     closeM('ws-switcher-modal');
     var inp = document.getElementById('ws-create-name');
     if (inp) inp.value = '';

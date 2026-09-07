@@ -462,6 +462,17 @@
     return f && f.production ? f.production.name : '';
   }
 
+  function isPreScanEmpty() {
+    if (isShared()) return false;
+    var hist = typeof global.getHistory === 'function' ? global.getHistory() || [] : [];
+    var lib = typeof global.getLib === 'function' ? global.getLib() || [] : [];
+    if (hist.length || lib.length) return false;
+    if (global.S && global.S.ideas && global.S.ideas.length) return false;
+    var stored = storedEvents();
+    if (stored && stored.length) return false;
+    return true;
+  }
+
   function renderDayList(iso) {
     var list = eventsOn(iso);
     var html = '<div class="plan-day-hd"><div class="plan-day-title">' + esc(iso) + '</div>';
@@ -520,9 +531,12 @@
         html += '</div></div>';
       });
     }
-    if (canEdit()) {
+    if (canEdit() && !isPreScanEmpty()) {
       html +=
         '<button type="button" class="studio-btn primary" style="width:100%;margin-top:12px" onclick="PreShootCalendar.openPlanForm()">+ Plan Content</button>';
+    } else if (canEdit() && isPreScanEmpty()) {
+      html +=
+        '<button type="button" class="studio-btn ghost" style="width:100%;margin-top:12px" onclick="PreShootCalendar.openPlanForm()">Plan content later</button>';
     } else {
       html += '<div class="plan-empty">This shared calendar is read-only for your role.</div>';
     }
@@ -682,15 +696,35 @@
       ' · streak stays personal</div></div></div>';
     html += '<div class="plan-layout">';
     html += '<div class="plan-layout-cal">';
-    html += renderStats();
-    html += renderWeekStrip();
-    html += renderMonthGrid();
-    html +=
-      '<div class="plan-legend"><span><span class="plan-dot-planned" aria-hidden="true"></span> Planned</span><span>' +
-      ico('check', 12) +
-      ' Posted</span><span>' +
-      ico('flame', 12) +
-      ' Streak</span></div>';
+    if (isPreScanEmpty()) {
+      html += '<div class="plan-empty-first">';
+      html += '<div class="plan-empty-t">Nothing to plan yet</div>';
+      html +=
+        '<div class="plan-empty-s">Scan a scene to get ideas you can schedule. Planning starts after your first ideas.</div>';
+      html +=
+        '<button type="button" class="studio-btn primary" onclick="startHomeCapture(\'cam\')">Scan to get ideas to plan</button>';
+      html += '</div>';
+      html += '<details class="plan-cal-more"><summary>Show calendar</summary>';
+      html += renderWeekStrip();
+      html += renderMonthGrid();
+      html +=
+        '<div class="plan-legend"><span><span class="plan-dot-planned" aria-hidden="true"></span> Planned</span><span>' +
+        ico('check', 12) +
+        ' Posted</span><span>' +
+        ico('flame', 12) +
+        ' Streak</span></div>';
+      html += '</details>';
+    } else {
+      html += renderStats();
+      html += renderWeekStrip();
+      html += renderMonthGrid();
+      html +=
+        '<div class="plan-legend"><span><span class="plan-dot-planned" aria-hidden="true"></span> Planned</span><span>' +
+        ico('check', 12) +
+        ' Posted</span><span>' +
+        ico('flame', 12) +
+        ' Streak</span></div>';
+    }
     html += '</div>';
     html += '<div class="plan-day-panel">' + renderDayList(selectedDate || todayIso()) + '</div>';
     html += '</div>';

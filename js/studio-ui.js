@@ -300,23 +300,23 @@
     return map[section] || map.overview;
   }
 
-  function renderDirectorQuickActions() {
-    var chips = [
-      ['Improve hook', 'Improve the hook for this production. Keep it specific and easy to say in three seconds.'],
-      ['Make this easier to film', 'Simplify this production so it is easier to film with the gear on my profile. Prefer fewer setups.'],
-      ['Create production plan', 'Create a production plan: what to film, in what order, and what I need on set.'],
-      ['Adjust for iPhone', 'Adjust the shot list and notes for filming on iPhone.'],
-      ['Make this shorter', 'Make the script and shot list shorter. Keep the hook and the payoff.']
-    ];
+  function renderDirectorQuickActions(productionId) {
+    var pid = esc(productionId || '');
+    var coach =
+      'Use this production as context. Coach the next filming or script step from the current overview, notes, and idea.';
     var h = '<div class="dir-quick" role="group" aria-label="Director actions">';
-    chips.forEach(function (c) {
-      h +=
-        '<button type="button" onclick="PreShootStudioUI.runDirectorQuick(' +
-        JSON.stringify(c[1]).replace(/"/g, '&quot;') +
-        ')">' +
-        esc(c[0]) +
-        '</button>';
-    });
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.generateScript(\'' +
+      pid +
+      '\')">Write the script</button>';
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.generateShotList(\'' +
+      pid +
+      '\')">Build the shot list</button>';
+    h +=
+      '<button type="button" onclick="PreShootStudioUI.runDirectorQuick(' +
+      JSON.stringify(coach).replace(/"/g, '&quot;') +
+      ')">Use this production</button>';
     h += '</div>';
     return h;
   }
@@ -2198,15 +2198,21 @@
   function renderDirectorCard(productionId) {
     var found = Studio().findProduction(productionId);
     var name = found && found.production ? found.production.name : 'this production';
+    var projectName = found && found.project ? found.project.name : '';
+    var ph = 'Commands this production: ' + name;
+    if (projectName) {
+      var combo = 'Commands ' + name + ' · ' + projectName;
+      if (combo.length <= 48) ph = combo;
+    }
     return (
       '<div class="dir-partner">' +
       '<div class="dir-partner-k">Director</div>' +
       '<div class="dir-partner-line">Working on <strong>' +
       esc(name) +
       '</strong></div>' +
-      renderDirectorQuickActions() +
+      renderDirectorQuickActions(productionId) +
       renderDirectorCommandBar({
-        placeholder: 'Ask Director to change this production',
+        placeholder: ph,
         scope: 'production',
         productionId: productionId
       }) +
@@ -3698,8 +3704,7 @@
     h += studioCrumbHtml([
       { label: 'Studio', on: "PreShootStudioUI.backToList()" },
       { label: project.name, on: "PreShootStudioUI.openProject('" + esc(project.id) + "')" },
-      { label: prod.name },
-      { label: (sectionNowCopy(section).t) }
+      { label: prod.name }
     ]);
     var now = sectionNowCopy(section);
     h += '<div class="st-now" aria-live="polite">';
@@ -5386,7 +5391,7 @@
     if (nameWrap) nameWrap.style.display = prodSel && prodSel.value ? 'none' : '';
   }
 
-  function openSendToStudio(idx, src) {
+  function resolveIdeaFromSource(idx, src) {
     var ideas = [];
     if (src === 'results') ideas = (global.S && global.S.ideas) || [];
     else if (src === 'lib') ideas = typeof global.getLib === 'function' ? global.getLib() : [];
@@ -5399,6 +5404,89 @@
     if (!idea && global.S && global.S.activeIdea != null && global.S.ideas) {
       idea = global.S.ideas[global.S.activeIdea];
     }
+    return idea || null;
+  }
+
+  function pickProjectForIdea(idea, sceneInfo) {
+    var rec = Studio().recommendProject ? Studio().recommendProject(idea, sceneInfo) : null;
+    if (rec && rec.suggested) return rec.suggested;
+    var projects = (Studio().listProjects() || []).slice().sort(function (a, b) {
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+    return projects[0] || null;
+  }
+
+  function completeIdeaImport(result, opts) {
+    opts = opts || {};
+    if (typeof global.shCloseForce === 'function') global.shCloseForce();
+    if (!result || !result.ok || !result.production) {
+      var err = (result && result.error) || '';
+      if (err === 'production_not_in_project') toast('That production is not in the selected project');
+      else if (err === 'production_not_found') toast('Production not found');
+      else if (err === 'project_not_found') toast('Project not found');
+      else toast('Could not import to Studio');
+      return false;
+    }
+    if (global.PreShootAnalytics) {
+      if (result.createdProject) PreShootAnalytics.track('project_created', { source: opts.source || 'send' });
+      if (result.createdProduction) {
+        PreShootAnalytics.track('production_created', {
+          id: String(result.production.id || '').slice(0, 40),
+          source: 'idea'
+        });
+        PreShootAnalytics.noteProductionCreated();
+      }
+    }
+    if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
+      PreShootEntitlements.recordActivity('studio');
+    }
+    if (global.PreShootCalendar && PreShootCalendar.indexProduction && result.createdProduction) {
+      PreShootCalendar.indexProduction(result.production, result.project);
+    }
+    if (opts.toast) toast(opts.toast);
+    else {
+      toast(
+        result.createdProduction
+          ? 'Imported to a new production'
+          : 'Imported into "' + (result.production.name || 'production') + '"'
+      );
+    }
+    openProduction(result.production.id);
+    return true;
+  }
+
+  function buildFromIdea(idx, src) {
+    var idea = resolveIdeaFromSource(idx, src);
+    if (!idea) {
+      toast('Idea not found');
+      return;
+    }
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
+    if (!Studio() || !Studio().importIdeaIntoStudio) {
+      toast('Studio import unavailable');
+      return;
+    }
+    var sceneInfo = (global.S && global.S.sceneInfo) || {};
+    var project = pickProjectForIdea(idea, sceneInfo);
+    var opts = {
+      idea: idea,
+      sceneInfo: sceneInfo,
+      meta: { source: 'idea', coverImage: (global.S && global.S.scanImg) || idea.image || null },
+      newProductionName: String(idea.title || 'Untitled Production').trim()
+    };
+    if (project) opts.projectId = project.id;
+    else opts.newProjectName = Studio().suggestProjectName(idea, sceneInfo);
+    completeIdeaImport(Studio().importIdeaIntoStudio(opts), {
+      source: 'build',
+      toast: 'Opened in Studio'
+    });
+  }
+
+  function openSendToStudio(idx, src) {
+    var idea = resolveIdeaFromSource(idx, src);
     if (!idea) {
       toast('Idea not found');
       return;
@@ -5508,33 +5596,7 @@
     var result = Studio().importIdeaIntoStudio(opts);
     closeM('studio-send-modal');
     pendingSend = null;
-    if (typeof global.shCloseForce === 'function') global.shCloseForce();
-    if (!result || !result.ok || !result.production) {
-      var err = (result && result.error) || '';
-      if (err === 'production_not_in_project') toast('That production is not in the selected project');
-      else if (err === 'production_not_found') toast('Production not found');
-      else if (err === 'project_not_found') toast('Project not found');
-      else toast('Could not import to Studio');
-      return;
-    }
-    if (global.PreShootAnalytics) {
-      if (result.createdProject) PreShootAnalytics.track('project_created', { source: 'send' });
-      if (result.createdProduction) {
-        PreShootAnalytics.track('production_created', {
-          id: String(result.production.id || '').slice(0, 40),
-          source: 'idea'
-        });
-        PreShootAnalytics.noteProductionCreated();
-      }
-    }
-    if (global.PreShootEntitlements && PreShootEntitlements.recordActivity) {
-      PreShootEntitlements.recordActivity('studio');
-    }
-    if (global.PreShootCalendar && PreShootCalendar.indexProduction && result.createdProduction) {
-      PreShootCalendar.indexProduction(result.production, result.project);
-    }
-    toast(result.createdProduction ? 'Imported to a new production' : 'Imported into "' + (result.production.name || 'production') + '"');
-    openProduction(result.production.id);
+    completeIdeaImport(result, { source: 'send' });
   }
 
   function renameProjectPrompt(projectId) {
@@ -5734,6 +5796,7 @@
     openCreateBlankProduction: openCreateBlankProduction,
     confirmBlankProduction: confirmBlankProduction,
     openSendToStudio: openSendToStudio,
+    buildFromIdea: buildFromIdea,
     confirmSend: confirmSend,
     onSendProjectChange: onSendProjectChange,
     onSendProductionChange: onSendProductionChange,
