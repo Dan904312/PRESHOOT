@@ -75,10 +75,18 @@ test('SQL creates usage, audit, email, account_status', () => {
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS usage_events'));
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS admin_audit_log'));
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS admin_email_log'));
+  assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS app_settings'));
   assert.ok(sql.includes("CHECK (account_status IN ('active', 'suspended'))"));
   assert.ok(sql.includes("usage_tracking_started_at"));
+  assert.ok(sql.includes('ON CONFLICT (key) DO NOTHING'));
   assert.ok(sql.includes('admin_usage_rollup'));
   assert.ok(sql.includes('REVOKE ALL ON TABLE usage_events FROM anon, authenticated'));
+  assert.ok(sql.includes('REVOKE ALL ON TABLE admin_audit_log FROM anon, authenticated'));
+  assert.ok(sql.includes('GRANT ALL ON TABLE usage_events TO service_role'));
+  assert.ok(sql.includes('GRANT ALL ON TABLE admin_audit_log TO service_role'));
+  assert.ok(sql.includes('idx_users_account_status_at'));
+  assert.ok(!sql.includes('GRANT ALL ON TABLE usage_events TO anon'));
+  assert.ok(!sql.includes('GRANT ALL ON TABLE admin_audit_log TO authenticated'));
 });
 
 test('pricing is centralized and token-based', () => {
@@ -195,11 +203,20 @@ test('suspend bans Auth; restore does not grant Pro', () => {
 
 test('account_status SQL exists in-repo', () => {
   const focused = fs.readFileSync(path.join(root, 'sql/users_account_status.sql'), 'utf8');
+  const docs = fs.readFileSync(path.join(root, 'UPDATE-0033-admin-console.md'), 'utf8');
   assert.ok(focused.includes('ADD COLUMN IF NOT EXISTS account_status'));
   assert.ok(focused.includes('account_status_reason'));
   assert.ok(focused.includes('account_status_at'));
   assert.ok(focused.includes('account_status_by'));
   assert.ok(focused.includes("CHECK (account_status IN ('active', 'suspended'))"));
+  assert.ok(focused.includes('ALTER TABLE public.users'));
+  assert.ok(focused.includes('WHEN duplicate_object THEN NULL'));
+  assert.ok(focused.includes('idx_users_account_status_at'));
+  assert.ok(focused.includes('COMMENT ON COLUMN public.users.account_status'));
+  assert.ok(docs.includes('sql/users_account_status.sql'));
+  assert.ok(docs.includes('supabase_admin_console.sql'));
+  assert.ok(docs.includes('Never suspend'));
+  assert.ok(admin.includes('sql/users_account_status.sql (or supabase_admin_console.sql)'));
 });
 
 test('users_list does not wait on all-time usage rollup', () => {
