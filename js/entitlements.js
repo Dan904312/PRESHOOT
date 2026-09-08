@@ -3,6 +3,9 @@
  */
 (function (global) {
   var recordedToday = {};
+  var SETTLE_MS = 7000;
+  var settleTimer = null;
+  var settleGen = 0;
 
   function tz() {
     try {
@@ -47,14 +50,105 @@
     return true;
   }
 
-  function apply(data) {
-    if (!data || typeof data !== 'object') return;
-    if (typeof S === 'undefined') return;
-    if (data.status === 'account_suspended' || data.error === 'account_suspended' || data.blocked === true) {
-      if (typeof global.handleAccountSuspended === 'function') global.handleAccountSuspended();
-      return;
+  function clearSettleTimer() {
+    if (settleTimer) {
+      try {
+        clearTimeout(settleTimer);
+      } catch (e) {}
+      settleTimer = null;
     }
-    if (!isUsableSnapshot(data)) return;
+  }
+
+  function paintPlanChrome() {
+    if (typeof renderHome === 'function') renderHome();
+    if (typeof renderProf === 'function') renderProf();
+  }
+
+  function hasSuccessfulServerSnapshot() {
+    return (
+      typeof S !== 'undefined' &&
+      S.entitlement &&
+      S.entitlement.fromServer === true &&
+      S.entitlement.planConfirmFailed !== true
+    );
+  }
+
+  function beginSettleWait() {
+    settleGen += 1;
+    var gen = settleGen;
+    clearSettleTimer();
+    settleTimer = setTimeout(function () {
+      settleTimer = null;
+      if (gen !== settleGen) return;
+      if (!hasSuccessfulServerSnapshot()) settleEntitlementFallback('timeout');
+    }, SETTLE_MS);
+  }
+
+  function markSettledNow() {
+    settleGen += 1;
+    clearSettleTimer();
+  }
+
+  function settleEntitlementFallback(reason) {
+    if (typeof S === 'undefined') return;
+    if (!S.authUser) return;
+    if (hasSuccessfulServerSnapshot()) return;
+    var used = typeof scansToday === 'function' ? scansToday() : 0;
+    var rem = Math.max(0, 3 - used);
+    S.plan = 'free';
+    S.entitlement = {
+      fromServer: true,
+      plan: 'free',
+      status: 'unavailable',
+      planConfirmFailed: true,
+      planConfirmReason: reason || 'unavailable',
+      director: false,
+      studio: false,
+      scansUnlimited: false,
+      canScan: rem > 0,
+      freeScansRemaining: 0,
+      dailyScansRemaining: rem,
+      onboardingRewardGranted: false,
+      onboardingRewardGrantedAt: null,
+      directorTrialEndsAt: null,
+      studioTrialEndsAt: null,
+      streakAccessEndsAt: null,
+      accessEndsAt: null,
+      streak: {
+        current: 0,
+        longest: 0,
+        lastActiveDate: null,
+        days: [],
+        timezone: tz(),
+        todayComplete: false,
+        freezeUntil: null,
+        nextReward: null,
+        progress: { at: 0, target: 10 },
+        catalog: [],
+        activity: [],
+        rewards: []
+      }
+    };
+    try {
+      if (typeof ss === 'function') {
+        ss('plan', 'free');
+      }
+    } catch (e) {}
+    markSettledNow();
+    paintPlanChrome();
+    var dl = document.getElementById('dir-lock');
+    if (dl) dl.style.display = hasDirector() ? 'none' : 'inline';
+  }
+
+  function apply(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (typeof S === 'undefined') return false;
+    if (data.status === 'account_suspended' || data.error === 'account_suspended' || data.blocked === true) {
+      markSettledNow();
+      if (typeof global.handleAccountSuspended === 'function') global.handleAccountSuspended();
+      return 'suspended';
+    }
+    if (!isUsableSnapshot(data)) return false;
     if (data.entitlement) data = Object.assign({}, data, data.entitlement);
     S.plan = data.plan === 'pro' ? 'pro' : 'free';
     var streakIn = data.streak || {};
@@ -96,6 +190,7 @@
         ss('plan_checked', Date.now());
       }
     } catch (e) {}
+    markSettledNow();
     if (typeof renderHome === 'function') renderHome();
     if (typeof renderProf === 'function') renderProf();
     var dl = document.getElementById('dir-lock');
@@ -106,6 +201,7 @@
     if (global.PreShootCalendar && PreShootCalendar.render && S.tab === 'plan') {
       PreShootCalendar.render();
     }
+    return true;
   }
 
   function serverEnt() {
@@ -181,23 +277,38 @@
 
   function refresh() {
     if (typeof S === 'undefined' || !S.authUser) return Promise.resolve(null);
-    return apiPost(null).then(function (data) {
-      apply(data);
-      return data;
-    }).catch(function () {
-      return null;
-    });
+    beginSettleWait();
+    return apiPost(null)
+      .then(function (data) {
+        var ok = apply(data);
+        if (ok === true || ok === 'suspended') return data;
+        settleEntitlementFallback((data && data.status) || 'invalid');
+        return data;
+      })
+      .catch(function () {
+        settleEntitlementFallback('network');
+        return null;
+      });
   }
 
   function completeOnboarding() {
     if (typeof S === 'undefined' || !S.authUser) {
       return Promise.resolve({ ok: false, error: 'auth_required' });
     }
-    return apiPost('grant_onboarding_reward').then(function (data) {
-      if (data && data.entitlement) apply(data.entitlement);
-      else if (data && data.plan) apply(data);
-      return data;
-    });
+    return apiPost('grant_onboarding_reward')
+      .then(function (data) {
+        var ok = false;
+        if (data && data.entitlement) ok = apply(data.entitlement);
+        else if (data && data.plan) ok = apply(data);
+        if (ok !== true && ok !== 'suspended' && !hasSuccessfulServerSnapshot()) {
+          settleEntitlementFallback('invalid');
+        }
+        return data;
+      })
+      .catch(function () {
+        if (!hasSuccessfulServerSnapshot()) settleEntitlementFallback('network');
+        return { ok: false, error: 'network' };
+      });
   }
 
   function recordActivity(kind) {
@@ -246,6 +357,7 @@
   global.PreShootEntitlements = {
     apply: apply,
     refresh: refresh,
+    settleFallback: settleEntitlementFallback,
     completeOnboarding: completeOnboarding,
     recordActivity: recordActivity,
     hasDirector: hasDirector,
@@ -256,7 +368,8 @@
     accessEndsAt: accessEndsAt,
     showRewardModal: showRewardModal,
     startCreating: startCreating,
-    tz: tz
+    tz: tz,
+    SETTLE_MS: SETTLE_MS
   };
 
   global.hasDirectorAccess = hasDirector;
