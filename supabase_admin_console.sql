@@ -1,32 +1,60 @@
 /* ============================================
-   PRESHOOT — Admin console: usage ledger, account
-   status, audit log, email log.
+   PRESHOOT — Admin console SQL (one paste)
    Additive. Safe to run more than once.
-   Service role only. Never expose to anon.
-   Retention (manual / future cron):
+
+   Embeds sql/users_account_status.sql so operators
+   can paste this file alone. Running
+   sql/users_account_status.sql first, then this file,
+   is also safe (IF NOT EXISTS / duplicate_object).
+
+   Creates / keeps:
+     public.usage_events
+     public.admin_audit_log
+     public.app_settings  (usage_tracking_started_at ON CONFLICT DO NOTHING)
+     public.admin_email_log
+
+   Column types match lib/usage-ledger.js, lib/admin-audit.js,
+   and api/admin-data.js inserts.
+
+   RLS on. REVOKE anon + authenticated. GRANT service_role only.
+   Do not grant anon/authenticated write on users, usage_events,
+   or admin_audit_log.
+
+   Retention intent (manual / future cron):
      usage_events      24 months
      admin_audit_log   24 months
      admin_email_log   24 months
+
+   Also run supabase_admin_notifications.sql for the admin bell.
    ============================================ */
 
-ALTER TABLE users
+-- ── A. account_status (same block as sql/users_account_status.sql) ──
+
+ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS account_status text NOT NULL DEFAULT 'active',
   ADD COLUMN IF NOT EXISTS account_status_reason text,
   ADD COLUMN IF NOT EXISTS account_status_at timestamptz,
   ADD COLUMN IF NOT EXISTS account_status_by text;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'users_account_status_check'
-  ) THEN
-    ALTER TABLE users
-      ADD CONSTRAINT users_account_status_check
-      CHECK (account_status IN ('active', 'suspended'));
-  END IF;
+DO $$ BEGIN
+  ALTER TABLE public.users
+    ADD CONSTRAINT users_account_status_check
+    CHECK (account_status IN ('active', 'suspended'));
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_users_account_status ON users (account_status);
+CREATE INDEX IF NOT EXISTS idx_users_account_status
+  ON public.users (account_status);
+
+CREATE INDEX IF NOT EXISTS idx_users_account_status_at
+  ON public.users (account_status_at DESC NULLS LAST)
+  WHERE account_status = 'suspended';
+
+COMMENT ON COLUMN public.users.account_status IS
+  'active|suspended — enforced by requireActiveUser / setAccountStatus';
+
+-- ── B. Admin telemetry tables ──
 
 CREATE TABLE IF NOT EXISTS usage_events (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -159,7 +187,3 @@ $$;
 
 REVOKE ALL ON FUNCTION admin_usage_rollup(timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_usage_rollup(timestamptz) TO service_role;
-
--- Also run supabase_admin_notifications.sql for the admin bell / suspended-login events.
-
-
