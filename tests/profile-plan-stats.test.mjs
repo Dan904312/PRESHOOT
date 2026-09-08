@@ -77,6 +77,21 @@ test('apply ignores error payloads and always refreshes Profile + Home', () => {
   assert.ok(!entJs.includes("S.tab === 'profile' && typeof renderProf"));
 });
 
+test('check-plan timeout and errors settle Free-safe, never Pro from cache', () => {
+  assert.ok(entJs.includes('function settleEntitlementFallback'));
+  assert.ok(entJs.includes('SETTLE_MS = 7000'));
+  assert.ok(entJs.includes("planConfirmFailed: true"));
+  assert.ok(entJs.includes("scansUnlimited: false"));
+  assert.ok(entJs.includes("settleEntitlementFallback('network')"));
+  assert.ok(entJs.includes("settleEntitlementFallback('timeout')"));
+  assert.ok(!entJs.includes('process.env.'));
+  assert.ok(app.includes('entitlements.js?v=399'));
+  assert.ok(app.includes("Couldn\\'t confirm plan · tap to retry"));
+  const prof = app.slice(app.indexOf('function renderProf()'), app.indexOf('function openEditProf()'));
+  assert.ok(prof.includes("total=(typeof getHistory==='function'?getHistory():[]).length"));
+  assert.ok(!prof.includes("gs('total_scans'"));
+});
+
 test('auth restore awaits check-plan before painting Pro/Free chrome', () => {
   assert.ok(app.includes('var planReady = checkPlanServerSide'));
   assert.ok(app.includes('function paintAuthedChrome()'));
