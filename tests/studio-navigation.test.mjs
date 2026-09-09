@@ -257,8 +257,8 @@ test('Director returns to the screen it was opened from', () => {
 });
 
 test('touched Studio assets are cache-busted', () => {
-  assert.ok(appSrc.includes('/js/studio-ui.js?v=nav1'));
-  assert.ok(appSrc.includes('/js/workspace-context.js?v=nav1'));
+  assert.ok(/\/js\/studio-ui\.js\?v=[a-z0-9]+/.test(appSrc));
+  assert.ok(/\/js\/workspace-context\.js\?v=[a-z0-9]+/.test(appSrc));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed\n');

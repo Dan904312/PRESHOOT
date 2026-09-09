@@ -52,6 +52,9 @@ function loadStudio() {
   sandbox.globalThis = sandbox;
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(root, 'js/shot-planner.js'), 'utf8'), sandbox, {
+    filename: 'shot-planner.js'
+  });
   vm.runInContext(fs.readFileSync(path.join(root, 'js/studio.js'), 'utf8'), sandbox, {
     filename: 'studio.js'
   });
