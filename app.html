@@ -70,7 +70,7 @@
 <script src="/js/studio-sync.js?v=321"></script>
 <script src="/js/workspace-sync.js?v=361"></script>
 <script src="/js/workspace-changes.js?v=361"></script>
-<script src="/js/workspace-context.js?v=363"></script>
+<script src="/js/workspace-context.js?v=nav1"></script>
 <script src="/js/workspace-ui.js?v=p3"></script>
 <script src="/js/workspace-realtime.js?v=360"></script>
 <script src="/js/workspace-comments.js?v=385"></script>
@@ -80,7 +80,7 @@
 <script src="/js/calendar.js?v=p3"></script>
 <script src="/js/trending.js?v=398"></script>
 <script src="/js/director-voice.js?v=388"></script>
-<script src="/js/studio-ui.js?v=p3"></script>
+<script src="/js/studio-ui.js?v=nav1"></script>
 <script src="/js/studio-export.js?v=383"></script>
 <script src="/js/studio-keyboard.js?v=394"></script>
 <script src="/js/director-os.js?v=396"></script>
@@ -3327,6 +3327,7 @@ function restoreDirectorSession(){
   showDirGreeting();
 }
 function openDirector() { if (!(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')) { openPaywall('director'); return; } if(window.PreShootAnalytics) PreShootAnalytics.track('director_opened',{},{dedupeKey:'dir_open'});
+S.dirOriginTab = (S.tab === 'director' ? (S.dirOriginTab || 'home') : (S.tab || 'home'));
 if (S.tab === 'studio' && window.PreShootDirectorContext && PreShootDirectorContext.resolveLiveStudioFocus) {
   S.dirSessionFocus = PreShootDirectorContext.resolveLiveStudioFocus();
 } else if (S.activeProductionId) {
@@ -3335,7 +3336,12 @@ if (S.tab === 'studio' && window.PreShootDirectorContext && PreShootDirectorCont
   S.dirSessionFocus = { productionId: null, projectId: null };
 }
 if (window.PreShootStudio) { try { window.__preshootDirectorStudio = PreShootStudio.getDirectorCapabilityManifest(); window.__preshootDirectorProduction = PreShootStudio.getDirectorContext((S.dirSessionFocus && S.dirSessionFocus.productionId) || null); } catch (e) {} } ['home','results','library','studio','menu','profile','plan'].forEach(function(t) { var sc = document.getElementById('screen-' + t); var ni = document.getElementById('nav-' + t); if (sc) sc.classList.remove('active'); if (ni) ni.classList.remove('active'); }); document.getElementById('screen-director').classList.add('active'); S.tab = 'director'; if (window.PreShootStudioKeyboard && PreShootStudioKeyboard.syncDirectorKeyboard) PreShootStudioKeyboard.syncDirectorKeyboard(); var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.add('hidden'); var pills = document.getElementById('dir-pills'); if (pills) { pills.innerHTML = ['How to film this','Shot list','Editing advice','Gear help','Grow my channel','Caption ideas'].map(function(p) { return '<button onclick="dirPill(this)" style="flex-shrink:0;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:border-color .2s,background .2s,color .2s">' + p + '</button>'; }).join(''); } restoreDirectorSession();
-} function closeDirector() { var ac=getActiveDirConv(); if(ac){ ac.context=captureDirContext(); ac.updatedAt=Date.now(); setDirConvs(getDirConvs()); } if(S.activeDirConvId) ss('active_dir_conv', S.activeDirConvId); document.getElementById('screen-director').classList.remove('active'); document.getElementById('screen-home').classList.add('active'); document.getElementById('nav-home').classList.add('active'); S.tab = 'home'; if (window.PreShootStudioKeyboard && PreShootStudioKeyboard.syncDirectorKeyboard) PreShootStudioKeyboard.syncDirectorKeyboard(); var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.remove('hidden'); closeDirDrawer();
+} function closeDirector() { var ac=getActiveDirConv(); if(ac){ ac.context=captureDirContext(); ac.updatedAt=Date.now(); setDirConvs(getDirConvs()); } if(S.activeDirConvId) ss('active_dir_conv', S.activeDirConvId); document.getElementById('screen-director').classList.remove('active');
+/* Return to the screen the Director was opened from — Studio keeps its open production. */
+var _back = S.dirOriginTab === 'studio' ? 'studio' : 'home'; S.dirOriginTab = null;
+document.getElementById('screen-' + _back).classList.add('active'); var _ni=document.getElementById('nav-' + _back); if(_ni) _ni.classList.add('active'); S.tab = _back;
+if (_back === 'studio' && window.PreShootStudioUI && PreShootStudioUI.renderStudio) { PreShootStudioUI.renderStudio(); } else if (_back === 'home' && typeof renderHome === 'function') { renderHome(); }
+if (window.PreShootStudioKeyboard && PreShootStudioKeyboard.syncDirectorKeyboard) PreShootStudioKeyboard.syncDirectorKeyboard(); var _bn=document.querySelector('.bnav'); if(_bn)_bn.classList.remove('hidden'); closeDirDrawer();
 } function openShotlistDirector() { if (!(typeof hasDirectorAccess==='function'?hasDirectorAccess():S.plan==='pro')) { openPaywall('director'); return; } var context = 'I just scanned: ' + (S.sceneInfo.label || 'a location') + '\n'; context += 'Scene type: ' + (S.sceneInfo.type || 'general') + '\n\n'; if (S.ideas && S.ideas.length) { context += 'Generated ideas:\n'; S.ideas.forEach(function(idea, i) { context += (i+1) + '. ' + idea.title + ' (' + idea.category + ')\n'; }); } context += '\nCreate a detailed shotlist with camera angles, movements, and shooting order.'; S.dirActiveIdea=null; S.dirPendingImage=S.scanB64?{data:S.scanB64,mime:S.scanMime||'image/jpeg'}:null; openDirector(); setTimeout(function() { var inp = document.getElementById('dir-input'); if (inp) { inp.value = context; sendDirector(); } }, 100);
 }
 function resolveIdeaImage(src, item){
