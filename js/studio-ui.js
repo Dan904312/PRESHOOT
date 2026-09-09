@@ -1701,6 +1701,12 @@
           if (shot.assetSuggestion) {
             h += '<div class="pw-shot-brief-row"><span>Asset</span>' + esc(shot.assetSuggestion) + '</div>';
           }
+          if (shot.gear) {
+            h += '<div class="pw-shot-brief-row"><span>Kit</span>' + esc(shot.gear) + '</div>';
+          }
+          if (shot.lens && String(shot.gear || '').indexOf(shot.lens) < 0) {
+            h += '<div class="pw-shot-brief-row"><span>Lens</span>' + esc(shot.lens) + '</div>';
+          }
           h += '</div>';
         }
         var covers = (shot.scriptCoverage || []).filter(function (c) {

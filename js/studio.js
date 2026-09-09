@@ -2224,9 +2224,51 @@
     return 'Medium shot';
   }
 
-  function creatorGearString() {
+  function creatorGearInventory() {
     var g = (global.S && global.S.gear) || {};
-    return [g.camera, g.gimbal, g.lens].filter(Boolean).join(' · ');
+    var bits = [];
+    ['camera', 'lens', 'gimbal', 'drone', 'microphone', 'lighting'].forEach(function (k) {
+      if (g[k]) bits.push(String(g[k]));
+    });
+    return bits.join(', ');
+  }
+
+  /* @deprecated Name kept so older callers compiling against this file
+   * still resolve. Never use this as a shot's gear field — it is the
+   * whole inventory. */
+  function creatorGearString() {
+    return creatorGearInventory();
+  }
+
+  function plannerCreatorContext() {
+    var S = global.S || {};
+    return {
+      skillLevel: getSkillLevel(),
+      gear: S.gear || {},
+      gearText: creatorGearInventory(),
+      aesthetic: S.aesthetic || {},
+      instruction: ''
+    };
+  }
+
+  function fitStoredShotEquipment(shot, prod, project) {
+    if (!global.PreShootShotPlanner || !global.PreShootShotPlanner.fitShotEquipment) return shot;
+    try {
+      global.PreShootShotPlanner.fitShotEquipment(shot, {
+        production: {
+          id: prod && prod.id,
+          name: prod && prod.name,
+          notes: prod && prod.notes,
+          overview: (prod && prod.workspace && prod.workspace.overview) || {},
+          ideaSnapshot: prod && prod.ideaSnapshot
+        },
+        project: project
+          ? { id: project.id, name: project.name, description: project.notes || project.description || '' }
+          : {},
+        creator: plannerCreatorContext()
+      });
+    } catch (e) {}
+    return shot;
   }
 
   function parseVisualIntoShotFields(visual, spoken, index, total) {
@@ -2305,7 +2347,7 @@
           cameraAngle: i === 0 ? 'Eye level' : '',
           cameraMovement: parsed.cameraMovement || (i === 0 ? 'Hold / micro push-in' : 'Hold'),
           lens: '',
-          gear: parsed.gear || creatorGearString(),
+          gear: parsed.gear || '',
           lighting: parsed.lighting || '',
           audio: spoken.slice(0, 180),
           notes: parsed.notes || ('Script reference: “' + spoken.slice(0, 140) + '”'),
@@ -2374,7 +2416,7 @@
     }
 
     if (plan && plan.shots && plan.shots.length) {
-      shots = materializeShotPlan(plan, ws, opts);
+      shots = materializeShotPlan(plan, ws, Object.assign({}, opts, { production: prod, project: found.project }));
     } else if (opts.allowStarter) {
       shots = starterShotListFromIdea(idea, prod.scanRef || {}, { coverImage: prod.coverImage });
     }
@@ -2434,7 +2476,6 @@
     } catch (e) {
       separated = null;
     }
-    var S = global.S || {};
     var result = global.PreShootShotPlanner.plan({
       script: { body: body, lines: (ws.script && ws.script.lines) || [] },
       scriptBeats: separated ? spokenBeatsFromSeparated(separated) : null,
@@ -2447,12 +2488,7 @@
       },
       project: project ? { id: project.id, name: project.name, description: project.notes || project.description || '' } : {},
       assets: ws.assets || [],
-      creator: {
-        skillLevel: getSkillLevel(),
-        gear: S.gear || {},
-        gearText: creatorGearString(),
-        aesthetic: S.aesthetic || {}
-      }
+      creator: plannerCreatorContext()
     });
     if (result) result.source = 'planner';
     return result;
@@ -2492,7 +2528,8 @@
         framing: raw.framing || '',
         cameraAngle: raw.cameraAngle || '',
         cameraMovement: raw.cameraMovement || '',
-        gear: raw.gear || creatorGearString(),
+        gear: raw.gear || '',
+        lens: raw.lens || '',
         lighting: raw.lighting || '',
         audio: raw.spoken || raw.audio || '',
         notes: raw.notes || '',
@@ -2506,6 +2543,7 @@
         advancedDetail: raw.advancedDetail || '',
         scriptCoverage: coverage
       });
+      fitStoredShotEquipment(candidate, opts.production || { workspace: ws, name: '', notes: '', ideaSnapshot: null }, opts.project);
 
       /* Preserve hand-edited fields and the shot id when the same script
        * content is covered again, so regeneration does not wipe user work. */
@@ -2660,7 +2698,8 @@
         framing: String(s.framing || '').slice(0, 160),
         cameraMovement: String(s.cameraMovement || '').slice(0, 160),
         cameraAngle: String(s.cameraAngle || '').slice(0, 80),
-        gear: String(s.gear || '').slice(0, 160),
+        gear: String(s.gear || '').slice(0, 220),
+        lens: String(s.lens || '').slice(0, 80),
         lighting: String(s.lighting || '').slice(0, 200),
         spoken: String(s.spoken || s.audio || '').slice(0, 600),
         subjectAction: String(s.subjectAction || '').slice(0, 400),

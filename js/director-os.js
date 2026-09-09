@@ -1961,7 +1961,9 @@
         framing: String(s.framing || s.shotSize || ''),
         cameraMovement: String(s.cameraMovement || s.movement || s.camera || ''),
         cameraAngle: String(s.cameraAngle || s.angle || ''),
-        gear: String(s.gear || ''),
+        gear: String(s.gear || s.kit || '').slice(0, 220) ||
+          [s.camera, s.lens, s.support].filter(Boolean).join(' · '),
+        lens: String(s.lens || ''),
         lighting: String(s.lighting || ''),
         spoken: String(s.spoken || s.audio || s.dialogue || ''),
         subjectAction: String(s.subjectAction || s.subject || s.action || ''),

@@ -651,33 +651,396 @@
 
   /* ── 6. Shot planning ───────────────────────────────────────────────── */
 
-  function creatorCapability(ctx) {
-    var creator = ctx.creator || {};
+  /**
+   * Inventory is a pool of options, never an instruction to use all of it.
+   * Split every stored gear field so "Sony FX3, iPhone 13 Pro Max" is two
+   * cameras, not one blob.
+   */
+  function splitGearItems(raw) {
+    return String(raw || '')
+      .split(/\s*(?:,|;|\+|·|\||\/|&)\s*|\s+and\s+/i)
+      .map(function (s) {
+        return s.replace(/\s+/g, ' ').trim();
+      })
+      .filter(function (s) {
+        return s.length > 1 && !/^(etc\.?|and|or|only)$/i.test(s);
+      });
+  }
+
+  function isPhoneName(name) {
+    return /\b(iphone|pixel|galaxy\s*s?\d|android|smartphone|ipad)\b|\bphone\b/i.test(name);
+  }
+
+  function isCinemaBodyName(name) {
+    if (isPhoneName(name)) return false;
+    return /\b(fx\s?\d|a7|a9|r5|r6|r8|red\b|komodo|arri|bmpcc|cinema|zv-e|gh\d|a6700|a7c|canon\s*c|lumix|fx3|fx6|fx30)\b/i.test(
+      name
+    );
+  }
+
+  function isGimbalName(name) {
+    if (/no gimbal|handheld\s*\/\s*no|tripod only/i.test(name)) return false;
+    return /\b(gimbal|rs\s?\d|rs4|ronin|hohem|weebill|crane\s*\d|osmo|om\s?\d)\b/i.test(name);
+  }
+
+  function isTripodName(name) {
+    return /\b(tripod|monopod)\b/i.test(name);
+  }
+
+  function parseInventory(creator) {
+    creator = creator || {};
     var gear = creator.gear || {};
-    var bits = [];
-    ['camera', 'lens', 'gimbal', 'drone', 'microphone', 'lighting'].forEach(function (k) {
-      if (gear[k]) bits.push(k + ': ' + gear[k]);
+    var blob = [creator.gearText, gear.camera, gear.lens, gear.gimbal, gear.drone, gear.microphone, gear.lighting]
+      .filter(Boolean)
+      .join(', ');
+    var items = splitGearItems(blob);
+    var cameras = [];
+    var lenses = [];
+    var gimbals = [];
+    var supports = [];
+    var lights = [];
+    var mics = [];
+    splitGearItems(gear.camera).forEach(function (c) {
+      if (c) cameras.push(c);
     });
-    var gearText = lower(bits.join(' ') + ' ' + str(creator.gearText));
+    splitGearItems(gear.lens).forEach(function (l) {
+      if (l && !isGimbalName(l) && !isTripodName(l) && !isPhoneName(l) && !isCinemaBodyName(l)) lenses.push(l);
+    });
+    splitGearItems(gear.gimbal).concat(splitGearItems(gear.lighting)).concat(items).forEach(function (n) {
+      if (isGimbalName(n) && gimbals.indexOf(n) < 0) gimbals.push(n);
+      if (isTripodName(n) && supports.indexOf(n) < 0) supports.push(n);
+    });
+    items.forEach(function (n) {
+      if (isPhoneName(n) || isCinemaBodyName(n)) {
+        if (cameras.indexOf(n) < 0) cameras.push(n);
+      }
+    });
+    splitGearItems(gear.lighting).forEach(function (n) {
+      if (n && !isTripodName(n) && !isGimbalName(n)) lights.push(n);
+    });
+    splitGearItems(gear.microphone).forEach(function (n) {
+      if (n) mics.push(n);
+    });
     return {
-      label: bits.join(' · '),
-      hasGimbal: /gimbal|ronin|osmo|crane|rs\s?\d/.test(gearText),
-      hasTripod: /tripod|stand/.test(gearText),
-      hasDrone: /drone|mavic|air \d/.test(gearText),
-      hasLighting: /light|softbox|led|key/.test(gearText),
-      soloShooter: !/crew|team|second shooter|actor/.test(gearText),
-      skill: str(creator.skillLevel || 'intermediate')
+      cameras: cameras,
+      phones: cameras.filter(isPhoneName),
+      bodies: cameras.filter(isCinemaBodyName),
+      lenses: lenses,
+      gimbals: gimbals,
+      supports: supports,
+      lights: lights,
+      mics: mics,
+      drones: splitGearItems(gear.drone),
+      rawText: blob
     };
   }
 
-  function movementFor(stage, cap, role) {
-    if (stage.kind === 'reveal') return cap.hasGimbal ? 'Slow push-in on the reveal' : 'Locked off, let the reveal land';
-    if (stage.kind === 'action') return cap.hasGimbal ? 'Follow the hands' : 'Locked off overhead or over-shoulder';
-    if (role === 'opening' || role === 'misconception') {
-      return cap.hasGimbal ? 'Hold with a micro push-in' : 'Hold steady, no movement';
+  function instructionBlob(ctx) {
+    var ov = (ctx.production && ctx.production.overview) || {};
+    var idea = (ctx.production && ctx.production.ideaSnapshot) || {};
+    return lower(
+      [
+        ov.format,
+        ov.platform,
+        ov.goal,
+        ov.tone,
+        ov.summary,
+        ov.creativeDirection,
+        ov.notes,
+        ctx.production && ctx.production.name,
+        ctx.production && ctx.production.notes,
+        ctx.project && ctx.project.name,
+        ctx.project && ctx.project.description,
+        ctx.contentType,
+        idea.category,
+        idea.title,
+        ctx.creator && ctx.creator.instruction,
+        ctx.constraints && (ctx.constraints.instruction || ctx.constraints.notes)
+      ]
+        .filter(Boolean)
+        .join(' ')
+    );
+  }
+
+  /**
+   * Internal production-style classification. Informs kit choice; never
+   * forced onto the user as a label.
+   */
+  function classifyProductionStyle(ctx) {
+    var blob = instructionBlob(ctx);
+    var type = ctx.contentType || '';
+    var forcePhone = /(entirely|only|all)\s+on\s+(the\s+)?(iphone|phone)|iphone\s+only|phone only|authentic\s+(tiktok|ugc)|no cinema/.test(
+      blob
+    );
+    var forceCinema = /(entirely|only|all)\s+on\s+(the\s+)?(fx\s?\d|a7|cinema)|shoot this (entirely )?on the fx|use the fx3/.test(
+      blob
+    );
+    var noGimbal = /no gimbal|without (a )?gimbal|don'?t use (the )?gimbal|skip the gimbal/.test(blob);
+    var wantsGimbal = /tracking shot|needs? a gimbal|use the gimbal|follow cam|gimbal for/.test(blob);
+
+    var style = type || 'educational';
+    var sophistication = 2;
+    if (/ugc|day in my life|\bdiml\b|selfie|creator-?native|spontaneous/.test(blob) || type === 'ugc') {
+      style = 'ugc';
+      sophistication = 1;
+    } else if (/casual/.test(blob) || (/reel|tiktok|instagram/.test(blob) && /direct to camera|talking.?head/.test(blob))) {
+      style = 'casual';
+      sophistication = 1;
+    } else if (/cinematic|narrative|short film|automotive|tracking shots? of a (vehicle|car)|sunset/.test(blob)) {
+      style = 'cinematic';
+      sophistication = 4;
+    } else if (/commercial|advert|brand film/.test(blob) && /professional|polished|premium/.test(blob)) {
+      style = 'commercial';
+      sophistication = 3;
+    } else if (/professional|brand reel|polished/.test(blob)) {
+      style = 'polished_social';
+      sophistication = 3;
+    } else if (type === 'product_demo' || /product demo|demonstration/.test(blob)) {
+      style = 'product_demo';
+      sophistication = /premium|cinematic|commercial/.test(blob) ? 3 : 2;
+    } else if (type === 'interview' || type === 'documentary') {
+      style = type;
+      sophistication = 2;
+    } else if (type === 'educational' || type === 'tutorial' || /talking.?head|explainer/.test(blob)) {
+      style = type === 'tutorial' ? 'tutorial' : 'educational';
+      sophistication = 1;
     }
-    if (role === 'payoff') return 'Hold on the last beat';
-    return cap.hasTripod || cap.hasGimbal ? 'Locked off' : 'Hold steady, brace against something';
+
+    if (forcePhone) sophistication = Math.min(sophistication, 1);
+    if (forceCinema) sophistication = Math.max(sophistication, 3);
+    return {
+      style: style,
+      sophistication: sophistication,
+      forcePhone: forcePhone,
+      forceCinema: forceCinema,
+      noGimbal: noGimbal,
+      wantsGimbal: wantsGimbal
+    };
+  }
+
+  function pickGimbalForCamera(inventory, camera) {
+    var list = inventory.gimbals || [];
+    if (!list.length) return '';
+    if (isPhoneName(camera)) {
+      var phoneG = '';
+      list.forEach(function (g) {
+        if (!phoneG && /hohem|om\s?\d|osmo|phone/i.test(g)) phoneG = g;
+      });
+      return phoneG;
+    }
+    var cinemaG = '';
+    list.forEach(function (g) {
+      if (!cinemaG && /rs\s?\d|rs4|ronin|dji/i.test(g)) cinemaG = g;
+    });
+    return cinemaG || list[0];
+  }
+
+  function selectProductionKit(ctx, style) {
+    style = style || classifyProductionStyle(ctx);
+    var inventory = parseInventory(ctx.creator || {});
+    var camera = '';
+    if (style.forcePhone && inventory.phones[0]) camera = inventory.phones[0];
+    else if (style.forceCinema && inventory.bodies[0]) camera = inventory.bodies[0];
+    else if (style.sophistication <= 1 && inventory.phones[0]) camera = inventory.phones[0];
+    else if (style.sophistication <= 2 && inventory.phones[0] && style.style !== 'polished_social' && style.style !== 'commercial' && style.style !== 'cinematic') {
+      camera = inventory.phones[0];
+    } else if (style.sophistication >= 3 && inventory.bodies[0]) camera = inventory.bodies[0];
+    else camera = inventory.bodies[0] || inventory.phones[0] || inventory.cameras[0] || '';
+
+    var lens = '';
+    if (camera && !isPhoneName(camera) && inventory.lenses[0]) lens = inventory.lenses[0];
+    var hasTripod = inventory.supports.length > 0;
+    var hasGimbal = inventory.gimbals.length > 0 && !style.noGimbal;
+    var defaultSupport = hasTripod ? inventory.supports[0] : 'Handheld';
+    if (style.style === 'ugc' && !hasTripod) defaultSupport = 'Handheld';
+    return {
+      inventory: inventory,
+      camera: camera,
+      lens: lens,
+      defaultSupport: defaultSupport,
+      hasTripod: hasTripod,
+      hasGimbal: hasGimbal,
+      hasLighting: inventory.lights.length > 0,
+      hasMic: inventory.mics.length > 0,
+      hasDrone: inventory.drones.length > 0,
+      soloShooter: !/crew|team|second shooter|actor/.test(inventory.rawText),
+      skill: str((ctx.creator && ctx.creator.skillLevel) || 'intermediate'),
+      style: style
+    };
+  }
+
+  function creatorCapability(ctx) {
+    return selectProductionKit(ctx, ctx.productionStyle || classifyProductionStyle(ctx));
+  }
+
+  function textNeedsTravel(text) {
+    return /\b(track(?:ing)?|follow(?:ing)? (?:the )?(?:subject|car|vehicle|talent|person)|walk(?:ing)? (?:into|through|across|with)|drive(?:ing)? through|alongside|gimbal|orbit the|move with)\b/i.test(
+      String(text || '')
+    );
+  }
+
+  function stageNeedsTravel(stage, beat, ctx, kit) {
+    var style = (kit && kit.style) || ctx.productionStyle || {};
+    if (style.noGimbal) return false;
+    var local = (stage && (stage.text || '')) + ' ' + ((beat && beat.text) || '');
+    if (textNeedsTravel(local)) return true;
+    if (style.wantsGimbal && stage && (stage.kind === 'action' || /b_roll/.test((beat && beat.role) || ''))) return true;
+    if (style.sophistication >= 4 && textNeedsTravel((ctx.scriptText || '') + ' ' + instructionBlob(ctx))) {
+      return /drive|track|walk|follow|coast|sunset/.test(lower(local + ' ' + ((beat && beat.role) || '')));
+    }
+    return false;
+  }
+
+  function movementFor(stage, cap, role, beat, ctx) {
+    var travel = stageNeedsTravel(stage, beat, ctx || {}, cap);
+    if (travel && cap.hasGimbal) {
+      var g = pickGimbalForCamera(cap.inventory, cap.camera);
+      return g ? 'Smooth follow on ' + g : 'Smooth follow, handheld if you must';
+    }
+    if (stage.kind === 'reveal') {
+      return cap.hasTripod ? 'Locked off on a tripod, let the reveal land' : 'Hold still, let the reveal land';
+    }
+    if (stage.kind === 'action') {
+      return cap.hasTripod ? 'Locked off overhead or over-shoulder' : 'Hold over the hands, no extra movement';
+    }
+    if (role === 'payoff' || role === 'cta') {
+      return cap.hasTripod ? 'Locked off on a tripod' : 'Hold on the last beat';
+    }
+    if (role === 'opening' || role === 'misconception') {
+      return cap.hasTripod ? 'Locked off on a tripod' : 'Hold steady, no movement';
+    }
+    return cap.hasTripod ? 'Locked off on a tripod' : 'Handheld, keep it steady';
+  }
+
+  function gearForShot(shotType, stage, beat, kit, ctx) {
+    if (shotType === 'screen_recording') {
+      return { camera: '', lens: '', support: '', label: 'Screen recording' };
+    }
+    var travel = stageNeedsTravel(stage, beat, ctx, kit);
+    var support = kit.defaultSupport;
+    if (travel && kit.hasGimbal) {
+      support = pickGimbalForCamera(kit.inventory, kit.camera) || support;
+    } else if (kit.hasTripod && kit.style && kit.style.style === 'ugc' && !travel) {
+      support = /talking|a_roll|opening|misconception|cta|payoff/.test((beat && beat.role) || shotType)
+        ? kit.inventory.supports[0]
+        : 'Handheld';
+    }
+    return {
+      camera: kit.camera,
+      lens: kit.lens,
+      support: support,
+      label: formatKitLabel(kit.camera, kit.lens, support)
+    };
+  }
+
+  function formatKitLabel(camera, lens, support) {
+    var parts = [];
+    if (camera) parts.push(camera);
+    if (lens && camera && !isPhoneName(camera)) parts.push(lens);
+    if (support && !/^handheld$/i.test(support)) parts.push(support);
+    else if (support && !camera) parts.push(support);
+    else if (/^handheld$/i.test(support) && parts.length) {
+      /* Handheld is the default for a phone; say it when that is the whole kit. */
+      if (isPhoneName(camera) && !lens) parts.push('Handheld');
+    }
+    return parts.join(' · ');
+  }
+
+  function looksLikeInventoryDump(gearText, inventory) {
+    var g = lower(gearText);
+    if (!g) return false;
+    var camerasHit = (inventory.cameras || []).filter(function (c) {
+      return c && g.indexOf(lower(c)) >= 0;
+    });
+    var gimbalsHit = (inventory.gimbals || []).filter(function (x) {
+      return x && g.indexOf(lower(x)) >= 0;
+    });
+    if (camerasHit.length >= 2) return true;
+    if (gimbalsHit.length >= 2) return true;
+    var phonesHit = camerasHit.filter(isPhoneName).length;
+    var bodiesHit = camerasHit.filter(isCinemaBodyName).length;
+    return phonesHit > 0 && bodiesHit > 0;
+  }
+
+  function lightingFor(kit, shotType) {
+    if (shotType === 'screen_recording') return '';
+    var style = kit.style || {};
+    if (style.sophistication >= 3 && kit.hasLighting) return 'Key light on the subject, keep it consistent';
+    if (kit.hasLighting && style.sophistication >= 2 && style.style !== 'ugc' && style.style !== 'casual') {
+      return 'Simple key if the room is dark; otherwise available light';
+    }
+    return 'Face the softest light in the room';
+  }
+
+  /**
+   * After a plan exists, keep only gear this shot can justify — and never
+   * invent bodies the creator does not have.
+   */
+  function fitShotEquipment(shot, ctx) {
+    ctx = ctx || {};
+    var style = ctx.productionStyle || classifyProductionStyle(ctx);
+    ctx.productionStyle = style;
+    var kit = ctx.kit || selectProductionKit(ctx, style);
+    ctx.kit = kit;
+    var travel = textNeedsTravel(
+      [
+        shot.visual,
+        shot.subjectAction,
+        shot.cameraMovement,
+        shot.title,
+        shot.notes,
+        shot.spoken,
+        shot.audio,
+        ((shot.scriptCoverage || []).map(function (c) {
+          return c && c.text;
+        }).join(' '))
+      ].join(' ')
+    );
+    if (style.noGimbal) travel = false;
+    var dump = looksLikeInventoryDump(shot.gear, kit.inventory);
+    var fitted = gearForShot(
+      shot.shotType,
+      { kind: '', text: shot.visual || shot.subjectAction || '' },
+      { text: shot.spoken || '', role: shot.shotPurpose || '' },
+      kit,
+      ctx
+    );
+    if (travel && kit.hasGimbal) {
+      fitted.support = pickGimbalForCamera(kit.inventory, kit.camera) || fitted.support;
+      fitted.label = formatKitLabel(fitted.camera, fitted.lens, fitted.support);
+    }
+    if (!shot.gear || dump || style.forcePhone || style.forceCinema) {
+      shot.gear = fitted.label;
+      shot.lens = fitted.lens || '';
+    }
+    if (style.forcePhone && kit.inventory.phones[0]) {
+      shot.gear = formatKitLabel(
+        kit.inventory.phones[0],
+        '',
+        travel && kit.hasGimbal ? pickGimbalForCamera(kit.inventory, kit.inventory.phones[0]) : kit.defaultSupport
+      );
+      shot.lens = '';
+    }
+    if (style.forceCinema && kit.inventory.bodies[0]) {
+      var body = kit.inventory.bodies[0];
+      shot.gear = formatKitLabel(
+        body,
+        kit.lens,
+        travel && kit.hasGimbal ? pickGimbalForCamera(kit.inventory, body) : kit.defaultSupport
+      );
+      shot.lens = kit.lens || '';
+    }
+    if (!travel && /gimbal|rs\s?\d|rs4|hohem|ronin/i.test(shot.gear || '')) {
+      shot.gear = formatKitLabel(kit.camera, kit.lens, kit.defaultSupport);
+      if (!/locked|static|hold|tripod|handheld/i.test(shot.cameraMovement || '')) {
+        shot.cameraMovement = kit.hasTripod ? 'Locked off on a tripod' : 'Handheld, keep it steady';
+      }
+    }
+    if (shot.shotType === 'screen_recording') {
+      shot.gear = 'Screen recording';
+      shot.lens = '';
+    }
+    return shot;
   }
 
   /**
@@ -870,7 +1233,10 @@
   }
 
   function planShots(beats, ctx) {
-    var cap = creatorCapability(ctx);
+    var style = ctx.productionStyle || classifyProductionStyle(ctx);
+    ctx.productionStyle = style;
+    var cap = selectProductionKit(ctx, style);
+    ctx.kit = cap;
     var shots = [];
     beats.forEach(function (beat, bi) {
       var stages = visualStages(beat, ctx);
@@ -880,6 +1246,7 @@
         /* A stage is timed by the words it actually covers, not by dividing
          * the beat, so a two-stage beat does not collapse to 2s + 2s. */
         var seconds = stages.length > 1 ? durationFor(stage.text) : durationFor(beat.text);
+        var kitSel = gearForShot(shotType, stage, beat, cap, ctx);
         shots.push({
           order: shots.length + 1,
           beatId: beat.id,
@@ -888,7 +1255,7 @@
           shotType: shotType,
           shotTypeLabel: TYPE_LABEL[shotType] || 'A-roll',
           framing: framingFor(shotType, role, cap),
-          cameraMovement: movementFor(stage, cap, role),
+          cameraMovement: movementFor(stage, cap, role, beat, ctx),
           cameraAngle: bi === 0 && si === 0 ? 'Eye level' : '',
           durationSec: seconds,
           spoken: stage.kind === 'reveal' && si === 1 ? '' : beat.text,
@@ -896,8 +1263,9 @@
           visual: visualFor(shotType, beat, stage, ctx),
           visualPurpose: purposeFor(beat, stage, shotType),
           shotPurpose: role,
-          gear: cap.label,
-          lighting: cap.hasLighting ? 'Key light on the subject, keep it consistent' : 'Face the softest light in the room',
+          gear: kitSel.label,
+          lens: kitSel.lens || '',
+          lighting: lightingFor(cap, shotType),
           assetSuggestion: (matchAsset(beat.text, stage.text, ctx) || {}).name || '',
           scriptCoverage: stage.kind === 'reveal' && si === 1 ? [] : coverageFor(beat),
           continues: si > 0,
@@ -1052,14 +1420,46 @@
       }
     }
 
-    var cap = creatorCapability(ctx);
+    var cap = ctx.kit || selectProductionKit(ctx, ctx.productionStyle || classifyProductionStyle(ctx));
+    var inventory = cap.inventory || parseInventory(ctx.creator || {});
     shots.forEach(function (s) {
       var move = lower(s.cameraMovement);
-      if (!cap.hasGimbal && /(push-in|follow|orbit|dolly|crane|glide)/.test(move)) {
+      var travel = textNeedsTravel([s.cameraMovement, s.visual, s.subjectAction, s.title].join(' '));
+      if (!cap.hasGimbal && /(orbit|dolly|crane|glide|smooth follow)/.test(move)) {
         issues.push({
           code: 'not_feasible',
           severity: 'medium',
           detail: 'Shot ' + s.order + ' needs support the creator has not listed',
+          order: s.order
+        });
+      }
+      if (looksLikeInventoryDump(s.gear, inventory)) {
+        issues.push({
+          code: 'excessive_gear',
+          severity: 'high',
+          detail: 'Shot ' + s.order + ' lists the creator inventory instead of a kit',
+          order: s.order
+        });
+      }
+      if (!travel && /gimbal|rs\s?\d|rs4|hohem|ronin/i.test(s.gear || '')) {
+        issues.push({
+          code: 'unjustified_gimbal',
+          severity: 'high',
+          detail: 'Shot ' + s.order + ' includes a gimbal with no travel in the shot',
+          order: s.order
+        });
+      }
+      var phonesHit = (inventory.phones || []).filter(function (c) {
+        return c && lower(s.gear).indexOf(lower(c)) >= 0;
+      }).length;
+      var bodiesHit = (inventory.bodies || []).filter(function (c) {
+        return c && lower(s.gear).indexOf(lower(c)) >= 0;
+      }).length;
+      if (phonesHit && bodiesHit) {
+        issues.push({
+          code: 'multi_camera_unjustified',
+          severity: 'high',
+          detail: 'Shot ' + s.order + ' names two cameras without a coverage reason',
           order: s.order
         });
       }
@@ -1071,14 +1471,24 @@
   /** Fixes what can be fixed without inventing content. */
   function repairPlan(shots, issues, ctx) {
     var out = shots.slice();
-    var cap = creatorCapability(ctx);
+    var cap = ctx.kit || selectProductionKit(ctx, ctx.productionStyle || classifyProductionStyle(ctx));
 
     issues.forEach(function (issue) {
       if (issue.code === 'not_feasible' && issue.order) {
         out.forEach(function (s) {
           if (s.order === issue.order) {
-            s.cameraMovement = cap.hasTripod ? 'Locked off on a tripod' : 'Hold steady, brace against something';
+            s.cameraMovement = cap.hasTripod ? 'Locked off on a tripod' : 'Handheld, keep it steady';
           }
+        });
+      }
+      if (
+        (issue.code === 'excessive_gear' ||
+          issue.code === 'unjustified_gimbal' ||
+          issue.code === 'multi_camera_unjustified') &&
+        issue.order
+      ) {
+        out.forEach(function (s) {
+          if (s.order === issue.order) fitShotEquipment(s, ctx);
         });
       }
       if (issue.code === 'generic_titles') {
@@ -1197,9 +1607,14 @@
     });
 
     var beats = groupBeats(units, ctx);
+    ctx.productionStyle = classifyProductionStyle(ctx);
+    ctx.kit = selectProductionKit(ctx, ctx.productionStyle);
     var shots = planShots(beats, ctx);
     var review = reviewPlan(shots, ctx);
     shots = repairPlan(shots, review, ctx);
+    shots.forEach(function (s) {
+      fitShotEquipment(s, ctx);
+    });
     /* Second pass so the report reflects the repaired plan. */
     var finalReview = reviewPlan(shots, ctx);
 
@@ -1211,6 +1626,14 @@
       }),
       review: finalReview,
       contentType: ctx.contentType,
+      productionStyle: ctx.productionStyle,
+      kit: {
+        camera: ctx.kit.camera,
+        lens: ctx.kit.lens,
+        support: ctx.kit.defaultSupport,
+        sophistication: ctx.productionStyle.sophistication,
+        style: ctx.productionStyle.style
+      },
       subject: primaryEntity(ctx.entities),
       audience: ctx.audienceNoun,
       stages: [
@@ -1218,6 +1641,7 @@
         'Reading the full script',
         'Mapping narrative beats',
         'Planning visual coverage',
+        'Selecting the minimum kit',
         'Checking shot continuity',
         'Finalising the shot list'
       ]
@@ -1238,6 +1662,12 @@
     durationFor: durationFor,
     visualStages: visualStages,
     splitActionClauses: splitActionClauses,
+    parseInventory: parseInventory,
+    classifyProductionStyle: classifyProductionStyle,
+    selectProductionKit: selectProductionKit,
+    fitShotEquipment: fitShotEquipment,
+    formatKitLabel: formatKitLabel,
+    looksLikeInventoryDump: looksLikeInventoryDump,
     TYPE_LABEL: TYPE_LABEL,
     WORDS_PER_SEC: WORDS_PER_SEC
   };

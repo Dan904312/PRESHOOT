@@ -332,14 +332,20 @@
     lines.push(JSON.stringify(brief));
 
     lines.push('');
-    lines.push('=== PRODUCTION CONSTRAINTS (shot lists must be filmable with these) ===');
+    lines.push('=== AVAILABLE EQUIPMENT (inventory only — not an instruction to use all of it) ===');
     var constraintBits = [];
-    if (brief.productionConstraints.gear) constraintBits.push('Gear: ' + brief.productionConstraints.gear);
+    if (brief.productionConstraints.gear) {
+      lines.push('Inventory: ' + brief.productionConstraints.gear);
+    } else {
+      lines.push('No gear declared. Assume a phone, no crew, one location, available light.');
+    }
     if (brief.productionConstraints.skillLevel) constraintBits.push('Skill: ' + brief.productionConstraints.skillLevel);
     if (brief.productionConstraints.crew) constraintBits.push('Crew: ' + brief.productionConstraints.crew);
     if (brief.productionConstraints.locations) constraintBits.push('Locations: ' + brief.productionConstraints.locations);
     if (constraintBits.length) lines.push(constraintBits.join(' | '));
-    else lines.push('No gear or crew declared. Assume a phone, no crew, one location, available light.');
+    lines.push(
+      'Select the MINIMUM kit this production actually needs. Do not copy the inventory into shots. A gimbal is only for shots where the camera must travel. Do not use two cameras unless a shot truly needs second-angle coverage. Do not invent gear that is not in the inventory. Explicit user/project instructions beat the inventory (e.g. "shoot this on iPhone" wins over an FX3 sitting in the bag).'
+    );
     lines.push(
       'Do not propose cranes, dollies, drones, extra actors, or lighting the creator has not listed. If a shot needs gear they do not have, choose an achievable alternative.'
     );
@@ -391,12 +397,12 @@
     if (ae.shotStyles && ae.shotStyles.length) lines.push('Shot styles: ' + ae.shotStyles.join(', '));
     push(lines, 'Pacing', ae.pacing);
     var gearBits = [];
-    ['camera', 'lens', 'drone', 'microphone', 'lighting', 'gimbal'].forEach(function (k) {
+    ['camera', 'lens', 'gimbal', 'drone', 'microphone', 'lighting'].forEach(function (k) {
       if (gr[k]) gearBits.push(k + ': ' + gr[k]);
     });
     if (gr.editingSoftware && gr.editingSoftware.length) gearBits.push('Edit: ' + gr.editingSoftware.join(', '));
-    if (gearBits.length) lines.push('Gear: ' + gearBits.join(' | '));
-    else if (n.gear) push(lines, 'Gear', n.gear);
+    if (gearBits.length) lines.push('Available equipment (inventory): ' + gearBits.join(' | '));
+    else if (n.gear) push(lines, 'Available equipment (inventory)', n.gear);
     if (n.style) push(lines, 'Style notes', n.style);
     if (n.extraContext) push(lines, 'Extra context', n.extraContext);
 
