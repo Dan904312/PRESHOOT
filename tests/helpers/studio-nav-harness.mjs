@@ -192,7 +192,7 @@ export function bootStudio(options) {
   };
 
   vm.createContext(sandbox);
-  ['js/studio.js', 'js/studio-ui.js'].forEach(function (rel) {
+  ['js/shot-planner.js', 'js/studio.js', 'js/studio-ui.js'].forEach(function (rel) {
     vm.runInContext(fs.readFileSync(path.join(root, rel), 'utf8'), sandbox, { filename: rel });
   });
 
@@ -226,6 +226,34 @@ export function bootStudio(options) {
       const html = el('studio-root').innerHTML;
       const m = html.match(/<button[^>]*class="studio-back"[^>]*>/);
       return m ? m[0] : '';
+    },
+    /** Runs the inline handler of any rendered button whose label matches. */
+    clickButton: function (label) {
+      const html = el('studio-root').innerHTML;
+      const re = new RegExp('<button[^>]*onclick="([^"]+)"[^>]*>' + label + '</button>');
+      const m = html.match(re);
+      if (!m) throw new Error('no button labelled "' + label + '" rendered');
+      const code = m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+      vm.runInContext(code, sandbox, { filename: 'button-click' });
+      return code;
+    },
+    /** Runs the inline handler of a selectable row (a checkbox row). */
+    clickSelectable: function (id) {
+      const html = el('studio-root').innerHTML;
+      const re = new RegExp('data-select-id="' + id + '"[^>]*onclick="([^"]+)"');
+      const m = html.match(re);
+      if (!m) throw new Error('no selectable row rendered for ' + id);
+      const code = m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+      vm.runInContext(code, sandbox, { filename: 'select-click' });
+      return code;
+    },
+    selectableIds: function () {
+      const html = el('studio-root').innerHTML;
+      const out = [];
+      const re = /data-select-id="([^"]+)"/g;
+      let m;
+      while ((m = re.exec(html))) out.push(m[1]);
+      return out;
     },
     crumbHtml: function () {
       const html = el('studio-root').innerHTML;
