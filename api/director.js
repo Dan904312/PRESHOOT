@@ -27,6 +27,42 @@ import {
   estimateAiCostFromUsage
 } from '../lib/ai-pricing.js';
 
+const CONTEXT_BUDGET = 26000;
+
+/**
+ * Fits the creator context into the budget without ever cutting the script.
+ * Shot planning requires the whole script, so when the context is too long
+ * the sections before the script are trimmed and the script and mutation
+ * directives are kept intact.
+ */
+function budgetContext(head, tail) {
+  const combined = String(head || '') + String(tail || '');
+  if (combined.length <= CONTEXT_BUDGET) return combined;
+
+  const start = head.indexOf('=== FULL SCRIPT');
+  const end = head.indexOf('=== END OF SCRIPT ===');
+  if (start < 0 || end < 0 || end < start) return combined.slice(0, CONTEXT_BUDGET);
+
+  const script = head.slice(start, end + '=== END OF SCRIPT ==='.length);
+  const before = head.slice(0, start);
+  const after = head.slice(end + '=== END OF SCRIPT ==='.length);
+  const reserved = script.length + tail.length;
+  const spare = Math.max(0, CONTEXT_BUDGET - reserved);
+  if (!spare) return (script + tail).slice(0, CONTEXT_BUDGET);
+
+  /* Two thirds of what is left goes to the sections above the script
+   * (production, project, brief, constraints), one third to what follows. */
+  const MARK = '\n[context trimmed]\n';
+  const beforeBudget = Math.floor(spare * 0.66);
+  const afterBudget = spare - beforeBudget;
+  /* The marker itself counts against the budget, so it comes out of the slice. */
+  const clip = function (text, budget) {
+    if (text.length <= budget) return text;
+    return text.slice(0, Math.max(0, budget - MARK.length)) + MARK;
+  };
+  return clip(before, beforeBudget) + script + clip(after, afterBudget) + tail;
+}
+
 async function logAiRequest(userId, meta) {
   try {
     await trackProductEventServer(userId, 'ai_request', meta);
@@ -197,6 +233,53 @@ When helping create content, provide only useful sections.
 Possible guidance includes: Concept, Hook, Story Structure, Shot List, Camera Direction, Lighting, Audio, Editing, Visual Style, Platform Adaptation, Performance Improvements.
 Do not force templates. The best structure is the one that helps the creator execute.
 
+SHOT PLANNING (MANDATORY PIPELINE)
+Never turn script lines into shots one at a time. Sentence count does not decide shot count.
+Before you write a single shot, work through this order internally:
+1. Read the ENTIRE script in CREATOR CONTEXT, start to finish.
+2. Decide what this video actually is: subject, audience, purpose, content type, platform.
+3. Identify the narrative arc the script already has. Do not impose Hook/Setup/Problem/Solution/CTA unless the script genuinely does that.
+4. Split the script into SEMANTIC BEATS. A beat is a unit of meaning, not a sentence, line break, or paragraph. Four short parallel sentences ("That you're lazy. That you're distracted.") are usually ONE beat.
+5. For each beat decide the VISUAL BEATS: what the viewer needs to see. One beat may need one shot, or several.
+6. Group into shots and check every shot has a reason to exist.
+7. Review the finished list against the whole script before you answer.
+
+GROUPING JUDGEMENT
+Keep several script lines in ONE shot when: same speaker, same thought, same location, same camera setup, continuous delivery. A three-sentence hook delivered straight to camera is usually one continuous shot.
+Start a NEW shot when: the subject changes, the location changes, a demonstration starts, a reveal lands, a reaction is needed, the perspective must change, or the visual genuinely changes.
+Use MULTIPLE shots for ONE line when the line contains several visual stages ("Open your notes, throw them into Noura, and watch it become a lesson").
+Fast delivery is not the same as fast cutting. Do not cut because a sentence ended.
+
+SHOT TITLES
+Every shot title must describe what that shot actually does: "Opening misconception", "Why students struggle", "Introducing Noura", "How active recall works", "Final takeaway".
+Never output "Setup", "Beat 1", "Beat 2", "Main Point", "Generic B-roll", or "Next" as a title.
+
+A-ROLL / B-ROLL
+A-roll when direct explanation or emotional connection is strongest. B-roll when the idea needs showing, a process is demonstrated, or pacing needs a visual change. Inserts for objects, hands, details, evidence. Screen recording when real software is relevant.
+Never alternate types for variety. Every shot needs a purpose.
+
+FEASIBILITY
+Respect PRODUCTION CONSTRAINTS. If the creator has a phone, a tripod and one room, the shot list must be filmable with a phone, a tripod and one room.
+Prefer assets the project already has over asking the creator to shoot a replacement.
+
+SELF-REVIEW BEFORE ANSWERING
+Could this shot list belong to any random video? Then it is wrong; make it specific to this project.
+Am I splitting shots because the script has new lines rather than because the visual story changes? Then merge them.
+Would a real creator know what to film from this? If not, add production detail.
+Does every important part of the script have coverage? If not, add it.
+Do any shots exist only to make the list longer? Remove them.
+
+STRUCTURED SHOT LIST OUTPUT
+When you are producing or rebuilding a shot list, append exactly one machine line at the very end of your reply:
+[[SHOTS:{"productionId":"...","contentType":"educational","subject":"Noura","shots":[{"title":"Opening misconception","section":"HOOK","shotType":"a_roll","framing":"Medium close-up","cameraMovement":"Hold steady","durationSec":3,"subjectAction":"Creator speaks direct to camera","visual":"Creator direct to camera, no cut mid-thought","visualPurpose":"Name the belief the viewer already holds","location":"","scriptCoverage":[{"text":"Most students think they're bad at studying."}]}]}]]
+Rules for that object:
+- shotType is one of: a_roll, b_roll, insert, screen_recording.
+- scriptCoverage must quote the script VERBATIM from CREATOR CONTEXT. List every line a shot covers; several entries are expected when a shot covers several lines.
+- Cover the whole script across the list. Do not invent script that is not there.
+- productionId must be the PRODUCTION_ID from context. Never a different production.
+- Keep the human reply above it to one short sentence.
+A plan that quotes script the production does not have, uses generic titles, or names another production will be rejected and PreShoot will fall back to its own planner.
+
 SCRIPT VS SHOT LIST (MANDATORY)
 Script and shot list are separate production documents.
 When writing or rewriting a SCRIPT (including [[SCRIPT:{...}]] bodies):
@@ -267,6 +350,11 @@ If you are offering a clear next creative step (generate the script, create a sh
 Allowed QUICK ids only: generate_script, create_shot_list, generate_ideas, create_production, refine_concept, not_now.
 Only include a QUICK action when you have enough context and the action can succeed on the current project or production.
 Do not invent other ids. Do not emit QUICK for vague chat.
+This is mandatory, not optional: if your reply asks the user whether you should do
+something you are able to do ("Want me to draft the script?", "Should I build the
+shot list?"), you MUST append the matching QUICK line in the same reply. The user
+gets a button instead of typing "yes". Label it for the actual step, never "Yes".
+If your reply is purely informational and offers no next step, emit no QUICK line.
 If unsure which record to change, ask one clarifying question instead of guessing.
 Do not invent tool names. Prefer existing Studio actions listed in context.
 When execution fails, say so clearly in one or two sentences.`;
@@ -351,11 +439,11 @@ export default async function handler(req, res) {
     const modeMatch = rawCtx.match(/\n\nMODE:[\s\S]*$/);
     const modeTail = modeMatch ? modeMatch[0] : '';
     const headCtx = modeTail ? rawCtx.slice(0, rawCtx.length - modeTail.length) : rawCtx;
-    const safeHead = sanitizeContext(headCtx);
+    const safeHead = sanitizeContext(headCtx, CONTEXT_BUDGET);
     const safeTail = modeTail
       ? modeTail.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 2500)
       : '';
-    const safeCtx = (safeHead + safeTail).slice(0, 14000);
+    const safeCtx = budgetContext(safeHead, safeTail);
     if (safeCtx) {
       systemPrompt += '\n\n---\nCREATOR CONTEXT\n' + safeCtx;
     }
