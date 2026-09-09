@@ -1006,8 +1006,11 @@
       lens: 'Lens',
       gear: level === 'beginner' ? 'What you need' : 'Gear',
       lighting: 'Lighting',
-      audio: 'Audio',
+      audio: level === 'beginner' ? 'What is said' : 'Audio / spoken line',
       notes: 'Notes',
+      visual: level === 'beginner' ? 'What to film' : 'Visual',
+      subjectAction: 'Subject / action',
+      location: 'Location',
       beginnerTip: 'Guidance',
       advancedDetail: 'Advanced detail'
     };
@@ -1018,6 +1021,317 @@
     if (!global.__preshootShotExpanded) global.__preshootShotExpanded = {};
     if (!global.__preshootShotExpanded[productionId]) global.__preshootShotExpanded[productionId] = {};
     return global.__preshootShotExpanded[productionId];
+  }
+
+  /* ── Bulk selection ──────────────────────────────────────────────────
+   * One selection state, scoped to a single production and list kind.
+   * Changing production, project or list drops the previous selection, so a
+   * selection can never leak into another project's data.
+   */
+  var _sel = { scope: '', active: false, ids: {}, anchor: null };
+
+  function selScope(productionId, kind) {
+    return String(productionId || '') + '::' + String(kind || '');
+  }
+
+  function selState(productionId, kind) {
+    var scope = selScope(productionId, kind);
+    if (_sel.scope !== scope) {
+      _sel = { scope: scope, active: false, ids: {}, anchor: null };
+    }
+    return _sel;
+  }
+
+  function selIsActive(productionId, kind) {
+    return selState(productionId, kind).active;
+  }
+
+  function selIds(productionId, kind) {
+    var st = selState(productionId, kind);
+    return Object.keys(st.ids).filter(function (id) {
+      return st.ids[id];
+    });
+  }
+
+  function selCount(productionId, kind) {
+    return selIds(productionId, kind).length;
+  }
+
+  function selHas(productionId, kind, id) {
+    return !!selState(productionId, kind).ids[id];
+  }
+
+  /** Drops ids that no longer exist, e.g. after Director regenerated a list. */
+  function selReconcile(productionId, kind, validIds) {
+    var st = selState(productionId, kind);
+    if (!st.active && !Object.keys(st.ids).length) return;
+    var valid = {};
+    (validIds || []).forEach(function (id) {
+      valid[id] = true;
+    });
+    Object.keys(st.ids).forEach(function (id) {
+      if (!valid[id]) delete st.ids[id];
+    });
+  }
+
+  function selToggleMode(productionId, kind) {
+    var st = selState(productionId, kind);
+    st.active = !st.active;
+    if (!st.active) {
+      st.ids = {};
+      st.anchor = null;
+    }
+    renderStudio();
+  }
+
+  function selExit(productionId, kind) {
+    var st = selState(productionId, kind);
+    st.active = false;
+    st.ids = {};
+    st.anchor = null;
+    renderStudio();
+  }
+
+  function selClear(productionId, kind) {
+    var st = selState(productionId, kind);
+    st.ids = {};
+    st.anchor = null;
+    selPaint(productionId, kind);
+  }
+
+  function selToggleItem(productionId, kind, id, rangeTo) {
+    var st = selState(productionId, kind);
+    if (!st.active) return;
+    if (rangeTo && st.anchor) {
+      /* Shift-click range select between the anchor and this item. */
+      var order = selVisibleIds(productionId, kind);
+      var a = order.indexOf(st.anchor);
+      var b = order.indexOf(id);
+      if (a >= 0 && b >= 0) {
+        var from = Math.min(a, b);
+        var to = Math.max(a, b);
+        for (var i = from; i <= to; i++) st.ids[order[i]] = true;
+        selPaint(productionId, kind);
+        return;
+      }
+    }
+    if (st.ids[id]) delete st.ids[id];
+    else {
+      st.ids[id] = true;
+      st.anchor = id;
+    }
+    selPaint(productionId, kind);
+  }
+
+  function selVisibleIds(productionId, kind) {
+    var found = Studio() && Studio().findProduction ? Studio().findProduction(productionId) : null;
+    if (!found) return [];
+    var ws = Studio().ensureWorkspace(found.production).workspace;
+    if (kind === 'script') {
+      return ((ws.script && ws.script.lines) || []).map(function (l) {
+        return l.id;
+      });
+    }
+    return (ws.shotList || [])
+      .slice()
+      .sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0);
+      })
+      .map(function (s) {
+        return s.id;
+      });
+  }
+
+  function selSelectAll(productionId, kind) {
+    var st = selState(productionId, kind);
+    if (!st.active) return;
+    selVisibleIds(productionId, kind).forEach(function (id) {
+      st.ids[id] = true;
+    });
+    selPaint(productionId, kind);
+  }
+
+  /**
+   * Selection is local UI state, so a click repaints only the affected rows
+   * and the action bar instead of re-rendering the whole Studio.
+   */
+  function selPaint(productionId, kind) {
+    var st = selState(productionId, kind);
+    var rows = document.querySelectorAll('[data-select-kind="' + kind + '"]');
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var id = row.getAttribute('data-select-id');
+      var on = !!st.ids[id];
+      row.classList.toggle('is-selected', on);
+      row.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+    var bar = document.getElementById('pw-bulk-bar');
+    var count = selIds(productionId, kind).length;
+    if (bar) {
+      bar.hidden = count === 0;
+      var label = bar.querySelector('.pw-bulk-count');
+      if (label) label.textContent = count + ' selected';
+      var del = bar.querySelector('.pw-bulk-delete');
+      if (del) del.textContent = 'Delete ' + count + ' ' + itemNoun(kind, count);
+    }
+  }
+
+  function itemNoun(kind, count) {
+    if (kind === 'script') return count === 1 ? 'line' : 'lines';
+    return count === 1 ? 'shot' : 'shots';
+  }
+
+  /** Contextual bar. Only rendered in select mode, only visible with a selection. */
+  function selBarHtml(productionId, kind, total) {
+    var count = selCount(productionId, kind);
+    var pid = esc(productionId);
+    var k = esc(kind);
+    var h = '<div class="pw-bulk-bar" id="pw-bulk-bar" role="region" aria-label="Bulk actions"' + (count ? '' : ' hidden') + '>';
+    h += '<span class="pw-bulk-count" aria-live="polite">' + count + ' selected</span>';
+    h += '<div class="pw-bulk-actions">';
+    if (total > 1) {
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.selectAllItems(\'' +
+        pid + "','" + k + '\')">Select all</button>';
+    }
+    h +=
+      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.clearSelection(\'' +
+      pid + "','" + k + '\')">Clear selection</button>';
+    h +=
+      '<button type="button" class="studio-btn danger sm pw-bulk-delete" onclick="PreShootStudioUI.bulkDelete(\'' +
+      pid + "','" + k + '\')">Delete ' + count + ' ' + itemNoun(kind, count) + '</button>';
+    h += '</div></div>';
+    /* Keeps the last row clear of the sticky bar and the bottom navigation. */
+    h += '<div class="pw-bulk-spacer" aria-hidden="true"></div>';
+    return h;
+  }
+
+  /** Header control that turns select mode on and off. */
+  function selToggleHtml(productionId, kind, total) {
+    if (!total) return '';
+    var active = selIsActive(productionId, kind);
+    return (
+      '<button type="button" class="studio-btn ' +
+      (active ? 'primary' : 'ghost') +
+      ' sm" aria-pressed="' +
+      (active ? 'true' : 'false') +
+      '" onclick="PreShootStudioUI.toggleSelectMode(\'' +
+      esc(productionId) +
+      "','" +
+      esc(kind) +
+      '\')">' +
+      (active ? 'Done' : 'Select') +
+      '</button>'
+    );
+  }
+
+  var _bulkBusy = false;
+
+  /**
+   * Bulk delete. Reuses the same data-layer deletion the single-item delete
+   * uses, so both behave identically, and reports partial failures honestly.
+   */
+  function bulkDelete(productionId, kind) {
+    if (_bulkBusy) return;
+    if (!studioCanMutate()) {
+      toast('You do not have permission to delete here');
+      return;
+    }
+    var ids = selIds(productionId, kind);
+    if (!ids.length) return;
+    var noun = itemNoun(kind, ids.length);
+    var question =
+      ids.length === 1
+        ? 'Delete this ' + noun + '?'
+        : 'Delete ' +
+          ids.length +
+          ' ' +
+          noun +
+          '?\n\nThis will permanently remove the selected ' +
+          noun +
+          ' from this ' +
+          (kind === 'script' ? 'script' : 'shot list') +
+          '.';
+    if (!confirm(question)) return;
+
+    _bulkBusy = true;
+    var bar = document.getElementById('pw-bulk-bar');
+    var del = bar && bar.querySelector('.pw-bulk-delete');
+    if (del) {
+      del.disabled = true;
+      del.textContent = 'Deleting ' + ids.length + ' ' + noun + '…';
+    }
+
+    var result;
+    try {
+      result =
+        kind === 'script'
+          ? Studio().deleteScriptLines(productionId, ids)
+          : Studio().deleteShots(productionId, ids);
+    } catch (e) {
+      result = { ok: false, error: 'exception', deleted: [], failed: ids };
+    }
+    _bulkBusy = false;
+
+    var st = selState(productionId, kind);
+    if (!result || !result.ok) {
+      /* Nothing was deleted: keep the selection so the user can retry. */
+      toast((result && result.message) || 'Nothing was deleted. Please try again.');
+      selPaint(productionId, kind);
+      renderStudio();
+      return;
+    }
+
+    /* Only clear what actually went away. */
+    (result.deleted || []).forEach(function (id) {
+      delete st.ids[id];
+    });
+    if (result.failed && result.failed.length) {
+      toast(
+        (result.deleted || []).length +
+          ' ' +
+          itemNoun(kind, (result.deleted || []).length) +
+          ' deleted. ' +
+          result.failed.length +
+          ' could not be deleted.'
+      );
+    } else {
+      toast(result.message || 'Deleted');
+      st.ids = {};
+      st.anchor = null;
+    }
+    if (!Object.keys(st.ids).length) st.active = false;
+    if (global.PreShootWorkspace && PreShootWorkspace.saveNow) {
+      try {
+        PreShootWorkspace.saveNow().catch(function () {});
+      } catch (e) {}
+    }
+    renderStudio();
+  }
+
+  /** Escape exits select mode; Delete/Backspace deletes the selection. */
+  function installSelectionKeys() {
+    if (global.__preshootSelKeys) return;
+    global.__preshootSelKeys = true;
+    if (!global.document || !document.addEventListener) return;
+    document.addEventListener('keydown', function (e) {
+      if (!_sel.active) return;
+      var parts = String(_sel.scope || '').split('::');
+      var pid = parts[0];
+      var kind = parts[1];
+      if (!pid || !kind) return;
+      var target = e.target || {};
+      var tag = String(target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) return;
+      if (e.key === 'Escape') {
+        selExit(pid, kind);
+        return;
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selCount(pid, kind)) {
+        e.preventDefault();
+        bulkDelete(pid, kind);
+      }
+    });
   }
 
 
@@ -1237,6 +1551,16 @@
     var fields = shotFieldsForLevel(level);
     var realScript = Studio().hasRealScript ? Studio().hasRealScript(ws, prod.ideaSnapshot || {}) : false;
     var canEdit = studioCanMutate();
+    /* A regenerated list can invalidate a stale selection. */
+    selReconcile(
+      productionId,
+      'shots',
+      shots.map(function (s) {
+        return s.id;
+      })
+    );
+    var selectMode = canEdit && selIsActive(productionId, 'shots');
+    installSelectionKeys();
     var h = '';
     h += '<div class="pw-section-hd">';
     h += '<div><div class="pw-card-kicker">Shot List</div>';
@@ -1245,28 +1569,37 @@
       esc(prod.name || 'this production') +
       '. Adapted for <strong>' +
       esc(level) +
-      '</strong> · each shot maps to a script beat</div></div>';
-    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
-    if (canEdit) {
+      '</strong> · ' +
+      (selectMode ? 'tap shots to select them' : 'shots are planned from the whole script, not line by line') +
+      '</div></div>';
+    h += '<div class="pw-section-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
+    if (selectMode) {
+      h += selToggleHtml(productionId, 'shots', shots.length);
+    } else {
+      if (canEdit) {
+        h +=
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.generateShotList(\'' +
+          esc(productionId) +
+          '\')">Generate Shot List</button>';
+      }
+      if (shots.length) {
+        h +=
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyShotList(\'' +
+          esc(productionId) +
+          '\')">Copy Shot List</button>';
+        h +=
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportShotListPdf(\'' +
+          esc(productionId) +
+          '\')">Shot List PDF</button>';
+      }
+      if (canEdit && shots.length) h += selToggleHtml(productionId, 'shots', shots.length);
       h +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.generateShotList(\'' +
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addShot(\'' +
         esc(productionId) +
-        '\')">Generate Shot List</button>';
+        '\')">Add shot</button>';
     }
-    if (shots.length) {
-      h +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyShotList(\'' +
-        esc(productionId) +
-        '\')">Copy Shot List</button>';
-      h +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportShotListPdf(\'' +
-        esc(productionId) +
-        '\')">Shot List PDF</button>';
-    }
-    h +=
-      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addShot(\'' +
-      esc(productionId) +
-      '\')">Add shot</button></div></div>';
+    h += '</div></div>';
+    if (!selectMode) h += shotPlanNoticeHtml(prod, productionId, ws, shots);
 
     if (!shots.length) {
       h += '<div class="pw-card pw-empty-card">';
@@ -1292,8 +1625,41 @@
     }
 
     shots.forEach(function (shot, i) {
-      var open = !!expanded[shot.id];
+      var open = !selectMode && !!expanded[shot.id];
       var dur = typeof shot.durationSec === 'number' ? shot.durationSec + ' sec' : '-';
+      var titleText = shot.title || shot.purpose || 'Shot';
+      var meta = [shot.section, shot.shotTypeLabel || shotTypeLabel(shot.shotType), dur]
+        .filter(Boolean)
+        .join(' · ');
+
+      if (selectMode) {
+        /* Selecting must never open, edit or navigate. */
+        var on = selHas(productionId, 'shots', shot.id);
+        h +=
+          '<div class="pw-shot-card pw-selectable' +
+          (on ? ' is-selected' : '') +
+          '" role="checkbox" tabindex="0" aria-checked="' +
+          (on ? 'true' : 'false') +
+          '" data-select-kind="shots" data-select-id="' +
+          esc(shot.id) +
+          '" onclick="PreShootStudioUI.toggleSelectItem(\'' +
+          esc(productionId) +
+          "','shots','" +
+          esc(shot.id) +
+          '\',typeof event!==\'undefined\'&&event&&event.shiftKey)" onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();PreShootStudioUI.toggleSelectItem(\'' +
+          esc(productionId) +
+          "','shots','" +
+          esc(shot.id) +
+          '\');}">';
+        h += '<span class="pw-select-check" aria-hidden="true"><span class="pw-select-box"></span></span>';
+        h += '<span class="pw-select-main">';
+        h += '<span class="pw-shot-index">Shot ' + esc(String(shot.order || i + 1)) + '</span>';
+        h += '<span class="pw-shot-purpose">' + esc(titleText) + '</span>';
+        if (meta) h += '<span class="pw-shot-dur">' + esc(meta) + '</span>';
+        h += '</span></div>';
+        return;
+      }
+
       h += '<div class="pw-shot-card' + (open ? ' open' : '') + '">';
       h +=
         '<button type="button" class="pw-shot-head" onclick="PreShootStudioUI.toggleShot(\'' +
@@ -1305,18 +1671,10 @@
         '">';
       h += '<div class="pw-shot-index">Shot ' + esc(String(shot.order || i + 1)) + '</div>';
       h += '<div class="pw-shot-head-main">';
-      h += '<div class="pw-shot-purpose">' + esc(shot.purpose || 'Shot') + '</div>';
-      if (shot.scriptLineId) {
-        var scriptLines = (ws.script && ws.script.lines) || [];
-        var si = -1;
-        for (var li = 0; li < scriptLines.length; li++) {
-          if (scriptLines[li].id === shot.scriptLineId) si = li;
-        }
-        if (si >= 0) {
-          h += '<div class="pw-shot-dur">Script · Scene ' + (si + 1 < 10 ? '0' : '') + (si + 1) + '</div>';
-        }
-      }
-      h += '<div class="pw-shot-dur">' + esc(dur) + '</div>';
+      h += '<div class="pw-shot-purpose">' + esc(titleText) + '</div>';
+      if (meta) h += '<div class="pw-shot-dur">' + esc(meta) + '</div>';
+      var coverText = shotCoverageText(shot, ws);
+      if (coverText) h += '<div class="pw-shot-covers">“' + esc(coverText) + '”</div>';
       if (global.PreShootWorkspaceComments && PreShootWorkspaceComments.commentChipHtml) {
         h += PreShootWorkspaceComments.commentChipHtml(
           productionId,
@@ -1330,6 +1688,32 @@
       h += '</button>';
       if (open) {
         h += '<div class="pw-shot-body">';
+        /* What to film, in plain language, before the editable fields. */
+        if (shot.visual || shot.subjectAction || shot.visualPurpose || shot.assetSuggestion) {
+          h += '<div class="pw-shot-brief">';
+          if (shot.visual) h += '<div class="pw-shot-brief-row"><span>Visual</span>' + esc(shot.visual) + '</div>';
+          if (shot.subjectAction) {
+            h += '<div class="pw-shot-brief-row"><span>Action</span>' + esc(shot.subjectAction) + '</div>';
+          }
+          if (shot.visualPurpose) {
+            h += '<div class="pw-shot-brief-row"><span>Why</span>' + esc(shot.visualPurpose) + '</div>';
+          }
+          if (shot.assetSuggestion) {
+            h += '<div class="pw-shot-brief-row"><span>Asset</span>' + esc(shot.assetSuggestion) + '</div>';
+          }
+          h += '</div>';
+        }
+        var covers = (shot.scriptCoverage || []).filter(function (c) {
+          return c && c.text;
+        });
+        if (covers.length) {
+          h += '<div class="pw-shot-field"><div class="pw-fact-l">Script coverage (' + covers.length + ')</div>';
+          h += '<div class="pw-shot-covers-list">';
+          covers.forEach(function (c) {
+            h += '<div class="pw-shot-cover-item">“' + esc(c.text) + '”</div>';
+          });
+          h += '</div></div>';
+        }
         h += '<div class="pw-shot-field"><div class="pw-fact-l">Purpose</div>';
         h +=
           '<input class="st-input" value="' +
@@ -1349,7 +1733,7 @@
           esc(shot.id) +
           "','durationSec',parseInt(this.value,10)||3)\"></div>";
         if (level !== 'beginner') {
-          ['framing', 'cameraMovement', 'lighting', 'audio', 'notes'].forEach(function (key) {
+          ['visual', 'framing', 'cameraMovement', 'location', 'lighting', 'audio', 'notes'].forEach(function (key) {
             h += '<div class="pw-shot-field"><div class="pw-fact-l">' + esc(fieldLabel(key, level)) + '</div>';
             h +=
               '<textarea class="st-input st-notes" rows="2" onchange="PreShootStudioUI.updateShotField(\'' +
@@ -1363,7 +1747,7 @@
               '</textarea></div>';
           });
         } else {
-          ['framing', 'notes', 'beginnerTip'].forEach(function (key) {
+          ['visual', 'framing', 'notes', 'beginnerTip'].forEach(function (key) {
             h += '<div class="pw-shot-field"><div class="pw-fact-l">' + esc(fieldLabel(key, level)) + '</div>';
             h +=
               '<textarea class="st-input st-notes" rows="2" onchange="PreShootStudioUI.updateShotField(\'' +
@@ -1402,6 +1786,74 @@
       }
       h += '</div>';
     });
+    if (selectMode) h += selBarHtml(productionId, 'shots', shots.length);
+    return h;
+  }
+
+  function shotTypeLabel(shotType) {
+    var map = {
+      a_roll: 'A-roll',
+      b_roll: 'B-roll',
+      insert: 'Insert',
+      screen_recording: 'Screen recording'
+    };
+    return map[shotType] || '';
+  }
+
+  /** One-line summary of the script a shot covers, for the collapsed card. */
+  function shotCoverageText(shot, ws) {
+    var covers = (shot.scriptCoverage || [])
+      .map(function (c) {
+        return c && c.text ? String(c.text) : '';
+      })
+      .filter(Boolean);
+    if (!covers.length && shot.scriptLineId) {
+      var lines = (ws.script && ws.script.lines) || [];
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].id === shot.scriptLineId) covers.push(String(lines[i].text || ''));
+      }
+    }
+    if (!covers.length) return '';
+    var joined = covers.join(' ');
+    var suffix = covers.length > 1 ? ' (' + covers.length + ' lines)' : '';
+    return (joined.length > 120 ? joined.slice(0, 119) + '…' : joined) + suffix;
+  }
+
+  /**
+   * Tells the user when the shot list no longer matches the script it was
+   * planned from, instead of silently regenerating or leaving it wrong.
+   */
+  function shotPlanNoticeHtml(prod, productionId, ws, shots) {
+    var plan = ws.shotPlan;
+    if (!plan || !shots.length) return '';
+    var h = '';
+    var current = Studio().scriptSignature ? Studio().scriptSignature(productionId) : '';
+    if (plan.scriptSignature && current && plan.scriptSignature !== current) {
+      h +=
+        '<div class="pw-plan-note is-stale">The script changed after this shot list was planned. ' +
+        (studioCanMutate()
+          ? '<button type="button" class="pw-plan-link" onclick="PreShootStudioUI.generateShotList(\'' +
+            esc(productionId) +
+            '\')">Replan the shot list</button>'
+          : 'Ask an editor to replan it.') +
+        '</div>';
+    }
+    var issues = (plan.review || []).filter(function (i) {
+      return i && i.severity !== 'low';
+    });
+    if (issues.length) {
+      h +=
+        '<div class="pw-plan-note">Planner flagged: ' +
+        esc(
+          issues
+            .slice(0, 3)
+            .map(function (i) {
+              return i.detail || i.code;
+            })
+            .join(' · ')
+        ) +
+        '</div>';
+    }
     return h;
   }
 
@@ -1426,31 +1878,48 @@
       );
     }
     h += '</div>';
+    /* Script blocks are discrete, independently deletable objects, so they
+     * get the same select mode. Sentences inside a block are not. */
+    selReconcile(
+      productionId,
+      'script',
+      lines.map(function (l) {
+        return l.id;
+      })
+    );
+    var scriptSelectMode = canEdit && selIsActive(productionId, 'script');
+    installSelectionKeys();
     h += '<div class="pw-section-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">';
-    h +=
-      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openScriptFullscreen(\'' +
-      esc(productionId) +
-      '\')" title="Expand script editor" aria-label="Expand script editor">Write Script</button>';
-    if (canEdit) {
+    if (scriptSelectMode) {
+      h += selToggleHtml(productionId, 'script', lines.length);
+    } else {
       h +=
-        '<button type="button" class="studio-btn primary sm" onclick="PreShootStudioUI.generateScript(\'' +
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.openScriptFullscreen(\'' +
         esc(productionId) +
-        '\')">Generate Script</button>';
+        '\')" title="Expand script editor" aria-label="Expand script editor">Write Script</button>';
+      if (canEdit) {
+        h +=
+          '<button type="button" class="studio-btn primary sm" onclick="PreShootStudioUI.generateScript(\'' +
+          esc(productionId) +
+          '\')">Generate Script</button>';
+      }
+      if (realScript) {
+        h +=
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyScript(\'' +
+          esc(productionId) +
+          '\')">Copy Script</button>';
+        h +=
+          '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportScriptPdf(\'' +
+          esc(productionId) +
+          '\')">Script PDF</button>';
+      }
+      if (canEdit && lines.length > 1) h += selToggleHtml(productionId, 'script', lines.length);
+      h +=
+        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addScriptLine(\'' +
+        esc(productionId) +
+        '\')">Add line</button>';
     }
-    if (realScript) {
-      h +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.copyScript(\'' +
-        esc(productionId) +
-        '\')">Copy Script</button>';
-      h +=
-        '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.exportScriptPdf(\'' +
-        esc(productionId) +
-        '\')">Script PDF</button>';
-    }
-    h +=
-      '<button type="button" class="studio-btn ghost sm" onclick="PreShootStudioUI.addScriptLine(\'' +
-      esc(productionId) +
-      '\')">Add line</button></div></div>';
+    h += '</div></div>';
 
     if (!lines.length) {
       var body = (ws.script && ws.script.body) || '';
@@ -1488,6 +1957,31 @@
 
     lines.forEach(function (line, i) {
       var shotLabel = line.shotOrder ? 'Shot ' + line.shotOrder : 'Unassigned';
+      if (scriptSelectMode) {
+        var lineOn = selHas(productionId, 'script', line.id);
+        h +=
+          '<div class="pw-script-card pw-selectable' +
+          (lineOn ? ' is-selected' : '') +
+          '" role="checkbox" tabindex="0" aria-checked="' +
+          (lineOn ? 'true' : 'false') +
+          '" data-select-kind="script" data-select-id="' +
+          esc(line.id) +
+          '" onclick="PreShootStudioUI.toggleSelectItem(\'' +
+          esc(productionId) +
+          "','script','" +
+          esc(line.id) +
+          '\',typeof event!==\'undefined\'&&event&&event.shiftKey)" onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();PreShootStudioUI.toggleSelectItem(\'' +
+          esc(productionId) +
+          "','script','" +
+          esc(line.id) +
+          '\');}">';
+        h += '<span class="pw-select-check" aria-hidden="true"><span class="pw-select-box"></span></span>';
+        h += '<span class="pw-select-main">';
+        h += '<span class="pw-shot-index">Line ' + (i + 1) + ' · ' + esc(shotLabel) + '</span>';
+        h += '<span class="pw-select-text">' + esc(clipText(line.text || '', 160)) + '</span>';
+        h += '</span></div>';
+        return;
+      }
       h += '<div class="pw-script-card">';
       h += '<div class="pw-script-quote">“' + esc(line.text || '') + '”</div>';
       h += '<div class="pw-script-link">↓</div>';
@@ -1530,7 +2024,13 @@
         '\')">Remove line</button>';
       h += '</div>';
     });
+    if (scriptSelectMode) h += selBarHtml(productionId, 'script', lines.length);
     return h;
+  }
+
+  function clipText(text, n) {
+    var t = String(text || '').replace(/\s+/g, ' ').trim();
+    return t.length > n ? t.slice(0, n - 1) + '…' : t;
   }
 
   function researchCacheKey(prod) {
@@ -4426,6 +4926,10 @@
     for (var i = 0; i < list.length; i++) {
       if (list[i].id === shotId) {
         list[i][field] = value;
+        /* Remember what the user changed so replanning keeps their work. */
+        list[i].edited = list[i].edited || {};
+        list[i].edited[field] = true;
+        if (field === 'purpose') list[i].title = value;
         break;
       }
     }
@@ -4465,17 +4969,17 @@
     renderStudio();
   }
 
+  /* Single delete goes through the same data-layer routine as bulk delete. */
   function deleteShot(productionId, shotId) {
-    var found = Studio().findProduction(productionId);
-    if (!found) return;
-    var prod = Studio().ensureWorkspace(found.production);
-    prod.workspace.shotList = (prod.workspace.shotList || []).filter(function (s) {
-      return s.id !== shotId;
-    });
-    prod.workspace.shotList.forEach(function (s, i) {
-      s.order = i + 1;
-    });
-    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
+    var result = Studio().deleteShots(productionId, [shotId]);
+    if (!result || !result.ok) {
+      toast((result && result.message) || 'Could not delete that shot');
+      return;
+    }
     renderStudio();
   }
 
@@ -4538,18 +5042,15 @@
   }
 
   function deleteScriptLine(productionId, lineId) {
-    var found = Studio().findProduction(productionId);
-    if (!found) return;
-    var prod = Studio().ensureWorkspace(found.production);
-    prod.workspace.script.lines = (prod.workspace.script.lines || []).filter(function (l) {
-      return l.id !== lineId;
-    });
-    prod.workspace.script.body = prod.workspace.script.lines
-      .map(function (l) {
-        return l.text;
-      })
-      .join('\n\n');
-    Studio().updateProduction(productionId, { workspace: prod.workspace });
+    if (!studioCanMutate()) {
+      toast('This workspace is read-only');
+      return;
+    }
+    var result = Studio().deleteScriptLines(productionId, [lineId]);
+    if (!result || !result.ok) {
+      toast((result && result.message) || 'Could not delete that line');
+      return;
+    }
     renderStudio();
   }
 
@@ -4660,12 +5161,18 @@
         return false;
       }
     }
+    /* Plan locally first: this always works, needs no network, and reads the
+     * whole script. Director then refines it if it is reachable. */
     var result = Studio().buildShotListFromScript(productionId, { allowStarter: false });
     if (!result || !result.ok) {
       toast((result && result.message) || 'Could not generate shot list');
       return false;
     }
-    toast('Shot list built from script');
+    selExitQuiet(productionId, 'shots');
+    toast(
+      (result.result && result.result.shotCount ? result.result.shotCount + ' shots' : 'Shot list') +
+        ' planned from the full script'
+    );
     noteStreak('shotlist');
     if (global.S) {
       setStudioView(
@@ -4675,7 +5182,121 @@
     }
     renderContinueCard();
     renderStudio();
+    requestShotPlanAi(productionId);
     return true;
+  }
+
+  /** Drops any selection without triggering another render. */
+  function selExitQuiet(productionId, kind) {
+    var st = selState(productionId, kind);
+    st.active = false;
+    st.ids = {};
+    st.anchor = null;
+  }
+
+  var _shotPlanBusy = false;
+
+  /**
+   * Asks Director for a shot plan over the whole script. The reply must pass
+   * PreShootStudio.validateShotPlan; anything else leaves the locally planned
+   * list in place, so a bad model reply can never damage the shot list.
+   */
+  function requestShotPlanAi(productionId) {
+    if (_shotPlanBusy) return;
+    if (typeof global.apiFetch !== 'function') return;
+    if (!Studio() || !Studio().applyShotPlan) return;
+    if (!studioCanMutate()) return;
+    var found = Studio().findProduction(productionId);
+    if (!found) return;
+    var prod = Studio().ensureWorkspace(found.production);
+    var script = Studio().getScriptPlainText(prod.workspace || {});
+    if (!String(script || '').trim()) return;
+
+    _shotPlanBusy = true;
+    setDirectorStatus('thinking', 'Reading the full script…');
+    var ctxLines = studioDirectorContextLines();
+    global
+      .apiFetch('/api/director', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          directorRequestBody({
+            stream: false,
+            max_tokens: 4000,
+            context:
+              ctxLines +
+              '\n\nMODE: Shot list planning. Read the ENTIRE script before planning any shot. ' +
+              'Group script lines into semantic beats, decide the visual beats, then emit exactly one block:\n' +
+              '[[SHOTS:{"productionId":"' +
+              productionId +
+              '","contentType":"...","subject":"...","shots":[...]}]]\n' +
+              'scriptCoverage must quote the script verbatim and must cover the whole script across the list. ' +
+              'Shot titles must describe what the shot does. Never output Setup / Beat 1 / Beat 2 as a title. ' +
+              'Do not claim the shot list was updated: the app applies it.',
+            messages: [
+              {
+                role: 'user',
+                content:
+                  'ProductionId: ' +
+                  productionId +
+                  '\nPlan the shot list for this production.\n\nFULL SCRIPT:\n"""\n' +
+                  script +
+                  '\n"""\n\nEmit [[SHOTS:{...}]] only.'
+              }
+            ]
+          })
+        )
+      })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return { ok: res.ok, status: res.status, data: data };
+        });
+      })
+      .then(function (pack) {
+        _shotPlanBusy = false;
+        if (!pack.ok) {
+          if (isDevHost()) console.warn('[Director shot_plan]', pack.status, pack.data);
+          setDirectorStatus('idle', '');
+          return;
+        }
+        setDirectorStatus('thinking', 'Mapping narrative beats…');
+        var block = ((pack.data && pack.data.content) || []).find(function (b) {
+          return b.type === 'text';
+        });
+        var raw = (block && block.text) || '';
+        var plan =
+          global.PreShootDirectorOS && global.PreShootDirectorOS.parseShotPlan
+            ? global.PreShootDirectorOS.parseShotPlan(raw)
+            : null;
+        if (!plan) {
+          if (isDevHost()) console.warn('[Director shot_plan parse fail]', raw.slice(0, 600));
+          setDirectorStatus('idle', '');
+          return;
+        }
+        setDirectorStatus('thinking', 'Checking shot continuity…');
+        var applied = Studio().applyShotPlan(productionId, plan);
+        if (!applied || !applied.ok) {
+          if (isDevHost()) console.warn('[Director shot_plan rejected]', applied);
+          setDirectorStatus('idle', '');
+          return;
+        }
+        var rejected = applied.result && applied.result.rejectedDirectorPlan;
+        if (rejected) {
+          if (isDevHost()) console.warn('[Director shot_plan validation]', rejected);
+          setDirectorStatus('idle', '');
+          renderStudio();
+          return;
+        }
+        setDirectorStatus('idle', '');
+        toast('Director refined the shot list');
+        renderContinueCard();
+        renderStudio();
+      })
+      .catch(function (err) {
+        _shotPlanBusy = false;
+        if (isDevHost() && err) console.warn('[Director shot_plan]', err);
+        setDirectorStatus('idle', '');
+      });
   }
 
   function copyScript(productionId) {
@@ -6113,6 +6734,16 @@
     convertScriptBody: convertScriptBody,
     generateScript: generateScript,
     generateShotList: generateShotList,
+    requestShotPlanAi: requestShotPlanAi,
+    toggleSelectMode: selToggleMode,
+    exitSelectMode: selExit,
+    toggleSelectItem: selToggleItem,
+    selectAllItems: selSelectAll,
+    clearSelection: selClear,
+    selectionCount: selCount,
+    selectionIds: selIds,
+    isSelectMode: selIsActive,
+    bulkDelete: bulkDelete,
     copyScript: copyScript,
     copyShotList: copyShotList,
     exportScriptPdf: exportScriptPdf,

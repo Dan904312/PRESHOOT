@@ -8,10 +8,25 @@
 (function (global) {
   'use strict';
 
+  /* The script gets its own generous budget: truncating it is what made
+   * Director plan shots from a fragment of the story. */
+  var MAX_SCRIPT_CHARS = 6000;
+
+  function str(v) {
+    return String(v == null ? '' : v);
+  }
+
   function clip(s, n) {
     s = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
     if (!s) return '';
     return s.length > n ? s.slice(0, n - 1) + '...' : s;
+  }
+
+  /** Like clip, but keeps line breaks so script structure survives. */
+  function clipBlock(s, n) {
+    s = str(s).replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (s.length <= n) return s;
+    return s.slice(0, n) + '\n[script truncated at ' + n + ' characters]';
   }
 
   function push(lines, label, value) {
@@ -248,24 +263,45 @@
       if (task !== 'trends') {
         if (production.shotList && production.shotList.length) {
           lines.push('SHOT LIST (' + production.shotList.length + '):');
-          production.shotList.slice(0, 12).forEach(function (sh) {
+          production.shotList.slice(0, 24).forEach(function (sh) {
+            var covers = (sh.scriptCoverage || [])
+              .map(function (c) {
+                return clip(c && c.text, 90);
+              })
+              .filter(Boolean);
             lines.push(
               'Shot ' +
                 (sh.order || '') +
                 ' [' +
-                (sh.purpose || '') +
+                (sh.section || sh.shotTypeLabel || '') +
                 ' / ' +
                 (sh.durationSec || '?') +
-                's]: ' +
-                clip(sh.framing || sh.notes || sh.cameraMovement || '', 180)
+                's] ' +
+                clip(sh.title || sh.purpose || '', 80) +
+                ': ' +
+                clip(sh.visual || sh.framing || sh.notes || sh.cameraMovement || '', 160) +
+                (covers.length ? ' | covers: ' + covers.join(' + ') : '')
             );
           });
+          if (production.shotList.length > 24) {
+            lines.push('(' + (production.shotList.length - 24) + ' more shots not listed)');
+          }
         }
-        if (production.scriptLines && production.scriptLines.length) {
+        /* The full script, verbatim and unsplit. Shot planning is only
+         * possible when the whole thing is readable in one place. */
+        var fullScript = str(production.scriptBody);
+        if (fullScript) {
+          lines.push('');
+          lines.push('=== FULL SCRIPT (read all of it before planning anything) ===');
+          lines.push(clipBlock(fullScript, MAX_SCRIPT_CHARS));
+          lines.push('=== END OF SCRIPT ===');
+        } else if (production.scriptLines && production.scriptLines.length) {
           lines.push('SCRIPT LINES:');
-          production.scriptLines.slice(0, 12).forEach(function (ln) {
-            lines.push((ln.shotOrder ? 'Shot ' + ln.shotOrder + ': ' : '') + '"' + clip(ln.text, 200) + '"');
+          production.scriptLines.forEach(function (ln) {
+            lines.push((ln.shotOrder ? 'Shot ' + ln.shotOrder + ': ' : '') + '"' + clip(ln.text, 400) + '"');
           });
+        } else {
+          lines.push('SCRIPT: none written yet.');
         }
       }
     } else {
@@ -278,9 +314,35 @@
       lines.push('PROJECT_ID: ' + (project.id || ''));
       push(lines, 'Project name', project.name);
       push(lines, 'Project description', project.description);
+      push(lines, 'Project goal', project.goal);
+      push(lines, 'Project type', project.type);
+      if (project.productionCount) lines.push('Productions in this project: ' + project.productionCount);
+      lines.push(
+        'ISOLATION RULE: this project and production are the only subject. Never carry a subject, brand, product, or audience over from another project.'
+      );
     } else {
       lines.push('No project bound.');
     }
+
+    /* Compact internal brief so the model does not have to re-derive the
+     * basics from prose on every turn. Not shown to the user. */
+    var brief = synthesizeBrief(pack, S);
+    lines.push('');
+    lines.push('=== PRODUCTION BRIEF (internal synthesis, do not quote back) ===');
+    lines.push(JSON.stringify(brief));
+
+    lines.push('');
+    lines.push('=== PRODUCTION CONSTRAINTS (shot lists must be filmable with these) ===');
+    var constraintBits = [];
+    if (brief.productionConstraints.gear) constraintBits.push('Gear: ' + brief.productionConstraints.gear);
+    if (brief.productionConstraints.skillLevel) constraintBits.push('Skill: ' + brief.productionConstraints.skillLevel);
+    if (brief.productionConstraints.crew) constraintBits.push('Crew: ' + brief.productionConstraints.crew);
+    if (brief.productionConstraints.locations) constraintBits.push('Locations: ' + brief.productionConstraints.locations);
+    if (constraintBits.length) lines.push(constraintBits.join(' | '));
+    else lines.push('No gear or crew declared. Assume a phone, no crew, one location, available light.');
+    lines.push(
+      'Do not propose cranes, dollies, drones, extra actors, or lighting the creator has not listed. If a shot needs gear they do not have, choose an achievable alternative.'
+    );
 
     if (task !== 'trends') {
       lines.push('');
@@ -560,6 +622,59 @@
     };
   }
 
+  /**
+   * The structured understanding Director should hold before generating:
+   * what this video is, who it is for, and what it can realistically be.
+   * Project and production values win over the creator's global profile.
+   */
+  function synthesizeBrief(pack, S) {
+    S = S || {};
+    var production = pack.production || null;
+    var project = pack.project || null;
+    var ov = (production && production.overview) || {};
+    var idea = pack.idea || {};
+    var n = S.niche || {};
+    var pf = S.platformFocus || {};
+    var ae = S.aesthetic || {};
+    var gr = S.gear || {};
+
+    function pick() {
+      for (var i = 0; i < arguments.length; i++) {
+        var v = clip(arguments[i], 240);
+        if (v) return v;
+      }
+      return '';
+    }
+
+    var gearBits = [];
+    ['camera', 'lens', 'gimbal', 'drone', 'microphone', 'lighting'].forEach(function (k) {
+      if (gr[k]) gearBits.push(k + ': ' + gr[k]);
+    });
+
+    return {
+      subject: pick(production && production.name, idea.title, project && project.name),
+      audience: pick(ov.audience, idea.audience, n.audience, pf.audience),
+      purpose: pick(ov.goal, project && project.goal, idea.whyItWorks),
+      platform: pick(ov.platform, pf.primaryPlatform, (pf.platforms || [])[0], n.platform),
+      format: pick(ov.format, idea.category),
+      tone: pick(ov.tone, ae.tone, n.style),
+      coreMessage: pick(ov.summary, idea.hook, production && production.notes),
+      /* Left blank on purpose: the model derives these from the full script
+       * rather than being handed a template to fill. */
+      narrativeStructure: '',
+      visualStyle: pick((ae.aesthetics || []).join(', '), ae.lighting, n.style),
+      availableAssets: (production && production.assetCount) || 0,
+      hasScript: !!(production && (production.scriptBody || (production.scriptLines || []).length)),
+      hasShotList: !!(production && (production.shotList || []).length),
+      productionConstraints: {
+        gear: gearBits.join(' | ') || clip(n.gear, 160),
+        skillLevel: clip(n.experienceLevel || n.skillLevel, 40),
+        crew: clip(n.crew || n.team, 80),
+        locations: clip(ov.locations || n.locations, 120)
+      }
+    };
+  }
+
   function stagesFor(pack, task) {
     var stages = [];
     if (pack.production) stages.push('Reviewing production context');
@@ -572,8 +687,14 @@
     stages.push('Reviewing creator profile');
     if (pack.production && pack.production.performance) stages.push('Checking performance notes');
     if (task === 'script') stages.push('Generating script');
-    else if (task === 'shots') stages.push('Building shot list');
-    else stages.push('Preparing reply');
+    else if (task === 'shots') {
+      /* Real stages of the planning pipeline, in the order they happen. */
+      stages.push('Reading the full script');
+      stages.push('Mapping narrative beats');
+      stages.push('Planning visual coverage');
+      stages.push('Checking shot continuity');
+      stages.push('Finalising shot list');
+    } else stages.push('Preparing reply');
     return stages;
   }
 
@@ -591,6 +712,8 @@
     inferTask: inferTask,
     flattenReferences: flattenReferences,
     resolveFocus: resolveFocus,
-    resolveLiveStudioFocus: resolveLiveStudioFocus
+    resolveLiveStudioFocus: resolveLiveStudioFocus,
+    synthesizeBrief: synthesizeBrief,
+    MAX_SCRIPT_CHARS: MAX_SCRIPT_CHARS
   };
 })(typeof window !== 'undefined' ? window : this);

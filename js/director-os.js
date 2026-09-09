@@ -1877,8 +1877,122 @@
     return String(reply || '')
       .replace(/\[\[ACTION:\{[\s\S]*?\}\]\]/g, '')
       .replace(/\[\[SCRIPT:\{[\s\S]*?\}\]\]/g, '')
+      .replace(/\[\[SHOTS:\{[\s\S]*?\}\]\]/g, '')
       .replace(/\[\[QUICK:\[[\s\S]*?\]\]\]/g, '')
       .trim();
+  }
+
+  /**
+   * Parse [[SHOTS:{...}]] — a whole shot plan, not a per-line transform.
+   * Shape is only normalised here; PreShootStudio.validateShotPlan decides
+   * whether it may touch stored data.
+   */
+  function parseShotPlan(reply) {
+    var text = String(reply || '');
+    var marker = text.indexOf('[[SHOTS:');
+    var obj = null;
+    if (marker >= 0) {
+      var braceAt = text.indexOf('{', marker);
+      if (braceAt >= 0) {
+        var jsonStr = extractBalancedJsonObject(text, braceAt);
+        if (jsonStr) {
+          try {
+            obj = JSON.parse(jsonStr);
+          } catch (e) {
+            obj = null;
+          }
+        }
+      }
+    }
+    if (!obj) {
+      /* Also accept it inside an ACTION payload. */
+      var act = parseActionFromReply(text);
+      if (act && (act.action === 'apply_shot_plan' || act.action === 'rebuild_shot_list')) {
+        var payload = act.payload || {};
+        if (payload.plan && typeof payload.plan === 'object') obj = payload.plan;
+        else if (Array.isArray(payload.shots)) obj = payload;
+      }
+    }
+    if (!obj) {
+      var fence = text.match(/```(?:json)?\s*(\{[\s\S]*?"shots"[\s\S]*?\})\s*```/i);
+      if (fence) {
+        try {
+          obj = JSON.parse(fence[1]);
+        } catch (e2) {
+          obj = null;
+        }
+      }
+    }
+    return shotPlanFromObject(obj);
+  }
+
+  function shotPlanFromObject(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    var shots = Array.isArray(obj.shots) ? obj.shots : null;
+    if (!shots || !shots.length) return null;
+    var normalized = [];
+    shots.forEach(function (s) {
+      if (!s || typeof s !== 'object') return;
+      var coverage = [];
+      var rawCov = s.scriptCoverage || s.coverage || s.covers;
+      if (Array.isArray(rawCov)) {
+        rawCov.forEach(function (c) {
+          if (typeof c === 'string') coverage.push({ text: c });
+          else if (c && typeof c === 'object') {
+            coverage.push({
+              text: String(c.text || c.line || ''),
+              lineId: c.lineId || c.scriptLineId || null,
+              start: typeof c.start === 'number' ? c.start : null,
+              end: typeof c.end === 'number' ? c.end : null
+            });
+          }
+        });
+      } else if (typeof rawCov === 'string') {
+        coverage.push({ text: rawCov });
+      }
+      normalized.push({
+        id: s.id || null,
+        title: String(s.title || s.purpose || s.name || ''),
+        section: String(s.section || ''),
+        beatId: s.beatId || s.beat || null,
+        shotType: normalizeShotType(s.shotType || s.type || ''),
+        shotTypeLabel: String(s.shotTypeLabel || ''),
+        durationSec: Number(s.durationSec != null ? s.durationSec : s.duration),
+        framing: String(s.framing || s.shotSize || ''),
+        cameraMovement: String(s.cameraMovement || s.movement || s.camera || ''),
+        cameraAngle: String(s.cameraAngle || s.angle || ''),
+        gear: String(s.gear || ''),
+        lighting: String(s.lighting || ''),
+        spoken: String(s.spoken || s.audio || s.dialogue || ''),
+        subjectAction: String(s.subjectAction || s.subject || s.action || ''),
+        visual: String(s.visual || s.description || ''),
+        visualPurpose: String(s.visualPurpose || s.purposeNote || s.why || ''),
+        shotPurpose: String(s.shotPurpose || ''),
+        location: String(s.location || ''),
+        assetSuggestion: String(s.assetSuggestion || s.asset || ''),
+        notes: String(s.notes || ''),
+        scriptCoverage: coverage
+      });
+    });
+    if (!normalized.length) return null;
+    return {
+      productionId: obj.productionId || null,
+      projectId: obj.projectId || null,
+      contentType: String(obj.contentType || ''),
+      subject: String(obj.subject || ''),
+      review: Array.isArray(obj.review) ? obj.review : [],
+      beats: Array.isArray(obj.beats) ? obj.beats : [],
+      shots: normalized
+    };
+  }
+
+  function normalizeShotType(raw) {
+    var t = String(raw || '').toLowerCase().replace(/[\s-]+/g, '_');
+    if (/screen/.test(t)) return 'screen_recording';
+    if (/insert|detail|macro/.test(t)) return 'insert';
+    if (/b_?roll/.test(t)) return 'b_roll';
+    if (/a_?roll|talking|direct/.test(t)) return 'a_roll';
+    return t === 'a_roll' || t === 'b_roll' ? t : '';
   }
 
   var QUICK_CATALOG = {
@@ -2179,6 +2293,8 @@
     filterExecutableQuickActions: filterExecutableQuickActions,
     QUICK_CATALOG: QUICK_CATALOG,
     parseScriptPatch: parseScriptPatch,
+    parseShotPlan: parseShotPlan,
+    shotPlanFromObject: shotPlanFromObject,
     stripActionMarker: stripActionMarker,
     executeProposed: executeProposed,
     proposeToUI: proposeToUI,

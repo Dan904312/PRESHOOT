@@ -240,12 +240,45 @@
     return 'intermediate';
   }
 
+  /**
+   * Script coverage lets one shot cover several script lines and one line be
+   * covered by several shots. Older shots have no coverage; they keep working
+   * through the legacy scriptLineId field.
+   */
+  function normalizeScriptCoverage(input, fallbackLineId) {
+    var raw = Array.isArray(input) ? input : [];
+    var out = [];
+    raw.forEach(function (c) {
+      if (!c) return;
+      var text = String(c.text || '').trim();
+      var lineId = c.lineId || c.scriptLineId || null;
+      if (!text && !lineId) return;
+      out.push({
+        lineId: lineId,
+        start: typeof c.start === 'number' ? c.start : null,
+        end: typeof c.end === 'number' ? c.end : null,
+        text: text
+      });
+    });
+    if (!out.length && fallbackLineId) {
+      out.push({ lineId: fallbackLineId, start: null, end: null, text: '' });
+    }
+    return out;
+  }
+
   function createShot(input) {
     input = input || {};
+    var coverage = normalizeScriptCoverage(input.scriptCoverage, input.scriptLineId);
     return {
       id: input.id || uid('shot'),
       order: typeof input.order === 'number' ? input.order : 1,
-      purpose: String(input.purpose || 'Setup'),
+      /* purpose is what the UI shows as the shot title. */
+      purpose: String(input.purpose || input.title || 'Setup'),
+      title: String(input.title || input.purpose || ''),
+      section: String(input.section || ''),
+      beatId: input.beatId || null,
+      shotType: String(input.shotType || ''),
+      shotTypeLabel: String(input.shotTypeLabel || ''),
       durationSec: typeof input.durationSec === 'number' ? input.durationSec : 3,
       cameraMovement: String(input.cameraMovement || ''),
       framing: String(input.framing || ''),
@@ -255,9 +288,19 @@
       lighting: String(input.lighting || ''),
       audio: String(input.audio || ''),
       notes: String(input.notes || ''),
+      subjectAction: String(input.subjectAction || ''),
+      visual: String(input.visual || ''),
+      visualPurpose: String(input.visualPurpose || ''),
+      shotPurpose: String(input.shotPurpose || ''),
+      location: String(input.location || ''),
+      assetSuggestion: String(input.assetSuggestion || ''),
       beginnerTip: String(input.beginnerTip || ''),
       advancedDetail: String(input.advancedDetail || ''),
-      scriptLineId: input.scriptLineId || null
+      scriptCoverage: coverage,
+      /* Legacy single link, kept so old UI and exports keep working. */
+      scriptLineId: input.scriptLineId || (coverage.length ? coverage[0].lineId : null) || null,
+      /* Fields the user has hand-edited, preserved across regeneration. */
+      edited: input.edited && typeof input.edited === 'object' ? input.edited : {}
     };
   }
 
@@ -2322,44 +2365,521 @@
       lines = ws.script.lines || [];
     }
     var shots = [];
-    if (lines.length) {
-      lines.forEach(function (line, i) {
-        var text = String(line.text || '').trim();
-        var visual = String(line.visualNote || '');
-        var parsed = parseVisualIntoShotFields(visual, text, i, lines.length);
-        var shot = createShot({
-          order: i + 1,
-          purpose: parsed.purpose || inferShotPurpose(text, i, lines.length),
-          durationSec: Math.min(8, Math.max(2, Math.round(text.length / 28) || 3)),
-          framing: parsed.framing || inferShotFraming(visual, i),
-          cameraAngle: i === 0 ? 'Eye level' : '',
-          cameraMovement:
-            parsed.cameraMovement ||
-            (i === 0 ? 'Hold / micro push-in' : i === lines.length - 1 ? 'Hold' : 'Slow move or locked'),
-          lens: '',
-          gear: parsed.gear || creatorGearString(),
-          lighting: parsed.lighting || '',
-          audio: text.slice(0, 180),
-          notes: parsed.notes || ('Script reference: “' + text.slice(0, 140) + '”'),
-          beginnerTip: 'Match this shot to the linked script beat before you roll.',
-          advancedDetail: parsed.advancedDetail || '',
-          scriptLineId: line.id
-        });
-        line.shotId = shot.id;
-        line.shotOrder = shot.order;
-        shots.push(shot);
-      });
+    var plan = null;
+    if (opts.plan && Array.isArray(opts.plan.shots) && opts.plan.shots.length) {
+      /* A validated Director plan. */
+      plan = opts.plan;
+    } else if (lines.length || getScriptPlainText(ws)) {
+      plan = planShotsFromScript(prod, ws, found.project);
+    }
+
+    if (plan && plan.shots && plan.shots.length) {
+      shots = materializeShotPlan(plan, ws, opts);
     } else if (opts.allowStarter) {
       shots = starterShotListFromIdea(idea, prod.scanRef || {}, { coverImage: prod.coverImage });
     }
+
+    if (!shots.length) {
+      return {
+        ok: false,
+        error: 'no_shots',
+        message:
+          plan && plan.error === 'no_script'
+            ? 'Write or generate a script before building a shot list.'
+            : plan && plan.error === 'planner_unavailable'
+              ? 'The shot planner did not load. Reload PreShoot and try again.'
+              : 'No shots created'
+      };
+    }
+
     ws.shotList = shots;
-    pushTimeline(prod, 'shots', 'Shot list generated from script');
+    ws.shotPlan = {
+      source: plan && plan.source ? plan.source : 'planner',
+      contentType: (plan && plan.contentType) || '',
+      subject: (plan && plan.subject) || '',
+      review: (plan && plan.review) || [],
+      beatCount: (plan && plan.beats && plan.beats.length) || 0,
+      scriptSignature: scriptSignature(ws),
+      generatedAt: now()
+    };
+    pushTimeline(prod, 'shots', 'Shot list planned from the full script');
     var saved = updateProduction(productionId, { workspace: ws });
     return {
       ok: !!saved,
       production: saved && saved.production,
-      result: { shotCount: shots.length },
-      message: shots.length ? 'Shot list built from script' : 'No shots created'
+      result: {
+        shotCount: shots.length,
+        contentType: ws.shotPlan.contentType,
+        subject: ws.shotPlan.subject,
+        review: ws.shotPlan.review,
+        source: ws.shotPlan.source
+      },
+      message: 'Shot list planned from the full script'
+    };
+  }
+
+  /**
+   * Runs the semantic planner with the full project + production context.
+   * The planner reads the whole script before deciding any shot.
+   */
+  function planShotsFromScript(prod, ws, project) {
+    if (!global.PreShootShotPlanner || !global.PreShootShotPlanner.plan) {
+      return { error: 'planner_unavailable', shots: [] };
+    }
+    var body = getScriptPlainText(ws);
+    if (!String(body || '').trim()) return { error: 'no_script', shots: [] };
+    var separated = null;
+    try {
+      separated = separateScriptFromProduction(body);
+    } catch (e) {
+      separated = null;
+    }
+    var S = global.S || {};
+    var result = global.PreShootShotPlanner.plan({
+      script: { body: body, lines: (ws.script && ws.script.lines) || [] },
+      scriptBeats: separated ? spokenBeatsFromSeparated(separated) : null,
+      production: {
+        id: prod.id,
+        name: prod.name,
+        notes: prod.notes,
+        overview: ws.overview || {},
+        ideaSnapshot: prod.ideaSnapshot || null
+      },
+      project: project ? { id: project.id, name: project.name, description: project.notes || project.description || '' } : {},
+      assets: ws.assets || [],
+      creator: {
+        skillLevel: getSkillLevel(),
+        gear: S.gear || {},
+        gearText: creatorGearString(),
+        aesthetic: S.aesthetic || {}
+      }
+    });
+    if (result) result.source = 'planner';
+    return result;
+  }
+
+  /**
+   * Turns planner/Director shot objects into stored shots, relinks script
+   * lines through coverage, and carries over fields the user hand-edited.
+   */
+  function materializeShotPlan(plan, ws, opts) {
+    opts = opts || {};
+    var lines = (ws.script && ws.script.lines) || [];
+    var previous = Array.isArray(ws.shotList) ? ws.shotList : [];
+    var byCoverage = {};
+    previous.forEach(function (old) {
+      var key = coverageKey(old);
+      if (key && !byCoverage[key]) byCoverage[key] = old;
+    });
+
+    /* Clear stale links; coverage below rebuilds them. */
+    lines.forEach(function (line) {
+      line.shotId = null;
+      line.shotOrder = null;
+    });
+
+    var shots = plan.shots.map(function (raw, i) {
+      var coverage = resolveCoverageLines(raw, lines);
+      var candidate = createShot({
+        order: i + 1,
+        purpose: raw.title || raw.purpose || '',
+        title: raw.title || raw.purpose || '',
+        section: raw.section || '',
+        beatId: raw.beatId || null,
+        shotType: raw.shotType || '',
+        shotTypeLabel: raw.shotTypeLabel || '',
+        durationSec: typeof raw.durationSec === 'number' ? raw.durationSec : 3,
+        framing: raw.framing || '',
+        cameraAngle: raw.cameraAngle || '',
+        cameraMovement: raw.cameraMovement || '',
+        gear: raw.gear || creatorGearString(),
+        lighting: raw.lighting || '',
+        audio: raw.spoken || raw.audio || '',
+        notes: raw.notes || '',
+        subjectAction: raw.subjectAction || '',
+        visual: raw.visual || '',
+        visualPurpose: raw.visualPurpose || '',
+        shotPurpose: raw.shotPurpose || '',
+        location: raw.location || '',
+        assetSuggestion: raw.assetSuggestion || '',
+        beginnerTip: raw.beginnerTip || '',
+        advancedDetail: raw.advancedDetail || '',
+        scriptCoverage: coverage
+      });
+
+      /* Preserve hand-edited fields and the shot id when the same script
+       * content is covered again, so regeneration does not wipe user work. */
+      var old = byCoverage[coverageKey(candidate)];
+      if (old) {
+        candidate.id = old.id;
+        var edited = old.edited || {};
+        Object.keys(edited).forEach(function (field) {
+          if (!edited[field]) return;
+          if (old[field] == null || old[field] === '') return;
+          candidate[field] = old[field];
+        });
+        candidate.edited = edited;
+      }
+      return candidate;
+    });
+
+    /* Relink every covered script line to the shot that covers it. */
+    shots.forEach(function (shot) {
+      (shot.scriptCoverage || []).forEach(function (c) {
+        if (!c.lineId) return;
+        lines.forEach(function (line) {
+          if (line.id !== c.lineId) return;
+          if (!line.shotId) {
+            line.shotId = shot.id;
+            line.shotOrder = shot.order;
+          }
+        });
+      });
+    });
+
+    return shots;
+  }
+
+  /** Matches coverage text back to stored script lines. */
+  function resolveCoverageLines(raw, lines) {
+    var coverage = Array.isArray(raw.scriptCoverage) ? raw.scriptCoverage.slice() : [];
+    if (!coverage.length && raw.scriptLineId) {
+      coverage = [{ lineId: raw.scriptLineId, text: '' }];
+    }
+    return coverage.map(function (c) {
+      var text = String((c && c.text) || '').trim();
+      var lineId = (c && (c.lineId || c.scriptLineId)) || null;
+      if (!lineId && text) {
+        for (var i = 0; i < lines.length; i++) {
+          var lt = String(lines[i].text || '');
+          if (lt && (lt.indexOf(text) >= 0 || text.indexOf(lt) >= 0)) {
+            lineId = lines[i].id;
+            break;
+          }
+        }
+      }
+      return {
+        lineId: lineId,
+        start: c && typeof c.start === 'number' ? c.start : null,
+        end: c && typeof c.end === 'number' ? c.end : null,
+        text: text
+      };
+    });
+  }
+
+  function coverageKey(shot) {
+    var cov = (shot && shot.scriptCoverage) || [];
+    var text = cov
+      .map(function (c) {
+        return String((c && c.text) || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      })
+      .filter(Boolean)
+      .join('|');
+    if (text) return text;
+    return shot && shot.scriptLineId ? 'line:' + shot.scriptLineId : '';
+  }
+
+  /** Cheap script fingerprint so the UI can tell when a plan went stale. */
+  function scriptSignature(ws) {
+    var text = String(getScriptPlainText(ws) || '').replace(/\s+/g, ' ').trim();
+    var hash = 0;
+    for (var i = 0; i < text.length; i++) {
+      hash = (hash * 31 + text.charCodeAt(i)) | 0;
+    }
+    return text.length + ':' + hash;
+  }
+
+  /**
+   * Validates a Director-supplied shot plan before it can touch stored data.
+   * Rejects plans that belong to another production, cover script the user
+   * does not have, or are structurally malformed.
+   */
+  function validateShotPlan(plan, productionId) {
+    var errors = [];
+    if (!plan || typeof plan !== 'object') return { ok: false, errors: ['not_an_object'] };
+    if (plan.productionId && productionId && String(plan.productionId) !== String(productionId)) {
+      return { ok: false, errors: ['wrong_production'] };
+    }
+    var found = findProduction(getStore(), productionId);
+    if (!found) return { ok: false, errors: ['production_not_found'] };
+    if (plan.projectId && String(plan.projectId) !== String(found.project.id)) {
+      return { ok: false, errors: ['wrong_project'] };
+    }
+    var prod = ensureWorkspace(found.production);
+    var scriptText = String(getScriptPlainText(prod.workspace) || '').replace(/\s+/g, ' ').toLowerCase();
+
+    var raw = Array.isArray(plan.shots) ? plan.shots : [];
+    if (!raw.length) return { ok: false, errors: ['no_shots'] };
+    if (raw.length > 60) return { ok: false, errors: ['too_many_shots'] };
+
+    var seenIds = {};
+    var shots = [];
+    raw.forEach(function (s, i) {
+      if (!s || typeof s !== 'object') {
+        errors.push('shot_' + i + '_malformed');
+        return;
+      }
+      var title = String(s.title || s.purpose || '').trim();
+      if (!title) {
+        errors.push('shot_' + i + '_no_title');
+        return;
+      }
+      if (/^(beat|shot|setup|section)\s*\d*$/i.test(title)) {
+        errors.push('shot_' + i + '_generic_title');
+        return;
+      }
+      if (s.id) {
+        if (seenIds[s.id]) {
+          errors.push('shot_' + i + '_duplicate_id');
+          return;
+        }
+        seenIds[s.id] = true;
+      }
+      var dur = Number(s.durationSec);
+      if (!isFinite(dur) || dur <= 0 || dur > 120) dur = 3;
+
+      /* Coverage must quote script the production actually has. */
+      var coverage = (Array.isArray(s.scriptCoverage) ? s.scriptCoverage : []).filter(function (c) {
+        var text = String((c && c.text) || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (!text) return !!(c && c.lineId);
+        if (!scriptText) return false;
+        return scriptText.indexOf(text.slice(0, Math.min(60, text.length))) >= 0;
+      });
+      if (scriptText && !coverage.length) {
+        errors.push('shot_' + i + '_coverage_not_in_script');
+        return;
+      }
+
+      shots.push({
+        title: title,
+        section: String(s.section || '').slice(0, 40),
+        beatId: s.beatId ? String(s.beatId).slice(0, 40) : null,
+        shotType: String(s.shotType || '').slice(0, 30),
+        shotTypeLabel: String(s.shotTypeLabel || '').slice(0, 30),
+        durationSec: Math.round(dur),
+        framing: String(s.framing || '').slice(0, 160),
+        cameraMovement: String(s.cameraMovement || '').slice(0, 160),
+        cameraAngle: String(s.cameraAngle || '').slice(0, 80),
+        gear: String(s.gear || '').slice(0, 160),
+        lighting: String(s.lighting || '').slice(0, 200),
+        spoken: String(s.spoken || s.audio || '').slice(0, 600),
+        subjectAction: String(s.subjectAction || '').slice(0, 400),
+        visual: String(s.visual || '').slice(0, 600),
+        visualPurpose: String(s.visualPurpose || s.purposeNote || '').slice(0, 400),
+        shotPurpose: String(s.shotPurpose || '').slice(0, 60),
+        location: String(s.location || '').slice(0, 120),
+        assetSuggestion: String(s.assetSuggestion || '').slice(0, 160),
+        notes: String(s.notes || '').slice(0, 600),
+        scriptCoverage: coverage
+      });
+    });
+
+    if (!shots.length) return { ok: false, errors: errors.length ? errors : ['no_valid_shots'] };
+    /* A partly malformed plan is rejected rather than silently thinned. */
+    if (errors.length > Math.max(1, Math.floor(raw.length / 4))) {
+      return { ok: false, errors: errors };
+    }
+
+    return {
+      ok: true,
+      errors: errors,
+      plan: {
+        source: 'director',
+        contentType: String(plan.contentType || '').slice(0, 40),
+        subject: String(plan.subject || '').slice(0, 80),
+        review: Array.isArray(plan.review) ? plan.review.slice(0, 20) : [],
+        beats: Array.isArray(plan.beats) ? plan.beats.slice(0, 60) : [],
+        shots: shots
+      }
+    };
+  }
+
+  /** Applies a Director shot plan, falling back to the local planner. */
+  function applyShotPlan(productionId, plan) {
+    var check = validateShotPlan(plan, productionId);
+    if (!check.ok) {
+      var fallback = buildShotListFromScript(productionId, { allowStarter: false });
+      if (fallback.ok) {
+        fallback.result = fallback.result || {};
+        fallback.result.rejectedDirectorPlan = check.errors;
+        fallback.message = 'Director plan was rejected; used PreShoot’s own beat planner instead.';
+      }
+      return fallback;
+    }
+    return buildShotListFromScript(productionId, { allowStarter: false, plan: check.plan });
+  }
+
+  /**
+   * Deletes shots by id. This is the single deletion mechanism: the UI's
+   * single-shot delete calls it with one id and bulk delete calls it with
+   * many, so both behave identically.
+   *
+   * Only ids that belong to this production are touched. Ids that are not
+   * found are reported back as failures rather than silently ignored.
+   */
+  function deleteShots(productionId, shotIds) {
+    var ids = (Array.isArray(shotIds) ? shotIds : [shotIds]).filter(Boolean).map(String);
+    if (!ids.length) return { ok: false, error: 'missing_fields', deleted: [], failed: [] };
+    var found = findProduction(getStore(), productionId);
+    if (!found) return { ok: false, error: 'not_found', deleted: [], failed: ids };
+    var prod = ensureWorkspace(found.production);
+    var ws = prod.workspace;
+    var list = Array.isArray(ws.shotList) ? ws.shotList : [];
+
+    var wanted = {};
+    ids.forEach(function (id) {
+      wanted[id] = true;
+    });
+    var present = {};
+    list.forEach(function (s) {
+      if (s && wanted[String(s.id)]) present[String(s.id)] = true;
+    });
+    var deleted = ids.filter(function (id) {
+      return present[id];
+    });
+    var failed = ids.filter(function (id) {
+      return !present[id];
+    });
+    if (!deleted.length) {
+      return {
+        ok: false,
+        error: 'not_found',
+        deleted: [],
+        failed: failed,
+        message: 'Those shots were already gone. Nothing was deleted.'
+      };
+    }
+
+    ws.shotList = list.filter(function (s) {
+      return !(s && present[String(s.id)]);
+    });
+    ws.shotList.forEach(function (s, i) {
+      s.order = i + 1;
+    });
+
+    /* Unlink script lines that pointed at a deleted shot, then re-point the
+     * survivors so shot numbers shown on script cards stay truthful. */
+    var lines = (ws.script && ws.script.lines) || [];
+    lines.forEach(function (line) {
+      if (line.shotId && present[String(line.shotId)]) {
+        line.shotId = null;
+        line.shotOrder = null;
+      }
+    });
+    ws.shotList.forEach(function (shot) {
+      (shot.scriptCoverage || []).forEach(function (c) {
+        if (!c.lineId) return;
+        lines.forEach(function (line) {
+          if (line.id === c.lineId) {
+            line.shotId = shot.id;
+            line.shotOrder = shot.order;
+          }
+        });
+      });
+      if (shot.scriptLineId) {
+        lines.forEach(function (line) {
+          if (line.id === shot.scriptLineId && !line.shotId) {
+            line.shotId = shot.id;
+            line.shotOrder = shot.order;
+          }
+        });
+      }
+    });
+
+    var saved = updateProduction(productionId, { workspace: ws });
+    if (!saved) {
+      return {
+        ok: false,
+        error: 'save_failed',
+        deleted: [],
+        failed: ids,
+        message: 'Could not save the change. Nothing was deleted.'
+      };
+    }
+    return {
+      ok: true,
+      deleted: deleted,
+      failed: failed,
+      remaining: ws.shotList.length,
+      production: saved.production,
+      message:
+        (deleted.length === 1 ? 'Shot deleted' : deleted.length + ' shots deleted') +
+        (failed.length ? '. ' + failed.length + ' could not be deleted.' : '')
+    };
+  }
+
+  /** Same contract as deleteShots, for script lines. */
+  function deleteScriptLines(productionId, lineIds) {
+    var ids = (Array.isArray(lineIds) ? lineIds : [lineIds]).filter(Boolean).map(String);
+    if (!ids.length) return { ok: false, error: 'missing_fields', deleted: [], failed: [] };
+    var found = findProduction(getStore(), productionId);
+    if (!found) return { ok: false, error: 'not_found', deleted: [], failed: ids };
+    var prod = ensureWorkspace(found.production);
+    var ws = prod.workspace;
+    ws.script = ws.script || { body: '', lines: [] };
+    var lines = Array.isArray(ws.script.lines) ? ws.script.lines : [];
+
+    var present = {};
+    lines.forEach(function (l) {
+      if (l && ids.indexOf(String(l.id)) >= 0) present[String(l.id)] = true;
+    });
+    var deleted = ids.filter(function (id) {
+      return present[id];
+    });
+    var failed = ids.filter(function (id) {
+      return !present[id];
+    });
+    if (!deleted.length) {
+      return {
+        ok: false,
+        error: 'not_found',
+        deleted: [],
+        failed: failed,
+        message: 'Those lines were already gone. Nothing was deleted.'
+      };
+    }
+
+    ws.script.lines = lines.filter(function (l) {
+      return !(l && present[String(l.id)]);
+    });
+    ws.script.body = ws.script.lines
+      .map(function (l) {
+        return l.text;
+      })
+      .join('\n\n');
+
+    /* Drop coverage that pointed at deleted lines. Shots are kept: the user
+     * deleted script, not shots, and an orphaned shot is still filmable. */
+    (ws.shotList || []).forEach(function (shot) {
+      if (Array.isArray(shot.scriptCoverage) && shot.scriptCoverage.length) {
+        shot.scriptCoverage = shot.scriptCoverage.filter(function (c) {
+          return !(c && c.lineId && present[String(c.lineId)]);
+        });
+      }
+      if (shot.scriptLineId && present[String(shot.scriptLineId)]) {
+        shot.scriptLineId = shot.scriptCoverage && shot.scriptCoverage.length ? shot.scriptCoverage[0].lineId : null;
+      }
+    });
+
+    var saved = updateProduction(productionId, { workspace: ws });
+    if (!saved) {
+      return {
+        ok: false,
+        error: 'save_failed',
+        deleted: [],
+        failed: ids,
+        message: 'Could not save the change. Nothing was deleted.'
+      };
+    }
+    return {
+      ok: true,
+      deleted: deleted,
+      failed: failed,
+      remaining: ws.script.lines.length,
+      production: saved.production,
+      message:
+        (deleted.length === 1 ? 'Line deleted' : deleted.length + ' lines deleted') +
+        (failed.length ? '. ' + failed.length + ' could not be deleted.' : '')
     };
   }
 
@@ -2408,6 +2928,8 @@
     update_status: { ready: true, phase: 5, mutates: true },
     generate_sections: { ready: true, phase: 5, mutates: true },
     rebuild_shot_list: { ready: true, phase: 5, mutates: true },
+    apply_shot_plan: { ready: true, phase: 5, mutates: true },
+    delete_shots: { ready: true, phase: 5, mutates: true },
     update_script: { ready: true, phase: 5, mutates: true },
     add_reference: { ready: true, phase: 5, mutates: true },
     remove_reference: { ready: true, phase: 5, mutates: true },
@@ -2524,6 +3046,13 @@
     if (action === 'generate_sections') return 'Fill missing production sections from the linked idea? Existing script will not be overwritten.';
     if (action === 'rebuild_shot_list')
       return 'Rebuild the shot list from the current script? Existing shots will be replaced (script stays).';
+    if (action === 'apply_shot_plan')
+      return 'Apply Director’s shot plan? Your hand-edited shot fields are kept where the script still matches.';
+    if (action === 'delete_shots') {
+      var n = (payload.shotIds || []).length;
+      if (n === 1) return 'Delete this shot?';
+      return 'Delete ' + n + ' shots? This will permanently remove the selected shots from this shot list.';
+    }
     if (action === 'link_scan') return 'Link the current scan to this production?';
     if (action === 'unlink_scan') return 'Unlink the scan from this production?';
     if (action === 'update_script') {
@@ -2627,12 +3156,38 @@
       }
       if (action === 'rebuild_shot_list') {
         if (!payload.productionId) return { ok: false, error: 'missing_fields' };
-        var rebuilt = buildShotListFromScript(payload.productionId, { allowStarter: true });
+        var rebuilt = payload.plan
+          ? applyShotPlan(payload.productionId, payload.plan)
+          : buildShotListFromScript(payload.productionId, { allowStarter: true });
         return {
           ok: !!rebuilt.ok,
           error: rebuilt.error,
           result: rebuilt.result,
           message: rebuilt.message || 'Shot list rebuilt',
+          openSection: 'shots'
+        };
+      }
+      if (action === 'apply_shot_plan') {
+        if (!payload.productionId) return { ok: false, error: 'missing_fields' };
+        var applied = applyShotPlan(payload.productionId, payload.plan || null);
+        return {
+          ok: !!applied.ok,
+          error: applied.error,
+          result: applied.result,
+          message: applied.message || 'Shot list updated',
+          openSection: 'shots'
+        };
+      }
+      if (action === 'delete_shots') {
+        if (!payload.productionId || !Array.isArray(payload.shotIds) || !payload.shotIds.length) {
+          return { ok: false, error: 'missing_fields' };
+        }
+        var bulk = deleteShots(payload.productionId, payload.shotIds);
+        return {
+          ok: !!bulk.ok,
+          error: bulk.error,
+          result: bulk,
+          message: bulk.message,
           openSection: 'shots'
         };
       }
@@ -2958,6 +3513,21 @@
     starterShotListFromIdea: starterShotListFromIdea,
     buildWorkspaceFromIdea: buildWorkspaceFromIdea,
     buildShotListFromScript: buildShotListFromScript,
+    planShotsFromScript: function (productionId) {
+      var found = findProduction(getStore(), productionId);
+      if (!found) return null;
+      var prod = ensureWorkspace(found.production);
+      return planShotsFromScript(prod, prod.workspace, found.project);
+    },
+    validateShotPlan: validateShotPlan,
+    applyShotPlan: applyShotPlan,
+    scriptSignature: function (productionId) {
+      var found = findProduction(getStore(), productionId);
+      if (!found) return '';
+      return scriptSignature(ensureWorkspace(found.production).workspace);
+    },
+    deleteShots: deleteShots,
+    deleteScriptLines: deleteScriptLines,
     hasRealScript: hasRealScript,
     separateScriptFromProduction: separateScriptFromProduction,
     scriptContainsProductionLeak: scriptContainsProductionLeak,
@@ -2998,7 +3568,19 @@
         phase: 5,
         skillLevel: skill,
         studio: exportForSync(),
-        project: found ? { id: found.project.id, name: found.project.name } : null,
+        /* Project brief travels with the focus: Director was previously given
+         * only the project id and name, so project-level goals never reached
+         * the model when a production was open. */
+        project: found
+          ? {
+              id: found.project.id,
+              name: found.project.name,
+              description: found.project.notes || found.project.description || '',
+              goal: found.project.goal || '',
+              type: found.project.type || found.project.kind || '',
+              productionCount: (found.project.productions || []).length
+            }
+          : null,
         production: prod
           ? {
               id: prod.id,
@@ -3014,6 +3596,11 @@
               scriptLineCount: lines.length,
               shotList: shots,
               scriptLines: lines,
+              /* The whole script, so shot planning can read it end to end
+               * instead of guessing from a truncated line sample. */
+              scriptBody: getScriptPlainText(prod.workspace),
+              scriptSignature: scriptSignature(prod.workspace),
+              shotPlan: prod.workspace.shotPlan || null,
               references: prod.workspace.references,
               assets: (prod.workspace.assets || []).slice(0, 16).map(function (a) {
                 return {
