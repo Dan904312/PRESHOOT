@@ -368,6 +368,8 @@
       PreShootWorkspaceUI.closeStudioMenu();
     }
 
+    restoreNavContext();
+
     var view = (global.S && global.S.studioView) || { mode: 'list' };
     if (view.mode === 'project' && view.projectId) {
       renderProjectDetail(root, view.projectId);
@@ -521,22 +523,265 @@
     markStudioPainted();
   }
 
-  function openProject(projectId) {
-    if (!global.S) return;
-    if (global.PreShootFirstRun && PreShootFirstRun.markStudioOpened) PreShootFirstRun.markStudioOpened();
-    var keepProd = null;
-    if (global.S.activeProductionId && Studio() && Studio().findProduction) {
-      var cur = Studio().findProduction(global.S.activeProductionId);
-      if (cur && cur.project && String(cur.project.id) === String(projectId)) {
-        keepProd = global.S.activeProductionId;
+  /* ──────────────────────────────────────────────────────────────
+   * Studio navigation — single writer + single back handler.
+   *
+   * S.studioView is the only navigation state. Every write goes
+   * through setStudioView(), which guarantees the parent link
+   * (projectId) is present and owned by the open production, so
+   * "back" is always hierarchical: production -> project -> Studio.
+   * A compact copy is mirrored to storage so a refresh or a direct
+   * open can rebuild the same parent chain.
+   * ────────────────────────────────────────────────────────────── */
+
+  var NAV_KEY = 'studio_nav';
+  var _navRestored = false;
+
+  function navScope() {
+    var ctx =
+      global.PreShootWorkspace && PreShootWorkspace.getContext
+        ? PreShootWorkspace.getContext()
+        : null;
+    if (ctx && ctx.isShared && ctx.activeWorkspaceId) return 'ws:' + ctx.activeWorkspaceId;
+    return 'personal';
+  }
+
+  /* True while the store cannot answer lookups (workspace switch or
+   * shared document not loaded yet). Navigation must not "repair"
+   * itself against an empty store — that is what used to drop users
+   * on Studio root at random. */
+  function studioDataTransient() {
+    var W = global.PreShootWorkspace;
+    if (!W) return false;
+    try {
+      var ctx = W.getContext ? W.getContext() : null;
+      if (ctx && ctx.switching) return true;
+      if (ctx && ctx.isShared) {
+        var doc = W.getSharedDocument ? W.getSharedDocument() : null;
+        if (!doc || !Array.isArray(doc.projects)) return true;
       }
+    } catch (e) {}
+    return false;
+  }
+
+  function readNavCtx() {
+    var raw = null;
+    try {
+      if (typeof global.gs === 'function') raw = global.gs(NAV_KEY, null);
+      else if (global.localStorage) raw = JSON.parse(global.localStorage.getItem('scout_' + NAV_KEY));
+    } catch (e) {
+      return null;
     }
-    global.S.studioView = { mode: 'project', projectId: projectId };
-    global.S.activeProductionId = keepProd;
+    if (!raw || typeof raw !== 'object') return null;
+    if (raw.scope !== navScope()) return null;
+    return raw;
+  }
+
+  function writeNavCtx(view) {
+    var payload = {
+      scope: navScope(),
+      mode: view.mode || 'list',
+      projectId: view.projectId || null,
+      productionId: view.productionId || null,
+      section: view.section || null,
+      at: Date.now()
+    };
+    try {
+      if (typeof global.ss === 'function') global.ss(NAV_KEY, payload);
+      else if (global.localStorage) {
+        global.localStorage.setItem('scout_' + NAV_KEY, JSON.stringify(payload));
+      }
+    } catch (e) {}
+  }
+
+  /* Parent project of a production, resolved from data first and from
+   * the stored nav context only when the store cannot answer. */
+  function parentProjectIdFor(productionId, hintProjectId) {
+    if (!productionId) return hintProjectId || null;
+    try {
+      var found = Studio() && Studio().findProduction ? Studio().findProduction(productionId) : null;
+      if (found && found.project) return found.project.id;
+    } catch (e) {}
+    var stored = readNavCtx();
+    if (stored && stored.productionId === productionId && stored.projectId) return stored.projectId;
+    return hintProjectId || null;
+  }
+
+  function productionBelongsTo(projectId, productionId) {
+    if (!projectId || !productionId) return false;
+    try {
+      var found = Studio() && Studio().findProduction ? Studio().findProduction(productionId) : null;
+      if (!found || !found.project) return false;
+      return String(found.project.id) === String(projectId);
+    } catch (e) {}
+    return false;
+  }
+
+  function navWarn(message, detail) {
+    try {
+      if (global.console && console.warn) console.warn('[studio-nav] ' + message, detail || '');
+    } catch (e) {}
+  }
+
+  /* Normalizes a partial navigation patch into a complete view. */
+  function resolveStudioView(patch) {
+    patch = patch || {};
+    var cur = (global.S && global.S.studioView) || {};
+    var mode = patch.mode || cur.mode || 'list';
+    var view = { mode: mode, projectId: null, productionId: null, section: null };
+
+    if (mode === 'production') {
+      view.productionId =
+        patch.productionId !== undefined ? patch.productionId : cur.productionId || null;
+      view.section =
+        patch.section !== undefined
+          ? patch.section || 'overview'
+          : cur.section || 'overview';
+      var hint =
+        patch.projectId !== undefined ? patch.projectId : cur.projectId || null;
+      /* Never trust a projectId carried over from another project. */
+      if (hint && !productionBelongsTo(hint, view.productionId) && !studioDataTransient()) {
+        hint = null;
+      }
+      view.projectId = parentProjectIdFor(view.productionId, hint);
+      if (!view.productionId) {
+        navWarn('production view without productionId — falling back to parent');
+        return view.projectId
+          ? { mode: 'project', projectId: view.projectId, productionId: null, section: null }
+          : { mode: 'list', projectId: null, productionId: null, section: null };
+      }
+      if (!view.projectId) navWarn('no parent project resolved for production', view.productionId);
+      return view;
+    }
+
+    if (mode === 'project') {
+      view.projectId = patch.projectId !== undefined ? patch.projectId : cur.projectId || null;
+      if (!view.projectId) {
+        navWarn('project view without projectId — falling back to Studio root');
+        return { mode: 'list', projectId: null, productionId: null, section: null };
+      }
+      return view;
+    }
+
+    return { mode: 'list', projectId: null, productionId: null, section: null };
+  }
+
+  /**
+   * The only place S.studioView is assigned.
+   * opts.silent skips the repaint (callers that repaint themselves).
+   */
+  function setStudioView(patch, opts) {
+    if (!global.S) return null;
+    opts = opts || {};
+    var view = resolveStudioView(patch);
+    global.S.studioView = view;
+    if (view.mode === 'production') {
+      global.S.activeProductionId = view.productionId;
+    } else if (view.mode === 'project') {
+      /* Keep the active production only when it lives in this project. */
+      global.S.activeProductionId = productionBelongsTo(
+        view.projectId,
+        global.S.activeProductionId
+      )
+        ? global.S.activeProductionId
+        : null;
+    } else {
+      global.S.activeProductionId = null;
+    }
+    writeNavCtx(view);
     if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
       PreShootWorkspaceRealtime.scheduleTrack();
     }
-    renderStudio();
+    if (!opts.silent) renderStudio();
+    return view;
+  }
+
+  /* Where the current back action goes, and what it should be called. */
+  function backTarget() {
+    if (_scriptFsProductionId) {
+      return { kind: 'section', label: 'Back to production', ariaLabel: 'Back to production' };
+    }
+    var view = (global.S && global.S.studioView) || {};
+    if (view.mode === 'production') {
+      var projectId = parentProjectIdFor(view.productionId, view.projectId);
+      if (projectId) {
+        return { kind: 'project', projectId: projectId, label: 'Back to project', ariaLabel: 'Back to project' };
+      }
+      return { kind: 'list', label: 'Back to Studio', ariaLabel: 'Back to Studio' };
+    }
+    if (view.mode === 'project') {
+      return { kind: 'list', label: 'Back to Studio', ariaLabel: 'Back to Studio' };
+    }
+    return { kind: 'list', label: 'Studio', ariaLabel: 'Back to Studio' };
+  }
+
+  /** Every Studio back affordance routes here. */
+  function studioBack() {
+    if (_scriptFsProductionId) {
+      closeScriptFullscreen();
+      return 'section';
+    }
+    var target = backTarget();
+    if (target.kind === 'project' && target.projectId) {
+      openProject(target.projectId);
+      return 'project';
+    }
+    if (target.kind !== 'list') navWarn('unexpected back target', target.kind);
+    backToList();
+    return 'list';
+  }
+
+  /**
+   * Rebuild the parent chain after a reload or a direct open.
+   * Only runs when nothing is open yet, and only for entities that
+   * still exist in the active workspace.
+   */
+  /* Workspace switches intentionally land on Studio root — don't let the
+   * stored context pull the user back into the previous view. */
+  function suspendNavRestore() {
+    _navRestored = true;
+  }
+
+  function restoreNavContext() {
+    if (_navRestored || !global.S) return null;
+    var cur = global.S.studioView || {};
+    if ((cur.mode === 'production' && cur.productionId) || (cur.mode === 'project' && cur.projectId)) {
+      _navRestored = true;
+      return null;
+    }
+    if (studioDataTransient()) return null;
+    _navRestored = true;
+    var stored = readNavCtx();
+    if (!stored) return null;
+    if (stored.mode === 'production' && stored.productionId) {
+      if (productionBelongsTo(parentProjectIdFor(stored.productionId, stored.projectId), stored.productionId)) {
+        return setStudioView(
+          {
+            mode: 'production',
+            productionId: stored.productionId,
+            section: stored.section || 'overview'
+          },
+          { silent: true }
+        );
+      }
+      /* Production is gone — fall back to its project, never to root. */
+      if (stored.projectId && Studio() && Studio().findProject && Studio().findProject(stored.projectId)) {
+        return setStudioView({ mode: 'project', projectId: stored.projectId }, { silent: true });
+      }
+      return null;
+    }
+    if (stored.mode === 'project' && stored.projectId) {
+      if (Studio() && Studio().findProject && Studio().findProject(stored.projectId)) {
+        return setStudioView({ mode: 'project', projectId: stored.projectId }, { silent: true });
+      }
+    }
+    return null;
+  }
+
+  function openProject(projectId) {
+    if (!global.S) return;
+    if (global.PreShootFirstRun && PreShootFirstRun.markStudioOpened) PreShootFirstRun.markStudioOpened();
+    setStudioView({ mode: 'project', projectId: projectId });
   }
 
   function openProduction(productionId) {
@@ -544,41 +789,26 @@
     if (global.PreShootFirstRun && PreShootFirstRun.markStudioOpened) PreShootFirstRun.markStudioOpened();
     if (global.PreShootFirstRun && PreShootFirstRun.dismissTip) PreShootFirstRun.dismissTip('studio');
     Studio().setContinueWorking(productionId);
-    var projectId = null;
-    try {
-      var found = Studio().findProduction(productionId);
-      if (found && found.project) projectId = found.project.id;
-    } catch (e) {}
-    global.S.studioView = {
-      mode: 'production',
-      projectId: projectId,
-      productionId: productionId,
-      section: 'overview'
-    };
-    global.S.activeProductionId = productionId;
-    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
-      PreShootWorkspaceRealtime.scheduleTrack();
-    }
-    if (typeof global.goTab === 'function' && (!global.S || global.S.tab !== 'studio')) {
+    setStudioView(
+      { mode: 'production', productionId: productionId, section: 'overview' },
+      { silent: typeof global.goTab === 'function' && global.S.tab !== 'studio' }
+    );
+    if (typeof global.goTab === 'function' && global.S.tab !== 'studio') {
       global.goTab('studio');
-    } else {
-      renderStudio();
     }
   }
 
   function backToList() {
     if (!global.S) return;
-    global.S.studioView = { mode: 'list' };
-    global.S.activeProductionId = null;
-    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
-      PreShootWorkspaceRealtime.scheduleTrack();
-    }
-    renderStudio();
+    setStudioView({ mode: 'list' });
   }
 
   function renderProjectDetail(root, projectId) {
     var project = Studio().findProject(projectId);
     if (!project) {
+      /* Keep the user where they are while the store is mid-swap. */
+      if (studioDataTransient()) return;
+      navWarn('project missing — returning to Studio root', projectId);
       backToList();
       return;
     }
@@ -598,7 +828,7 @@
     ]);
     h += '<div class="studio-detail-hd">';
     h +=
-      '<button type="button" class="studio-back" onclick="PreShootStudioUI.backToList()" aria-label="Back to Studio">‹</button>';
+      '<button type="button" class="studio-back" onclick="PreShootStudioUI.studioBack()" aria-label="Back to Studio" title="Back to Studio">‹</button>';
     h += '<div class="studio-hd-text"><div class="studio-title">' + esc(project.name) + '</div>';
     h +=
       '<div class="studio-sub">' +
@@ -2788,10 +3018,10 @@
         refreshScriptFullscreenIfOpen(payload.productionId);
       }
       if (action === 'rebuild_shot_list' && payload.productionId && global.S) {
-        global.S.studioView = global.S.studioView || {};
-        global.S.studioView.mode = 'production';
-        global.S.studioView.productionId = payload.productionId;
-        global.S.studioView.section = 'shots';
+        setStudioView(
+          { mode: 'production', productionId: payload.productionId, section: 'shots' },
+          { silent: true }
+        );
       }
       var openId =
         (result.open &&
@@ -3171,7 +3401,7 @@
           setDirectorGoState('done');
           setDirectorStatus('done', conciseDoneMessage(result, 'Done.'));
           if (result.section && global.S && global.S.studioView && global.S.studioView.productionId) {
-            global.S.studioView.section = result.section;
+            setStudioView({ mode: 'production', section: result.section }, { silent: true });
           }
           if (
             result.open &&
@@ -3224,10 +3454,7 @@
         return;
       }
       if (global.S) {
-        global.S.studioView = global.S.studioView || {};
-        global.S.studioView.mode = 'production';
-        global.S.studioView.productionId = pid;
-        global.S.studioView.section = 'refs';
+        setStudioView({ mode: 'production', productionId: pid, section: 'refs' }, { silent: true });
       }
       renderStudio();
       setDirectorStatus('thinking', 'Loading references…');
@@ -3670,11 +3897,8 @@
 
   function openDirectorForProduction(productionId) {
     /* Stay in Studio — focus the in-page Director command bar */
-    if (global.S) global.S.activeProductionId = productionId;
     if (global.S) {
-      global.S.studioView = global.S.studioView || {};
-      global.S.studioView.mode = 'production';
-      global.S.studioView.productionId = productionId;
+      setStudioView({ mode: 'production', productionId: productionId }, { silent: true });
     }
     renderStudio();
     setTimeout(function () {
@@ -3695,6 +3919,14 @@
   function renderProductionDetail(root, productionId) {
     var found = Studio().findProduction(productionId);
     if (!found) {
+      /* Keep the user where they are while the store is mid-swap. */
+      if (studioDataTransient()) return;
+      var parentId = parentProjectIdFor(productionId, global.S && global.S.studioView && global.S.studioView.projectId);
+      navWarn('production missing — falling back to parent', productionId);
+      if (parentId && Studio().findProject && Studio().findProject(parentId)) {
+        openProject(parentId);
+        return;
+      }
       backToList();
       return;
     }
@@ -3727,10 +3959,13 @@
     h += '<div class="st-now-t">' + esc(now.t) + '</div>';
     h += '<div class="st-now-n">' + esc(now.n) + '</div></div>';
     h += '<div class="studio-detail-hd">';
+    var backLbl = 'Back to ' + project.name;
     h +=
-      '<button type="button" class="studio-back" onclick="PreShootStudioUI.openProject(\'' +
-      esc(project.id) +
-      '\')" aria-label="Back">‹</button>';
+      '<button type="button" class="studio-back" onclick="PreShootStudioUI.studioBack()" aria-label="' +
+      esc(backLbl) +
+      '" title="' +
+      esc(backLbl) +
+      '">‹</button>';
     h += '<div class="studio-hd-text">';
     h += '<div class="studio-eyebrow">' + esc(project.name) + '</div>';
     h += '<div class="studio-title">' + esc(prod.name) + '</div>';
@@ -3881,22 +4116,11 @@
 
   function setProdSection(productionId, section) {
     if (!global.S) return;
-    var projectId =
-      (global.S.studioView && global.S.studioView.projectId) || null;
-    try {
-      var found = Studio().findProduction(productionId);
-      if (found && found.project) projectId = found.project.id;
-    } catch (e) {}
-    global.S.studioView = {
+    setStudioView({
       mode: 'production',
-      projectId: projectId,
       productionId: productionId,
       section: section || 'overview'
-    };
-    if (global.PreShootWorkspaceRealtime && PreShootWorkspaceRealtime.scheduleTrack) {
-      PreShootWorkspaceRealtime.scheduleTrack();
-    }
-    renderStudio();
+    });
   }
 
   function saveWorkspaceField(productionId, group, field, value) {
@@ -4019,11 +4243,10 @@
       : '';
     _scriptFsProductionId = productionId;
     if (global.S) {
-      global.S.activeProductionId = productionId;
-      global.S.studioView = global.S.studioView || {};
-      global.S.studioView.mode = 'production';
-      global.S.studioView.productionId = productionId;
-      global.S.studioView.section = 'script';
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'script' },
+        { silent: true }
+      );
     }
     var ov = ensureScriptFullscreen();
     var ta = document.getElementById('script-fs-input');
@@ -4054,8 +4277,8 @@
     var pid = _scriptFsProductionId;
     _scriptFsProductionId = null;
     if (pid) {
-      if (global.S && global.S.studioView) global.S.studioView.section = 'script';
-      renderStudio();
+      /* Closing the editor returns to this production's Script tab. */
+      setStudioView({ mode: 'production', productionId: pid, section: 'script' });
     }
   }
 
@@ -4187,11 +4410,10 @@
     var map = ensureExpandedMap(productionId);
     map[shotId] = !map[shotId];
     if (global.S) {
-      global.S.studioView = {
-        mode: 'production',
-        productionId: productionId,
-        section: 'shots'
-      };
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'shots' },
+        { silent: true }
+      );
     }
     renderStudio();
   }
@@ -4235,7 +4457,10 @@
       });
     }
     if (global.S) {
-      global.S.studioView = { mode: 'production', productionId: productionId, section: 'shots' };
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'shots' },
+        { silent: true }
+      );
     }
     renderStudio();
   }
@@ -4269,7 +4494,10 @@
       });
     }
     if (global.S) {
-      global.S.studioView = { mode: 'production', productionId: productionId, section: 'script' };
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'script' },
+        { silent: true }
+      );
     }
     renderStudio();
   }
@@ -4394,9 +4622,10 @@
       'Goal: ' + (ov.goal || '') + '\n' +
       'Production notes: ' + String(prod.notes || '').slice(0, 160);
     if (global.S) {
-      global.S.studioView = global.S.studioView || {};
-      global.S.studioView.productionId = productionId;
-      global.S.studioView.section = 'script';
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'script' },
+        { silent: true }
+      );
     }
     requestScriptAiEdit({ productionId: productionId, mode: 'replace', message: prompt });
     return true;
@@ -4417,7 +4646,12 @@
     var ws = prod.workspace || {};
     if (!Studio().hasRealScript(ws, prod.ideaSnapshot || {})) {
       toast('Write or generate a script first');
-      if (global.S && global.S.studioView) global.S.studioView.section = 'script';
+      if (global.S) {
+        setStudioView(
+          { mode: 'production', productionId: productionId, section: 'script' },
+          { silent: true }
+        );
+      }
       renderStudio();
       return false;
     }
@@ -4433,7 +4667,12 @@
     }
     toast('Shot list built from script');
     noteStreak('shotlist');
-    if (global.S && global.S.studioView) global.S.studioView.section = 'shots';
+    if (global.S) {
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'shots' },
+        { silent: true }
+      );
+    }
     renderContinueCard();
     renderStudio();
     return true;
@@ -4490,11 +4729,14 @@
     Studio().buildWorkspaceFromIdea(productionId);
     toast('Workspace built from idea');
     if (global.S) {
-      global.S.studioView = {
-        mode: 'production',
-        productionId: productionId,
-        section: (global.S.studioView && global.S.studioView.section) || 'shots'
-      };
+      setStudioView(
+        {
+          mode: 'production',
+          productionId: productionId,
+          section: (global.S.studioView && global.S.studioView.section) || 'shots'
+        },
+        { silent: true }
+      );
     }
     renderContinueCard();
     renderStudio();
@@ -5001,7 +5243,10 @@
         if (status) status.textContent = 'Saved public stats from ' + (rec.platform || 'YouTube') + '.';
         toast('Performance record saved');
         if (global.S) {
-          global.S.studioView = { mode: 'production', productionId: productionId, section: 'performance' };
+          setStudioView(
+            { mode: 'production', productionId: productionId, section: 'performance' },
+            { silent: true }
+          );
         }
         renderStudio();
       })
@@ -5016,7 +5261,10 @@
     Studio().savePerformance(productionId, { pdfName: file.name });
     toast('PDF noted · ' + file.name);
     if (global.S) {
-      global.S.studioView = { mode: 'production', productionId: productionId, section: 'performance' };
+      setStudioView(
+        { mode: 'production', productionId: productionId, section: 'performance' },
+        { silent: true }
+      );
     }
     renderStudio();
   }
@@ -5714,11 +5962,6 @@
       return;
     }
     toast('Project deleted');
-    if (global.S && global.S.studioView) {
-      if (global.S.studioView.projectId === projectId) {
-        global.S.studioView = { mode: 'list' };
-      }
-    }
     backToList();
     /* Force immediate sync so other devices don’t resurrect the project */
     if (global.PreShootStudioSync && typeof global.PreShootStudioSync.pushNow === 'function') {
@@ -5809,6 +6052,13 @@
     openProject: openProject,
     openProduction: openProduction,
     backToList: backToList,
+    studioBack: studioBack,
+    backTarget: backTarget,
+    setStudioView: setStudioView,
+    resolveStudioView: resolveStudioView,
+    parentProjectIdFor: parentProjectIdFor,
+    restoreNavContext: restoreNavContext,
+    suspendNavRestore: suspendNavRestore,
     openCreateProject: openCreateProject,
     confirmCreateProject: confirmCreateProject,
     projectWizardNext: projectWizardNext,

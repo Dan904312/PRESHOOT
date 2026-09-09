@@ -358,6 +358,9 @@
       global.S.activeProductionId = null;
       global.__preshootDirectorProduction = null;
     }
+    if (global.PreShootStudioUI && global.PreShootStudioUI.suspendNavRestore) {
+      global.PreShootStudioUI.suspendNavRestore();
+    }
   }
 
   function refreshStudioUI() {
@@ -423,8 +426,14 @@
         global.S.activeProductionId = hit.production.id;
         return { repaired: false, mode: 'production' };
       }
-      if (view.projectId && findProject(view.projectId)) {
-        global.S.studioView = { mode: 'project', projectId: view.projectId };
+      /* Production is gone. Recover the parent project from the view or
+       * from the stored Studio nav context before giving up on root. */
+      var parentId = view.projectId || null;
+      if (!parentId && global.PreShootStudioUI && global.PreShootStudioUI.parentProjectIdFor) {
+        parentId = global.PreShootStudioUI.parentProjectIdFor(view.productionId, null);
+      }
+      if (parentId && findProject(parentId)) {
+        global.S.studioView = { mode: 'project', projectId: parentId };
         global.S.activeProductionId = null;
         return { repaired: true, mode: 'project', reason: 'production_deleted' };
       }
