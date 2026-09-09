@@ -200,7 +200,8 @@ test('landing fold CTA is scan-free; sticky Open app and hero stay', () => {
 });
 
 test('cache-bust marks Phase 2 scripts', () => {
-  assert.ok(app.includes('studio-ui.js?v=p3'));
+  /* Version tip moves with later slices; only require it stays busted. */
+  assert.ok(/studio-ui\.js\?v=[\w.-]+/.test(app));
   assert.ok(app.includes('calendar.js?v=p3'));
   assert.ok(app.includes('workspace-ui.js?v=p3'));
 });

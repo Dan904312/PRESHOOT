@@ -329,7 +329,8 @@ test('guest scan + Build in Studio + dock/theme not regressed', () => {
   assert.ok(app.includes("goTab('profile')"));
   assert.ok(!app.includes('id="nav-director"'));
   assert.ok(app.includes('first-run-progress.js?v=p3'));
-  assert.ok(app.includes('studio-ui.js?v=p3'));
+  /* Version tip moves with later slices; only require it stays busted. */
+  assert.ok(/studio-ui\.js\?v=[\w.-]+/.test(app));
   assert.ok(app.includes('calendar.js?v=p3'));
   assert.ok(app.includes('workspace-ui.js?v=p3'));
 });
