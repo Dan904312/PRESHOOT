@@ -63,9 +63,10 @@
 <script src="/js/gear-catalog.js"></script>
 <script src="/js/hook-engine.js?v=391"></script>
 <script src="/js/skeleton.js?v=390"></script>
-<script src="/js/director-context.js?v=393"></script>
+<script src="/js/director-context.js?v=dir2"></script>
 <script src="/js/creative-research.js?v=390"></script>
-<script src="/js/studio.js?v=390"></script>
+<script src="/js/shot-planner.js?v=dir2"></script>
+<script src="/js/studio.js?v=dir2"></script>
 <script src="/js/first-run-progress.js?v=p3"></script>
 <script src="/js/studio-sync.js?v=321"></script>
 <script src="/js/workspace-sync.js?v=361"></script>
@@ -80,10 +81,10 @@
 <script src="/js/calendar.js?v=p3"></script>
 <script src="/js/trending.js?v=398"></script>
 <script src="/js/director-voice.js?v=388"></script>
-<script src="/js/studio-ui.js?v=nav1"></script>
+<script src="/js/studio-ui.js?v=dir2"></script>
 <script src="/js/studio-export.js?v=383"></script>
 <script src="/js/studio-keyboard.js?v=394"></script>
-<script src="/js/director-os.js?v=396"></script>
+<script src="/js/director-os.js?v=dir2"></script>
 <script src="/js/onboard.js"></script>
 <script type="module" src="/js/orb.js?v=386"></script>
 <style>
@@ -1513,6 +1514,42 @@ select option,
 .pw-script-quote{font-family:var(--fd);font-size:16px;font-weight:600;color:var(--text);line-height:1.4}
 .pw-script-link{color:var(--text3);font-size:14px;text-align:center;margin:6px 0}
 .pw-script-shot{font-size:12px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:8px}
+.pw-shot-covers{font-size:12px;color:var(--text3);margin-top:4px;line-height:1.35}
+.pw-shot-brief{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.pw-shot-brief-row{font-size:13px;color:var(--text);line-height:1.45}
+.pw-shot-brief-row span{display:block;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-bottom:2px}
+.pw-shot-covers-list{display:flex;flex-direction:column;gap:6px}
+.pw-shot-cover-item{font-size:13px;color:var(--text2);line-height:1.4;padding:8px 10px;background:var(--s2);border-radius:10px}
+.pw-plan-note{font-size:12px;color:var(--text2);background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;line-height:1.45}
+.pw-plan-note.is-stale{border-color:var(--accent);color:var(--text)}
+.pw-plan-link{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
+
+/* Bulk selection */
+.pw-selectable{display:flex;align-items:flex-start;gap:12px;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pw-selectable .pw-select-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pw-selectable .pw-shot-purpose{font-size:15px}
+.pw-selectable .pw-select-text{font-size:14px;color:var(--text2);line-height:1.4}
+.pw-select-check{flex-shrink:0;width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;transition:background .15s ease,border-color .15s ease}
+.pw-select-box{position:relative;width:100%;height:100%;display:block}
+.pw-selectable.is-selected .pw-select-box::after{content:'';position:absolute;left:50%;top:46%;width:6px;height:11px;margin:-6px 0 0 -3px;border:solid var(--accent-contrast);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.pw-selectable.is-selected{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.pw-selectable.is-selected .pw-select-check{background:var(--accent);border-color:var(--accent)}
+.pw-selectable:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Sits above the bottom navigation, never on top of it. The list reserves the
+   bar's own height below itself so the last card stays reachable. */
+.pw-bulk-bar{position:sticky;bottom:var(--bnav-space);z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;margin-top:10px;background:var(--s1);border:1px solid var(--border2);border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.pw-bulk-bar[hidden]{display:none}
+.pw-bulk-spacer{height:var(--bnav-space)}
+.pw-bulk-count{font-family:var(--fd);font-size:14px;font-weight:700;color:var(--text)}
+.pw-bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.pw-select-check{transition:none}}
+@media (max-width:430px){
+  .pw-selectable{padding:12px;min-height:56px}
+  .pw-select-check{width:28px;height:28px}
+  .pw-bulk-bar{flex-direction:column;align-items:stretch}
+  .pw-bulk-actions{justify-content:space-between}
+  .pw-bulk-actions .studio-btn{flex:1 1 auto;min-height:44px}
+}
 
 /* Assets & References */
 .ar-card{margin-bottom:12px}
@@ -3766,10 +3803,13 @@ function retryDirector(){
   sendDirector({ retry:true });
 }
 function sendDirector(opts){
+  /* Callers may pass a message directly (quick action buttons do). Without
+     this, those buttons resolved to an empty input and did nothing. */
+  if(typeof opts==='string'){ opts={message:opts}; }
   opts=opts||{};
   if(_dirStreaming){ if(typeof showToast==='function') showToast('Director is still responding…'); return; }
   var inp=document.getElementById('dir-input');
-  var msg=inp?inp.value.trim():'';
+  var msg=String(opts.message||'').trim()||(inp?inp.value.trim():'');
   if(!msg) return;
   if(!S.authUser){ if(typeof requireAuthOrPrompt==='function') requireAuthOrPrompt('Sign in to use Director.'); return; }
   if(window.PreShootAnalytics) PreShootAnalytics.track('director_action_requested',{path:'chat'});
@@ -3777,8 +3817,7 @@ function sendDirector(opts){
   var today=new Date().toDateString();
   if(dt.date!==today) dt={date:today,count:0};
   if(dt.count>=50){ showToast('50 message daily limit reached'); return; }
-  inp.value='';
-  inp.style.height='42px';
+  if(inp){ inp.value=''; inp.style.height='42px'; }
   setDirectorChatBusy(true);
   if(!opts.retry) addDirMsg('user', msg, true);
   var conv=getActiveDirConv();
