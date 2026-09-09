@@ -167,7 +167,8 @@ test('constraints section forbids gear the creator has not declared', () => {
   const sb = boot();
   const ids = seed(sb);
   const ctx = buildContext(sb, ids.productionId, ids.projectId);
-  assert.ok(/PRODUCTION CONSTRAINTS/.test(ctx.text));
+  assert.ok(/AVAILABLE EQUIPMENT/.test(ctx.text));
+  assert.ok(/inventory only/.test(ctx.text));
   assert.ok(/Do not propose cranes, dollies, drones/.test(ctx.text));
 });
 

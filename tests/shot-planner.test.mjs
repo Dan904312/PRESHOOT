@@ -209,13 +209,23 @@ test('shot list is feasible for the declared gear (no gimbal moves on a phone)',
   assert.ok(!res.review.some((i) => i.code === 'not_feasible'), 'feasibility issues survived repair');
 });
 
-test('gimbal owners do get movement', () => {
+test('owning a gimbal does not put it on a talking-head educational reel', () => {
   const res = P.plan({
     ...NOURA,
-    creator: { skillLevel: 'advanced', gear: { camera: 'Sony FX3', gimbal: 'DJI RS 4 Pro' } }
+    creator: {
+      skillLevel: 'advanced',
+      gear: {
+        camera: 'Sony FX3, iPhone 13 Pro Max',
+        lens: 'G Master 24-105 f4',
+        gimbal: 'DJI RS4 PRO, Hohem M6, tripod'
+      }
+    }
   });
-  const moves = res.shots.map((s) => s.cameraMovement).join(' | ');
-  assert.ok(/push-in|follow/i.test(moves), 'expected movement for a gimbal owner, got ' + moves);
+  const gear = res.shots.map((s) => s.gear).join(' | ');
+  assert.ok(/iphone/i.test(gear), 'expected the phone for this educational reel, got ' + gear);
+  assert.ok(!/fx3/i.test(gear), 'FX3 used on a simple educational reel: ' + gear);
+  assert.ok(!/rs4|hohem|gimbal/i.test(gear), 'gimbal used with no travel: ' + gear);
+  assert.ok(!res.review.some((i) => i.code === 'excessive_gear' || i.code === 'unjustified_gimbal'));
 });
 
 test('existing assets are preferred over reshooting', () => {
@@ -299,5 +309,225 @@ test('review pass reports over-splitting when it happens', () => {
   assert.ok(codes.includes('generic_titles'), 'generic titles not detected: ' + codes.join(','));
 });
 
+const FULL_BAG = {
+  skillLevel: 'advanced',
+  gear: {
+    camera: 'Sony FX3, iPhone 13 Pro Max',
+    lens: 'G Master 24-105 f4',
+    gimbal: 'DJI RS4 PRO, Hohem M6, tripod'
+  }
+};
+
+function gearBlob(res) {
+  return res.shots.map((s) => s.gear).join(' | ');
+}
+
+test('Test A: casual Instagram reel uses iPhone + tripod, not the whole bag', () => {
+  const res = P.plan({
+    production: {
+      name: 'Quick product chat',
+      overview: {
+        format: 'Casual Instagram Reel',
+        platform: 'Instagram',
+        goal: 'Explain a product directly to camera',
+        audience: 'Followers'
+      }
+    },
+    project: { name: 'Casual reels', description: 'Simple talking-head product explainers' },
+    creator: FULL_BAG,
+    script: {
+      body: 'This thing actually saves me twenty minutes every morning.\nHere is why I keep it on my desk.\nTry it and tell me what you think.'
+    }
+  });
+  assert.ok(res.ok);
+  const gear = gearBlob(res);
+  assert.ok(/iphone/i.test(gear), 'expected iPhone, got ' + gear);
+  assert.ok(/tripod/i.test(gear), 'expected a tripod on a locked talking-head, got ' + gear);
+  assert.ok(!/fx3/i.test(gear), 'FX3 on a casual reel: ' + gear);
+  assert.ok(!/rs4|hohem|24-105/i.test(gear), 'bag dumped onto a casual reel: ' + gear);
+  res.shots.forEach((s) => {
+    assert.ok(!P.looksLikeInventoryDump(s.gear, P.parseInventory(FULL_BAG)));
+  });
+});
+
+test('Test B: professional brand reel may use the cinema body, still not every gimbal', () => {
+  const res = P.plan({
+    production: {
+      name: 'Brand film',
+      overview: {
+        format: 'Professional brand reel',
+        platform: 'Instagram',
+        goal: 'Polished professional commercial for the brand',
+        tone: 'premium'
+      }
+    },
+    project: { name: 'Brand' },
+    creator: FULL_BAG,
+    script: {
+      body: 'We rebuilt the way teams start their day.\nOne workspace. Every tool.\nSee it live this week.'
+    }
+  });
+  const gear = gearBlob(res);
+  assert.ok(/fx3/i.test(gear), 'expected the FX3 on a professional brand reel, got ' + gear);
+  assert.ok(!/iphone/i.test(gear), 'phone and cinema camera together: ' + gear);
+  assert.ok(!/hohem/i.test(gear), 'phone gimbal on a cinema package: ' + gear);
+  const gimbalShots = res.shots.filter((s) => /rs4|gimbal/i.test(s.gear));
+  gimbalShots.forEach((s) => {
+    assert.ok(
+      /follow|track|travel/i.test(s.cameraMovement + ' ' + s.visual),
+      'gimbal on a static brand shot: ' + s.gear + ' / ' + s.cameraMovement
+    );
+  });
+});
+
+test('Test C: cinematic tracking may use a gimbal only where the camera travels', () => {
+  const res = P.plan({
+    production: {
+      name: 'Perth sunset drive',
+      overview: {
+        format: 'Cinematic automotive reel',
+        platform: 'Instagram',
+        goal: 'Tracking shots of a vehicle driving through Perth at sunset, plus static detail shots'
+      }
+    },
+    project: { name: 'Auto' },
+    creator: FULL_BAG,
+    script: {
+      body: [
+        'Track alongside the car as it drives through Perth at sunset.',
+        'Hold on the badge in the last gold light.',
+        'The city falls away behind us.'
+      ].join('\n')
+    }
+  });
+  const traveling = res.shots.filter((s) => /rs4|gimbal|follow/i.test((s.gear || '') + ' ' + (s.cameraMovement || '')));
+  assert.ok(traveling.length >= 1, 'expected a movement solution on the driving beat, got ' + gearBlob(res));
+  res.shots.forEach((s) => {
+    const spoken = s.spoken || '';
+    if (/badge|gold light/i.test(spoken) && !/track|drive|follow|alongside/i.test(spoken)) {
+      assert.ok(
+        !/rs4|hohem|gimbal/i.test(s.gear || ''),
+        'static detail shot still has a gimbal: ' + s.gear
+      );
+    }
+  });
+  assert.ok(!res.shots.some((s) => /hohem/i.test(s.gear || '')), 'phone gimbal leaked onto a cinema body');
+});
+
+test('Test D: authentic UGC stays on the phone', () => {
+  const res = P.plan({
+    production: {
+      name: 'Day in my life',
+      overview: { format: 'Authentic day in my life TikTok', platform: 'TikTok', goal: 'Casual UGC, creator-native' }
+    },
+    project: { name: 'Personal' },
+    creator: FULL_BAG,
+    script: { body: 'Woke up late again.\nCoffee, then the train.\nThis is the bit nobody posts.' }
+  });
+  const gear = gearBlob(res);
+  assert.ok(/iphone/i.test(gear), gear);
+  assert.ok(!/fx3/i.test(gear), gear);
+  assert.ok(!/24-105/i.test(gear), gear);
+});
+
+test('Test E: explicit FX3 instruction wins over a casual default', () => {
+  const res = P.plan({
+    production: {
+      name: 'Quick chat',
+      notes: 'Shoot this entirely on the FX3.',
+      overview: { format: 'Casual Instagram Reel', platform: 'Instagram', goal: 'Direct to camera' }
+    },
+    creator: FULL_BAG,
+    script: { body: 'Here is the offer.\nIt is that simple.\nLink in bio.' }
+  });
+  const gear = gearBlob(res);
+  assert.ok(/fx3/i.test(gear), 'explicit FX3 instruction ignored: ' + gear);
+  assert.ok(!/iphone/i.test(gear), gear);
+});
+
+test('Test F: project says no gimbal even when tracking language appears', () => {
+  const res = P.plan({
+    production: {
+      name: 'Walkthrough',
+      notes: 'No gimbal.',
+      overview: { format: 'Casual Instagram Reel', platform: 'Instagram', goal: 'Walk into the shop' }
+    },
+    creator: FULL_BAG,
+    script: { body: 'Walk with me through the shop.\nThis is the corner I love.\nThat is the whole tour.' }
+  });
+  const blob = gearBlob(res) + ' ' + res.shots.map((s) => s.cameraMovement).join(' ');
+  assert.ok(!/rs4|hohem|gimbal/i.test(blob), 'gimbal used despite no-gimbal note: ' + blob);
+});
+
+test('Test G: a tracking shot may use the gimbal when the creator has one', () => {
+  const res = P.plan({
+    production: {
+      name: 'Arrival',
+      overview: {
+        format: 'Cinematic short',
+        platform: 'YouTube',
+        goal: 'Tracking shot following the subject walking into the location'
+      }
+    },
+    creator: FULL_BAG,
+    script: { body: 'Follow the subject walking into the hall.\nThey stop at the window.\nThat is the moment.' }
+  });
+  const blob = gearBlob(res) + ' ' + res.shots.map((s) => s.cameraMovement).join(' | ');
+  assert.ok(/rs4|follow/i.test(blob), 'tracking shot had no movement solution: ' + blob);
+});
+
+test('Test H: never invent a camera the creator does not own', () => {
+  const res = P.plan({
+    ...NOURA,
+    production: {
+      ...NOURA.production,
+      overview: { format: 'Professional brand reel', platform: 'Instagram', goal: 'Polished professional commercial' }
+    },
+    creator: { skillLevel: 'beginner', gear: { camera: 'iPhone 13 Pro Max' } }
+  });
+  const gear = gearBlob(res);
+  assert.ok(/iphone/i.test(gear), gear);
+  assert.ok(!/fx3|rs4|24-105/i.test(gear), 'invented gear: ' + gear);
+});
+
+test('Test I: a later phone-only plan cannot inherit FX3 from a previous cinema plan', () => {
+  P.plan({
+    production: { name: 'Cinema A', overview: { format: 'Cinematic automotive reel', goal: 'Tracking shots of a vehicle' } },
+    creator: FULL_BAG,
+    script: { body: 'Track alongside the car as it drives through Perth at sunset.' }
+  });
+  const b = P.plan({
+    production: { name: 'Phone B', overview: { format: 'Authentic day in my life TikTok', platform: 'TikTok' } },
+    creator: { skillLevel: 'beginner', gear: { camera: 'iPhone 13 Pro Max' } },
+    script: { body: 'Woke up late again.\nThis is the bit nobody posts.' }
+  });
+  const gear = gearBlob(b);
+  assert.ok(/iphone/i.test(gear), gear);
+  assert.ok(!/fx3/i.test(gear), 'FX3 leaked from the previous plan: ' + gear);
+});
+
+test('inventory dump strings fail QA and get repaired to a kit', () => {
+  const dumped = {
+    order: 1,
+    title: 'Opening misconception',
+    shotType: 'a_roll',
+    cameraMovement: 'Locked off on a tripod',
+    gear: 'Sony FX3, iPhone 13 Pro Max · DJI RS4 PRO, Hohem M6 · G Master 24-105 f4',
+    visual: 'Creator direct to camera',
+    spoken: 'Most students think they are bad at studying.'
+  };
+  const ctx = P.buildContext({
+    production: { name: 'Casual reel', overview: { format: 'Casual Instagram Reel', platform: 'Instagram' } },
+    creator: FULL_BAG,
+    script: { body: dumped.spoken }
+  });
+  assert.ok(P.looksLikeInventoryDump(dumped.gear, P.parseInventory(FULL_BAG)));
+  P.fitShotEquipment(dumped, ctx);
+  assert.ok(/iphone/i.test(dumped.gear), dumped.gear);
+  assert.ok(!P.looksLikeInventoryDump(dumped.gear, P.parseInventory(FULL_BAG)), dumped.gear);
+  assert.ok(!/rs4|hohem/i.test(dumped.gear), dumped.gear);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
 if (failed) process.exit(1);
+

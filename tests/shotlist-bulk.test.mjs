@@ -104,6 +104,29 @@ test('generated shot list carries coverage, sections and real titles', () => {
   assert.strictEqual(result.result.source, 'planner');
 });
 
+test('Test J: the UI shows the selected kit, not the whole inventory', () => {
+  const h = bootStudio();
+  h.S.gear = {
+    camera: 'Sony FX3, iPhone 13 Pro Max',
+    lens: 'G Master 24-105 f4',
+    gimbal: 'DJI RS4 PRO, Hohem M6, tripod'
+  };
+  const { productionId } = seedProduction(h);
+  h.Studio.buildShotListFromScript(productionId, { allowStarter: false });
+  const shots = shotsOf(h, productionId);
+  const dump = 'Sony FX3, iPhone 13 Pro Max · DJI RS4 PRO, Hohem M6 · G Master 24-105 f4';
+  shots.forEach((s) => {
+    assert.ok(s.gear !== dump, 'shot ' + s.order + ' stored the inventory dump');
+    assert.ok(!/fx3/i.test(s.gear) || !/iphone/i.test(s.gear), 'two cameras on shot ' + s.order + ': ' + s.gear);
+    assert.ok(!/rs4/i.test(s.gear) || !/hohem/i.test(s.gear), 'two gimbals on shot ' + s.order + ': ' + s.gear);
+  });
+  openShots(h, productionId);
+  h.UI.toggleShot(productionId, shots[0].id);
+  const html = h.studioHtml();
+  assert.ok(!html.includes(dump), 'the rendered shot list expanded into the full inventory');
+  assert.ok(/iphone/i.test(shots.map((s) => s.gear).join(' ')), 'expected the phone kit on this educational reel');
+});
+
 test('a shot can cover several script lines and the lines link back to it', () => {
   const h = bootStudio();
   const { productionId } = seedProduction(h, {
