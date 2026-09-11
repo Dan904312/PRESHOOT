@@ -69,51 +69,87 @@ CREATE INDEX IF NOT EXISTS idx_workspace_invites_active
 CREATE INDEX IF NOT EXISTS idx_workspace_invites_email
   ON workspace_invites (lower(email));
 
--- ── Helper functions (SECURITY DEFINER, fixed search_path) ─
+-- Helper functions live in schema private (not PostgREST). See
+-- sql/20260911_security_definer_hardening.sql for the production definitions.
+-- Do not recreate public.is_workspace_member — that re-exposes a membership RPC.
 
-CREATE OR REPLACE FUNCTION is_workspace_member(p_workspace_id uuid, p_user_id text)
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC;
+GRANT USAGE ON SCHEMA private TO postgres, service_role, authenticated;
+
+CREATE OR REPLACE FUNCTION private.is_workspace_member(p_workspace_id uuid, p_user_id text)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-  SELECT EXISTS (
+BEGIN
+  IF p_workspace_id IS NULL OR p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
+    RETURN false;
+  END IF;
+  IF coalesce(auth.role(), '') = 'authenticated'
+     AND p_user_id IS DISTINCT FROM auth.uid()::text THEN
+    RETURN false;
+  END IF;
+  RETURN EXISTS (
     SELECT 1
-    FROM workspace_members m
+    FROM public.workspace_members m
     WHERE m.workspace_id = p_workspace_id
       AND m.user_id = p_user_id
   );
+END;
 $$;
 
-CREATE OR REPLACE FUNCTION workspace_role(p_workspace_id uuid, p_user_id text)
+CREATE OR REPLACE FUNCTION private.workspace_role(p_workspace_id uuid, p_user_id text)
 RETURNS text
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-  SELECT m.role
-  FROM workspace_members m
+DECLARE
+  v_role text;
+BEGIN
+  IF p_workspace_id IS NULL OR p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
+    RETURN NULL;
+  END IF;
+  IF coalesce(auth.role(), '') = 'authenticated'
+     AND p_user_id IS DISTINCT FROM auth.uid()::text THEN
+    RETURN NULL;
+  END IF;
+  SELECT m.role INTO v_role
+  FROM public.workspace_members m
   WHERE m.workspace_id = p_workspace_id
     AND m.user_id = p_user_id
   LIMIT 1;
+  RETURN v_role;
+END;
 $$;
 
-CREATE OR REPLACE FUNCTION can_edit_workspace(p_workspace_id uuid, p_user_id text)
+CREATE OR REPLACE FUNCTION private.can_edit_workspace(p_workspace_id uuid, p_user_id text)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-  SELECT EXISTS (
+BEGIN
+  IF p_workspace_id IS NULL OR p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
+    RETURN false;
+  END IF;
+  IF coalesce(auth.role(), '') = 'authenticated'
+     AND p_user_id IS DISTINCT FROM auth.uid()::text THEN
+    RETURN false;
+  END IF;
+  RETURN EXISTS (
     SELECT 1
-    FROM workspace_members m
+    FROM public.workspace_members m
     WHERE m.workspace_id = p_workspace_id
       AND m.user_id = p_user_id
       AND m.role IN ('owner', 'editor')
   );
+END;
 $$;
 
 -- Idempotent personal workspace provisioner (metadata only — no document copy)
@@ -155,14 +191,18 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION is_workspace_member(uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION workspace_role(uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION can_edit_workspace(uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION ensure_personal_workspace(text) FROM PUBLIC;
+DROP FUNCTION IF EXISTS public.is_workspace_member(uuid, text);
+DROP FUNCTION IF EXISTS public.workspace_role(uuid, text);
+DROP FUNCTION IF EXISTS public.can_edit_workspace(uuid, text);
 
-GRANT EXECUTE ON FUNCTION is_workspace_member(uuid, text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION workspace_role(uuid, text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION can_edit_workspace(uuid, text) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION private.is_workspace_member(uuid, text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION private.workspace_role(uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.can_edit_workspace(uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION ensure_personal_workspace(text) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION private.is_workspace_member(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.workspace_role(uuid, text) TO service_role;
+GRANT EXECUTE ON FUNCTION private.can_edit_workspace(uuid, text) TO service_role;
 GRANT EXECUTE ON FUNCTION ensure_personal_workspace(text) TO service_role;
 
 -- ── Personal backfill (metadata only) ──────────────────────
@@ -198,17 +238,17 @@ ALTER TABLE workspace_invites ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS workspaces_select_member ON workspaces;
 CREATE POLICY workspaces_select_member ON workspaces
   FOR SELECT TO authenticated
-  USING (is_workspace_member(id, auth.uid()::text));
+  USING (private.is_workspace_member(id, auth.uid()::text));
 
 DROP POLICY IF EXISTS workspace_members_select_member ON workspace_members;
 CREATE POLICY workspace_members_select_member ON workspace_members
   FOR SELECT TO authenticated
-  USING (is_workspace_member(workspace_id, auth.uid()::text));
+  USING (private.is_workspace_member(workspace_id, auth.uid()::text));
 
 DROP POLICY IF EXISTS workspace_data_select_member ON workspace_data;
 CREATE POLICY workspace_data_select_member ON workspace_data
   FOR SELECT TO authenticated
-  USING (is_workspace_member(workspace_id, auth.uid()::text));
+  USING (private.is_workspace_member(workspace_id, auth.uid()::text));
 
 -- Mutations (including optimistic revision saves) are service-role API only.
 -- Do not grant authenticated UPDATE — that would bypass /api/workspace-sync 409 checks.

@@ -11,15 +11,15 @@
 -- ============================================
 
 -- Ensure helper is available to realtime policy evaluation
-GRANT EXECUTE ON FUNCTION is_workspace_member(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_workspace_member(uuid, text) TO authenticated, service_role;
 
 -- Topic format: workspace:<uuid>
-CREATE OR REPLACE FUNCTION public.workspace_id_from_realtime_topic()
+CREATE OR REPLACE FUNCTION private.workspace_id_from_realtime_topic()
 RETURNS uuid
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   t text;
@@ -37,8 +37,9 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.workspace_id_from_realtime_topic() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.workspace_id_from_realtime_topic() TO authenticated, service_role;
+REVOKE ALL ON FUNCTION private.workspace_id_from_realtime_topic() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION private.workspace_id_from_realtime_topic() TO authenticated, service_role;
+DROP FUNCTION IF EXISTS public.workspace_id_from_realtime_topic();
 
 -- Drop prior Phase 3A policies if re-run
 DROP POLICY IF EXISTS workspace_realtime_broadcast_select ON realtime.messages;
@@ -53,9 +54,9 @@ FOR SELECT
 TO authenticated
 USING (
   extension = 'broadcast'
-  AND public.workspace_id_from_realtime_topic() IS NOT NULL
-  AND public.is_workspace_member(
-    public.workspace_id_from_realtime_topic(),
+  AND private.workspace_id_from_realtime_topic() IS NOT NULL
+  AND private.is_workspace_member(
+    private.workspace_id_from_realtime_topic(),
     (SELECT auth.uid()::text)
   )
 );
@@ -67,9 +68,9 @@ FOR SELECT
 TO authenticated
 USING (
   extension = 'presence'
-  AND public.workspace_id_from_realtime_topic() IS NOT NULL
-  AND public.is_workspace_member(
-    public.workspace_id_from_realtime_topic(),
+  AND private.workspace_id_from_realtime_topic() IS NOT NULL
+  AND private.is_workspace_member(
+    private.workspace_id_from_realtime_topic(),
     (SELECT auth.uid()::text)
   )
 );
@@ -77,5 +78,5 @@ USING (
 -- No authenticated INSERT for broadcast/presence — service_role only emits events.
 -- (Absence of INSERT policies = deny for authenticated.)
 
-COMMENT ON FUNCTION public.workspace_id_from_realtime_topic() IS
+COMMENT ON FUNCTION private.workspace_id_from_realtime_topic() IS
   'Phase 3A: map private realtime topic workspace:{uuid} → workspace id for RLS.';

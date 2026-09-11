@@ -170,7 +170,7 @@ EXCEPTION
 END;
 $$;
 
-REVOKE ALL ON FUNCTION redeem_promo_code(text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION redeem_promo_code(text, text, text) FROM PUBLIC, anon, authenticated;
 -- PostgREST service role uses this RPC; authenticated/anon must not call it.
 GRANT EXECUTE ON FUNCTION redeem_promo_code(text, text, text) TO service_role;
 
@@ -220,7 +220,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION claim_stripe_event(text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION claim_stripe_event(text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION claim_stripe_event(text, text) TO service_role;
 
 -- All signed-in users (free + pro)
@@ -237,6 +237,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Onboarding reward + streak overlay (see supabase_onboarding_streak.sql)
 ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS account_status text NOT NULL DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS account_status_reason text,
+  ADD COLUMN IF NOT EXISTS account_status_at timestamptz,
+  ADD COLUMN IF NOT EXISTS account_status_by text,
   ADD COLUMN IF NOT EXISTS onboarding_reward_granted boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS onboarding_reward_granted_at timestamptz,
   ADD COLUMN IF NOT EXISTS free_scans_remaining integer NOT NULL DEFAULT 0,
@@ -246,7 +250,11 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS streak_longest integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS streak_last_active_date date,
   ADD COLUMN IF NOT EXISTS streak_days jsonb NOT NULL DEFAULT '[]'::jsonb,
-  ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'UTC';
+  ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'UTC',
+  ADD COLUMN IF NOT EXISTS streak_director_ends_at timestamptz,
+  ADD COLUMN IF NOT EXISTS streak_studio_ends_at timestamptz,
+  ADD COLUMN IF NOT EXISTS streak_freeze_until date,
+  ADD COLUMN IF NOT EXISTS streak_backfilled_at timestamptz;
 
 -- Cross-device app data
 CREATE TABLE IF NOT EXISTS user_data (
@@ -365,7 +373,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION bump_usage_daily(text, text, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION bump_usage_daily(text, text, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION bump_usage_daily(text, text, integer) TO service_role;
 
 -- Distributed rate-limit buckets (shared across Vercel serverless instances)
@@ -439,7 +447,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION check_rate_limit(text, integer, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION check_rate_limit(text, integer, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION check_rate_limit(text, integer, integer) TO service_role;
 
 -- Optional cleanup (run periodically in SQL editor / cron):
@@ -473,9 +481,12 @@ CREATE INDEX IF NOT EXISTS idx_usage_day ON usage_daily(day);
 
 -- Auto-update updated_at on any change
 CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN NEW.updated_at = now(); RETURN NEW; END;
-$$ LANGUAGE plpgsql;
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN NEW.updated_at = pg_catalog.now(); RETURN NEW; END;
+$$;
 
 DROP TRIGGER IF EXISTS subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER subscriptions_updated_at
@@ -577,7 +588,12 @@ GRANT SELECT ON TABLE users TO authenticated;
 -- Phase 6 Hardening (analytics + storage ACL): also run supabase_workspaces_phase6_hardening.sql
 -- Phase 7 Growth (content_performance boundary): also run supabase_workspaces_phase7_growth.sql
 -- Phase 8 Join codes: also run supabase_workspaces_phase8_join_codes.sql
+-- Security Advisor / privilege hardening: also run sql/20260911_security_definer_hardening.sql
 -- Onboarding reward + creator streak: also run supabase_onboarding_streak.sql
+-- Streak activity events + milestone rewards: also run supabase_streak_activity.sql
+-- Public trend cache keys (app_settings): see supabase_trends_cache.sql (no new table)
+-- Admin console 2.0 (usage ledger, account status, audit/email logs): also run supabase_admin_console.sql
+-- Admin daily usage RPC (optional, console falls back to table scan): supabase_admin_analytics.sql
 -- (private Broadcast channel RLS on realtime.messages).
 -- ═══════════════════════════════════════════════════════════
 

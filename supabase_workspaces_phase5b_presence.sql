@@ -6,8 +6,8 @@
 -- Broadcast INSERT remains denied (service_role only).
 -- ============================================
 
-GRANT EXECUTE ON FUNCTION is_workspace_member(uuid, text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.workspace_id_from_realtime_topic() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_workspace_member(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.workspace_id_from_realtime_topic() TO authenticated, service_role;
 
 DROP POLICY IF EXISTS workspace_realtime_presence_insert ON realtime.messages;
 
@@ -18,9 +18,9 @@ FOR INSERT
 TO authenticated
 WITH CHECK (
   extension = 'presence'
-  AND public.workspace_id_from_realtime_topic() IS NOT NULL
-  AND public.is_workspace_member(
-    public.workspace_id_from_realtime_topic(),
+  AND private.workspace_id_from_realtime_topic() IS NOT NULL
+  AND private.is_workspace_member(
+    private.workspace_id_from_realtime_topic(),
     (SELECT auth.uid()::text)
   )
 );

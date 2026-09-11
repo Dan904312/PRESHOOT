@@ -1,0 +1,11 @@
+-- Trend cache uses existing app_settings (service_role only).
+-- No new relational table. Frontend never writes these keys.
+--
+-- Keys written by api/research.js (service role):
+--   trends_cache_US | trends_cache_GB | trends_cache_AU | trends_cache_CA | trends_cache_IN
+--   trends_cache_SG | trends_cache_JP | trends_cache_CN | trends_cache_GLOBAL
+-- Value: JSON { fetchedAt, expiresAt, items[], sources[], limitations[] }
+-- Fresh TTL: 6 hours. Stale-but-usable: 24 hours. Empty datasets are not persisted.
+--
+-- Also re-run supabase_onboarding_streak.sql so record_creation_activity
+-- accepts streak kinds plan and post (unknown kinds already map to studio).

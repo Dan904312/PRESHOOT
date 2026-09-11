@@ -47,7 +47,7 @@ CREATE POLICY workspace_comments_select_member ON workspace_comments
   FOR SELECT TO authenticated
   USING (
     deleted_at IS NULL
-    AND is_workspace_member(workspace_id, auth.uid()::text)
+    AND private.is_workspace_member(workspace_id, auth.uid()::text)
   );
 
 REVOKE ALL ON TABLE workspace_comments FROM anon, authenticated;
@@ -85,7 +85,7 @@ CREATE POLICY workspace_notifications_select_own ON workspace_notifications
   FOR SELECT TO authenticated
   USING (
     user_id = auth.uid()::text
-    AND is_workspace_member(workspace_id, auth.uid()::text)
+    AND private.is_workspace_member(workspace_id, auth.uid()::text)
   );
 
 REVOKE ALL ON TABLE workspace_notifications FROM anon, authenticated;

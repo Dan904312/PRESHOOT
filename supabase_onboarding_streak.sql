@@ -33,6 +33,7 @@ CREATE OR REPLACE FUNCTION preshoot_sanitize_tz(p_tz text)
 RETURNS text
 LANGUAGE plpgsql
 STABLE
+SET search_path = ''
 AS $$
 DECLARE
   v_tz text;
@@ -42,7 +43,7 @@ BEGIN
     RETURN 'UTC';
   END IF;
   BEGIN
-    PERFORM timezone(v_tz, now());
+    PERFORM pg_catalog.timezone(v_tz, pg_catalog.now());
     RETURN v_tz;
   EXCEPTION WHEN others THEN
     RETURN 'UTC';
@@ -54,15 +55,16 @@ CREATE OR REPLACE FUNCTION preshoot_local_date(p_tz text)
 RETURNS date
 LANGUAGE plpgsql
 STABLE
+SET search_path = ''
 AS $$
 DECLARE
   v_tz text;
 BEGIN
-  v_tz := preshoot_sanitize_tz(p_tz);
+  v_tz := public.preshoot_sanitize_tz(p_tz);
   BEGIN
-    RETURN (timezone(v_tz, now()))::date;
+    RETURN (pg_catalog.timezone(v_tz, pg_catalog.now()))::date;
   EXCEPTION WHEN others THEN
-    RETURN (timezone('UTC', now()))::date;
+    RETURN (pg_catalog.timezone('UTC', pg_catalog.now()))::date;
   END;
 END;
 $$;
@@ -230,7 +232,10 @@ BEGIN
   END IF;
 
   v_kind := lower(coalesce(p_kind, 'studio'));
-  IF v_kind NOT IN ('scan', 'idea', 'director', 'studio') THEN
+  IF v_kind NOT IN (
+    'scan', 'idea', 'director', 'studio', 'plan', 'post',
+    'onboarding', 'project', 'script', 'shotlist', 'save'
+  ) THEN
     v_kind := 'studio';
   END IF;
 
@@ -283,7 +288,7 @@ BEGIN
 
   v_incremented := true;
   v_milestone := CASE
-    WHEN v_current IN (3, 7, 14, 30, 60, 100) THEN v_current
+    WHEN v_current IN (3, 7, 10, 30, 60, 100) THEN v_current
     ELSE NULL
   END;
 
@@ -310,12 +315,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION preshoot_sanitize_tz(text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION preshoot_local_date(text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION grant_onboarding_reward(text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION consume_onboarding_scan(text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION refund_onboarding_scan(text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION record_creation_activity(text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION preshoot_sanitize_tz(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION preshoot_local_date(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION grant_onboarding_reward(text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION consume_onboarding_scan(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION refund_onboarding_scan(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION record_creation_activity(text, text, text) FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION preshoot_sanitize_tz(text) TO service_role;
 GRANT EXECUTE ON FUNCTION preshoot_local_date(text) TO service_role;
@@ -323,3 +328,5 @@ GRANT EXECUTE ON FUNCTION grant_onboarding_reward(text, text) TO service_role;
 GRANT EXECUTE ON FUNCTION consume_onboarding_scan(text) TO service_role;
 GRANT EXECUTE ON FUNCTION refund_onboarding_scan(text) TO service_role;
 GRANT EXECUTE ON FUNCTION record_creation_activity(text, text, text) TO service_role;
+
+-- Also run supabase_streak_activity.sql for activity_events + 10-day rewards.

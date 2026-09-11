@@ -141,7 +141,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION bump_user_scan_count(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION bump_user_scan_count(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION bump_user_scan_count(text) TO service_role;
 
 ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
@@ -185,5 +185,5 @@ AS $$
   GROUP BY 1, 2, 3, 4;
 $$;
 
-REVOKE ALL ON FUNCTION admin_usage_rollup(timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION admin_usage_rollup(timestamptz) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION admin_usage_rollup(timestamptz) TO service_role;

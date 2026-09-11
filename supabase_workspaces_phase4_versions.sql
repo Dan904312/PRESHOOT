@@ -27,7 +27,7 @@ ALTER TABLE workspace_document_versions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS workspace_document_versions_select_member ON workspace_document_versions;
 CREATE POLICY workspace_document_versions_select_member ON workspace_document_versions
   FOR SELECT TO authenticated
-  USING (is_workspace_member(workspace_id, auth.uid()::text));
+  USING (private.is_workspace_member(workspace_id, auth.uid()::text));
 
 -- Mutations via service-role APIs only (optimistic concurrency + retention).
 REVOKE ALL ON TABLE workspace_document_versions FROM anon, authenticated;
