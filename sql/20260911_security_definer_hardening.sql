@@ -985,7 +985,7 @@ BEGIN
     RETURN event;
   END IF;
 
-  v_ref := 'hook:' || uid || ':' || coalesce(nullif(session_id, ''), pg_catalog.extract(epoch from pg_catalog.clock_timestamp())::text);
+  v_ref := 'hook:' || uid || ':' || coalesce(nullif(session_id, ''), pg_catalog.date_part('epoch', pg_catalog.clock_timestamp())::text);
 
   BEGIN
     INSERT INTO public.admin_notifications (
