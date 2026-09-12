@@ -86,6 +86,87 @@ test('phase1/3a SQL no longer recreates public membership RPCs', () => {
   assert.ok(setup.includes('sql/20260911_security_definer_hardening.sql'));
 });
 
+test('legacy SQL re-pastes cannot restore public search_path on backend RPCs', () => {
+  const files = [
+    'supabase_setup.sql',
+    'supabase_onboarding_streak.sql',
+    'supabase_admin_console.sql',
+    'supabase_admin_analytics.sql',
+    'supabase_streak_activity.sql',
+    'supabase_workspaces_phase1.sql',
+    'supabase_admin_notifications.sql'
+  ];
+  for (const f of files) {
+    const txt = fs.readFileSync(path.join(root, f), 'utf8');
+    assert.ok(
+      !txt.includes('SET search_path = public'),
+      f + ' still has SET search_path = public'
+    );
+    assert.ok(
+      txt.includes('sql/20260911_security_definer_hardening.sql LAST') ||
+        txt.includes('ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST'),
+      f + ' missing LAST-paste operator comment'
+    );
+  }
+});
+
+test('legacy backend DEFINER CREATE blocks include empty search_path + require_service_role', () => {
+  const checks = [
+    ['supabase_setup.sql', 'redeem_promo_code'],
+    ['supabase_setup.sql', 'claim_stripe_event'],
+    ['supabase_setup.sql', 'bump_usage_daily'],
+    ['supabase_setup.sql', 'check_rate_limit'],
+    ['supabase_onboarding_streak.sql', 'grant_onboarding_reward'],
+    ['supabase_onboarding_streak.sql', 'consume_onboarding_scan'],
+    ['supabase_onboarding_streak.sql', 'refund_onboarding_scan'],
+    ['supabase_onboarding_streak.sql', 'record_creation_activity'],
+    ['supabase_streak_activity.sql', 'record_creation_activity'],
+    ['supabase_admin_console.sql', 'bump_user_scan_count'],
+    ['supabase_admin_console.sql', 'admin_usage_rollup'],
+    ['supabase_admin_analytics.sql', 'admin_daily_usage'],
+    ['supabase_workspaces_phase1.sql', 'ensure_personal_workspace']
+  ];
+  for (const [f, name] of checks) {
+    const txt = fs.readFileSync(path.join(root, f), 'utf8');
+    const idx = txt.indexOf('CREATE OR REPLACE FUNCTION ' + name);
+    assert.ok(idx >= 0, f + ' missing ' + name);
+    const block = txt.slice(idx, idx + 900);
+    assert.ok(/SET search_path = ''/.test(block), f + ' ' + name + ' missing empty search_path');
+    assert.ok(
+      block.includes('PERFORM private.require_service_role()'),
+      f + ' ' + name + ' missing require_service_role'
+    );
+    assert.ok(
+      !/GRANT EXECUTE ON FUNCTION[\s\S]{0,80}TO authenticated/.test(block),
+      f + ' ' + name + ' must not grant authenticated in CREATE window'
+    );
+  }
+});
+
+test('Auth hooks are pinned without require_service_role', () => {
+  const notes = fs.readFileSync(path.join(root, 'supabase_admin_notifications.sql'), 'utf8');
+  const hard = fs.readFileSync(
+    path.join(root, 'sql/20260911_security_definer_hardening.sql'),
+    'utf8'
+  );
+  for (const [label, txt] of [
+    ['notifications', notes],
+    ['hardening', hard]
+  ]) {
+    const gate = txt.indexOf('CREATE OR REPLACE FUNCTION public.preshoot_gate_suspended_jwt');
+    assert.ok(gate >= 0, label + ' missing gate hook');
+    const gateBlock = txt.slice(gate, txt.indexOf('CREATE OR REPLACE FUNCTION public.preshoot_custom_access_token_hook'));
+    assert.ok(/SET search_path = ''/.test(gateBlock), label + ' gate search_path');
+    assert.ok(!gateBlock.includes('PERFORM private.require_service_role()'), label + ' gate must not require service_role');
+    const wrap = txt.indexOf('CREATE OR REPLACE FUNCTION public.preshoot_custom_access_token_hook');
+    const wrapBlock = txt.slice(wrap, wrap + 400);
+    assert.ok(/SET search_path = ''/.test(wrapBlock), label + ' wrapper search_path');
+    assert.ok(txt.includes('GRANT EXECUTE ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) TO postgres, service_role, supabase_auth_admin'));
+    assert.ok(txt.includes('REVOKE ALL ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) FROM PUBLIC, anon, authenticated'));
+  }
+  assert.ok(sql.includes('paste this file LAST') || sql.includes('OPERATOR: paste this file LAST'));
+});
+
 test('server callers still use service-role PostgREST RPC paths', () => {
   const files = [
     'api/webhook.js',
