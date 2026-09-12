@@ -26,7 +26,28 @@
      admin_email_log   24 months
 
    Also run supabase_admin_notifications.sql for the admin bell.
+
+   SECURITY: This file may CREATE OR REPLACE DEFINER RPCs.
+   After any paste, ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST
+   so require_service_role + search_path='' remain the live bodies.
    ============================================ */
+
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE OR REPLACE FUNCTION private.require_service_role()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF coalesce(auth.role(), '') IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'not_authorized' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.require_service_role() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.require_service_role() TO postgres, service_role;
 
 -- ── A. account_status (same block as sql/users_account_status.sql) ──
 
@@ -116,26 +137,28 @@ CREATE TABLE IF NOT EXISTS admin_email_log (
 
 CREATE INDEX IF NOT EXISTS idx_admin_email_sent ON admin_email_log (sent_at DESC);
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION bump_user_scan_count(p_user_id text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false);
   END IF;
-  UPDATE users
+  UPDATE public.users
   SET total_scans = coalesce(total_scans, 0) + 1,
-      last_seen = now()
+      last_seen = pg_catalog.now()
   WHERE user_id = trim(p_user_id);
   IF NOT FOUND THEN
-    INSERT INTO users (user_id, total_scans, last_seen)
-    VALUES (trim(p_user_id), 1, now())
+    INSERT INTO public.users (user_id, total_scans, last_seen)
+    VALUES (trim(p_user_id), 1, pg_catalog.now())
     ON CONFLICT (user_id) DO UPDATE SET
-      total_scans = coalesce(users.total_scans, 0) + 1,
-      last_seen = now();
+      total_scans = coalesce(public.users.total_scans, 0) + 1,
+      last_seen = pg_catalog.now();
   END IF;
   RETURN jsonb_build_object('ok', true);
 END;
@@ -159,6 +182,7 @@ GRANT ALL ON TABLE admin_audit_log TO service_role;
 GRANT ALL ON TABLE admin_email_log TO service_role;
 GRANT ALL ON TABLE app_settings TO service_role;
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION admin_usage_rollup(p_since timestamptz DEFAULT NULL)
 RETURNS TABLE(
   user_id text,
@@ -168,10 +192,13 @@ RETURNS TABLE(
   event_count bigint,
   cost_sum numeric
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
+BEGIN
+  PERFORM private.require_service_role();
+  RETURN QUERY
   SELECT
     ue.user_id,
     ue.event_type,
@@ -179,10 +206,11 @@ AS $$
     ue.model,
     count(*)::bigint,
     coalesce(sum(ue.estimated_cost), 0)
-  FROM usage_events ue
+  FROM public.usage_events ue
   WHERE ue.status = 'success'
     AND (p_since IS NULL OR ue.created_at >= p_since)
   GROUP BY 1, 2, 3, 4;
+END;
 $$;
 
 REVOKE ALL ON FUNCTION admin_usage_rollup(timestamptz) FROM PUBLIC, anon, authenticated;

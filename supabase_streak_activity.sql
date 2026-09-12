@@ -3,7 +3,28 @@
    Additive. Safe to run more than once.
    Does not touch subscriptions / Stripe.
    Service role only. Never expose another user's activity.
+
+   SECURITY: This file may CREATE OR REPLACE DEFINER RPCs.
+   After any paste, ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST
+   so require_service_role + search_path='' remain the live bodies.
    ============================================ */
+
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE OR REPLACE FUNCTION private.require_service_role()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF coalesce(auth.role(), '') IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'not_authorized' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.require_service_role() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.require_service_role() TO postgres, service_role;
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS streak_director_ends_at timestamptz,
@@ -73,14 +94,15 @@ GRANT ALL ON TABLE streak_rewards TO service_role;
 
 /* Keep the existing RPC in sync with extra kinds. JS is the primary writer;
    this remains a compatible fallback. */
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION record_creation_activity(p_user_id text, p_kind text, p_timezone text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
-  v_user users%ROWTYPE;
+  v_user public.users%ROWTYPE;
   v_today date;
   v_yesterday date;
   v_current integer;
@@ -91,6 +113,7 @@ DECLARE
   v_milestone integer;
   v_incremented boolean := false;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_user');
   END IF;
@@ -103,21 +126,21 @@ BEGIN
     v_kind := 'studio';
   END IF;
 
-  v_tz := preshoot_sanitize_tz(p_timezone);
-  v_today := preshoot_local_date(v_tz);
+  v_tz := public.preshoot_sanitize_tz(p_timezone);
+  v_today := public.preshoot_local_date(v_tz);
   v_yesterday := v_today - 1;
 
-  INSERT INTO users (user_id, last_seen, timezone)
-  VALUES (trim(p_user_id), now(), v_tz)
+  INSERT INTO public.users (user_id, last_seen, timezone)
+  VALUES (trim(p_user_id), pg_catalog.now(), v_tz)
   ON CONFLICT (user_id) DO NOTHING;
 
   SELECT * INTO v_user
-  FROM users
+  FROM public.users
   WHERE user_id = trim(p_user_id)
   FOR UPDATE;
 
-  INSERT INTO activity_events (user_id, event_type, local_date, occurred_at)
-  VALUES (trim(p_user_id), v_kind, v_today, now())
+  INSERT INTO public.activity_events (user_id, event_type, local_date, occurred_at)
+  VALUES (trim(p_user_id), v_kind, v_today, pg_catalog.now())
   ON CONFLICT (user_id, local_date, event_type) DO NOTHING;
 
   IF v_user.streak_last_active_date IS NOT NULL
@@ -160,14 +183,14 @@ BEGIN
     ELSE NULL
   END;
 
-  UPDATE users
+  UPDATE public.users
   SET
     streak_current = v_current,
     streak_longest = v_longest,
     streak_last_active_date = v_today,
     streak_days = v_days,
     timezone = v_tz,
-    last_seen = now()
+    last_seen = pg_catalog.now()
   WHERE user_id = v_user.user_id;
 
   RETURN jsonb_build_object(

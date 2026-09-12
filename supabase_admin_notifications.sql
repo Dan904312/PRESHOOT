@@ -2,6 +2,12 @@
    PRESHOOT — Admin notifications (additive)
    Safe to run more than once.
    Service role only. Never expose to anon.
+
+   SECURITY: This file may CREATE OR REPLACE DEFINER Auth hooks.
+   After any paste, ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST
+   so search_path='' remains on hook bodies.
+   Do NOT add require_service_role() to Auth hooks — Auth calls them as
+   supabase_auth_admin, not service_role.
    ============================================ */
 
 CREATE TABLE IF NOT EXISTS admin_notifications (
@@ -48,7 +54,7 @@ CREATE OR REPLACE FUNCTION public.preshoot_gate_suspended_jwt(event jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   uid text;
@@ -76,10 +82,10 @@ BEGIN
     RETURN event;
   END IF;
 
-  v_ref := 'hook:' || uid || ':' || coalesce(nullif(session_id, ''), extract(epoch from clock_timestamp())::text);
+  v_ref := 'hook:' || uid || ':' || coalesce(nullif(session_id, ''), pg_catalog.extract(epoch from pg_catalog.clock_timestamp())::text);
 
   BEGIN
-    INSERT INTO admin_notifications (
+    INSERT INTO public.admin_notifications (
       type, severity, title, body, user_id, user_email, href, source_ref, metadata
     ) VALUES (
       'suspended_login',
@@ -110,16 +116,13 @@ $$;
 CREATE OR REPLACE FUNCTION public.preshoot_custom_access_token_hook(event jsonb)
 RETURNS jsonb
 LANGUAGE sql
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT public.preshoot_gate_suspended_jwt(event);
 $$;
 
-REVOKE ALL ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) TO supabase_auth_admin;
-GRANT EXECUTE ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) TO supabase_auth_admin;
+REVOKE ALL ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) TO postgres, service_role, supabase_auth_admin;
+GRANT EXECUTE ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) TO postgres, service_role, supabase_auth_admin;
 GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
-REVOKE EXECUTE ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) FROM anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) FROM anon, authenticated;

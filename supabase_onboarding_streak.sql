@@ -3,7 +3,28 @@
    Additive. Safe to run more than once.
    Extends public.users — does not touch subscriptions/Stripe.
    Stores hashes/counters only. Never trusts localStorage.
+
+   SECURITY: This file may CREATE OR REPLACE DEFINER RPCs.
+   After any paste, ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST
+   so require_service_role + search_path='' remain the live bodies.
    ============================================ */
+
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE OR REPLACE FUNCTION private.require_service_role()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF coalesce(auth.role(), '') IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'not_authorized' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.require_service_role() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.require_service_role() TO postgres, service_role;
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS onboarding_reward_granted boolean NOT NULL DEFAULT false,
@@ -69,29 +90,31 @@ BEGIN
 END;
 $$;
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION grant_onboarding_reward(p_user_id text, p_timezone text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
-  v_user users%ROWTYPE;
+  v_user public.users%ROWTYPE;
   v_ends timestamptz;
   v_tz text;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_user');
   END IF;
 
-  v_tz := preshoot_sanitize_tz(p_timezone);
+  v_tz := public.preshoot_sanitize_tz(p_timezone);
 
-  INSERT INTO users (user_id, last_seen, timezone)
-  VALUES (trim(p_user_id), now(), v_tz)
+  INSERT INTO public.users (user_id, last_seen, timezone)
+  VALUES (trim(p_user_id), pg_catalog.now(), v_tz)
   ON CONFLICT (user_id) DO NOTHING;
 
   SELECT * INTO v_user
-  FROM users
+  FROM public.users
   WHERE user_id = trim(p_user_id)
   FOR UPDATE;
 
@@ -111,22 +134,22 @@ BEGIN
     );
   END IF;
 
-  v_ends := now() + interval '24 hours';
+  v_ends := pg_catalog.now() + interval '24 hours';
 
-  UPDATE users
+  UPDATE public.users
   SET
     onboarding_reward_granted = true,
-    onboarding_reward_granted_at = now(),
+    onboarding_reward_granted_at = pg_catalog.now(),
     free_scans_remaining = 3,
     director_trial_ends_at = v_ends,
     studio_trial_ends_at = v_ends,
     timezone = v_tz,
-    last_seen = now()
+    last_seen = pg_catalog.now()
   WHERE user_id = v_user.user_id
     AND onboarding_reward_granted IS NOT TRUE;
 
   IF NOT FOUND THEN
-    SELECT * INTO v_user FROM users WHERE user_id = trim(p_user_id);
+    SELECT * INTO v_user FROM public.users WHERE user_id = trim(p_user_id);
     RETURN jsonb_build_object(
       'ok', true,
       'already_granted', true,
@@ -145,28 +168,30 @@ BEGIN
     'free_scans_remaining', 3,
     'director_trial_ends_at', v_ends,
     'studio_trial_ends_at', v_ends,
-    'onboarding_reward_granted_at', now()
+    'onboarding_reward_granted_at', pg_catalog.now()
   );
 END;
 $$;
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION consume_onboarding_scan(p_user_id text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_left integer;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_user');
   END IF;
 
-  UPDATE users
+  UPDATE public.users
   SET
     free_scans_remaining = free_scans_remaining - 1,
-    last_seen = now()
+    last_seen = pg_catalog.now()
   WHERE user_id = trim(p_user_id)
     AND onboarding_reward_granted IS TRUE
     AND free_scans_remaining > 0
@@ -180,23 +205,25 @@ BEGIN
 END;
 $$;
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION refund_onboarding_scan(p_user_id text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_left integer;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_user');
   END IF;
 
-  UPDATE users
+  UPDATE public.users
   SET
     free_scans_remaining = LEAST(3, free_scans_remaining + 1),
-    last_seen = now()
+    last_seen = pg_catalog.now()
   WHERE user_id = trim(p_user_id)
     AND onboarding_reward_granted IS TRUE
   RETURNING free_scans_remaining INTO v_left;
@@ -209,14 +236,15 @@ BEGIN
 END;
 $$;
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION record_creation_activity(p_user_id text, p_kind text, p_timezone text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
-  v_user users%ROWTYPE;
+  v_user public.users%ROWTYPE;
   v_today date;
   v_yesterday date;
   v_current integer;
@@ -227,6 +255,7 @@ DECLARE
   v_milestone integer;
   v_incremented boolean := false;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_user');
   END IF;
@@ -239,16 +268,16 @@ BEGIN
     v_kind := 'studio';
   END IF;
 
-  v_tz := preshoot_sanitize_tz(p_timezone);
-  v_today := preshoot_local_date(v_tz);
+  v_tz := public.preshoot_sanitize_tz(p_timezone);
+  v_today := public.preshoot_local_date(v_tz);
   v_yesterday := v_today - 1;
 
-  INSERT INTO users (user_id, last_seen, timezone)
-  VALUES (trim(p_user_id), now(), v_tz)
+  INSERT INTO public.users (user_id, last_seen, timezone)
+  VALUES (trim(p_user_id), pg_catalog.now(), v_tz)
   ON CONFLICT (user_id) DO NOTHING;
 
   SELECT * INTO v_user
-  FROM users
+  FROM public.users
   WHERE user_id = trim(p_user_id)
   FOR UPDATE;
 
@@ -292,14 +321,14 @@ BEGIN
     ELSE NULL
   END;
 
-  UPDATE users
+  UPDATE public.users
   SET
     streak_current = v_current,
     streak_longest = v_longest,
     streak_last_active_date = v_today,
     streak_days = v_days,
     timezone = v_tz,
-    last_seen = now()
+    last_seen = pg_catalog.now()
   WHERE user_id = v_user.user_id;
 
   RETURN jsonb_build_object(

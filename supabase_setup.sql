@@ -1,7 +1,28 @@
 -- ============================================
 -- PRESHOOT SUBSCRIPTION + DATA SECURITY
 -- Run this entire file in Supabase SQL Editor
+--
+-- SECURITY: This file may CREATE OR REPLACE DEFINER RPCs.
+-- After any paste, ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST
+-- so require_service_role + search_path='' remain the live bodies.
 -- ============================================
+
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE OR REPLACE FUNCTION private.require_service_role()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF coalesce(auth.role(), '') IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'not_authorized' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.require_service_role() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.require_service_role() TO postgres, service_role;
 
 -- Main subscriptions table
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -76,16 +97,18 @@ EXCEPTION
 END $$;
 
 -- Atomic redeem: active + not expired + under max + one redemption per user
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION redeem_promo_code(p_code text, p_user_id text, p_email text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
-  v_promo promo_codes%ROWTYPE;
+  v_promo public.promo_codes%ROWTYPE;
   v_norm text;
 BEGIN
+  PERFORM private.require_service_role();
   v_norm := upper(trim(both FROM coalesce(p_code, '')));
   IF v_norm = '' OR p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_request');
@@ -93,7 +116,7 @@ BEGIN
   v_norm := left(v_norm, 64);
 
   SELECT * INTO v_promo
-  FROM promo_codes
+  FROM public.promo_codes
   WHERE code = v_norm
   FOR UPDATE;
 
@@ -105,12 +128,12 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'inactive');
   END IF;
 
-  IF v_promo.expires_at IS NOT NULL AND v_promo.expires_at <= now() THEN
+  IF v_promo.expires_at IS NOT NULL AND v_promo.expires_at <= pg_catalog.now() THEN
     RETURN jsonb_build_object('ok', false, 'error', 'expired');
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM promo_usage
+    SELECT 1 FROM public.promo_usage
     WHERE code = v_norm AND user_id = p_user_id
   ) THEN
     RETURN jsonb_build_object('ok', false, 'error', 'already_redeemed');
@@ -120,21 +143,21 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'limit_reached');
   END IF;
 
-  UPDATE promo_codes
+  UPDATE public.promo_codes
   SET redemption_count = redemption_count + 1
   WHERE id = v_promo.id
     AND active = true
     AND redemption_count < max_redemptions
-    AND (expires_at IS NULL OR expires_at > now());
+    AND (expires_at IS NULL OR expires_at > pg_catalog.now());
 
   IF NOT FOUND THEN
     RETURN jsonb_build_object('ok', false, 'error', 'limit_reached');
   END IF;
 
-  INSERT INTO promo_usage (code, user_id, email, promo_id)
+  INSERT INTO public.promo_usage (code, user_id, email, promo_id)
   VALUES (v_norm, p_user_id, left(coalesce(p_email, ''), 320), v_promo.id);
 
-  INSERT INTO subscriptions (
+  INSERT INTO public.subscriptions (
     user_id, email, plan, status, promo_code, started_at, updated_at
   ) VALUES (
     p_user_id,
@@ -142,20 +165,20 @@ BEGIN
     'pro',
     'promo',
     v_norm,
-    now(),
-    now()
+    pg_catalog.now(),
+    pg_catalog.now()
   )
   ON CONFLICT (user_id) DO UPDATE SET
     plan = 'pro',
     status = 'promo',
     promo_code = EXCLUDED.promo_code,
-    email = COALESCE(NULLIF(EXCLUDED.email, ''), subscriptions.email),
-    started_at = COALESCE(subscriptions.started_at, now()),
-    updated_at = now(),
+    email = COALESCE(NULLIF(EXCLUDED.email, ''), public.subscriptions.email),
+    started_at = COALESCE(public.subscriptions.started_at, pg_catalog.now()),
+    updated_at = pg_catalog.now(),
     revoked_at = NULL,
     revoked_reason = NULL;
 
-  INSERT INTO subscription_events (user_id, email, event_type, payload)
+  INSERT INTO public.subscription_events (user_id, email, event_type, payload)
   VALUES (
     p_user_id,
     left(coalesce(p_email, ''), 320),
@@ -198,19 +221,21 @@ CREATE TABLE IF NOT EXISTS processed_stripe_events (
   processed_at timestamptz DEFAULT now()
 );
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION claim_stripe_event(p_event_id text, p_event_type text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 BEGIN
+  PERFORM private.require_service_role();
   IF p_event_id IS NULL OR length(trim(p_event_id)) = 0 THEN
     RETURN jsonb_build_object('claimed', false, 'error', 'invalid');
   END IF;
 
   BEGIN
-    INSERT INTO processed_stripe_events (event_id, event_type)
+    INSERT INTO public.processed_stripe_events (event_id, event_type)
     VALUES (left(trim(p_event_id), 128), left(coalesce(p_event_type, ''), 120));
     RETURN jsonb_build_object('claimed', true);
   EXCEPTION
@@ -292,6 +317,7 @@ CREATE TABLE IF NOT EXISTS usage_daily (
 -- ALTER TABLE usage_daily ADD COLUMN IF NOT EXISTS research_calls integer DEFAULT 0;
 
 -- Atomic daily usage bump (prevents concurrent quota bypass)
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION bump_usage_daily(
   p_user_id text,
   p_field text,
@@ -300,13 +326,14 @@ CREATE OR REPLACE FUNCTION bump_usage_daily(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
-  v_day date := (timezone('utc', now()))::date;
-  v_row usage_daily%ROWTYPE;
+  v_day date := (pg_catalog.timezone('utc', pg_catalog.now()))::date;
+  v_row public.usage_daily%ROWTYPE;
   v_count integer;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_user');
   END IF;
@@ -317,7 +344,7 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_limit');
   END IF;
 
-  INSERT INTO usage_daily AS u (
+  INSERT INTO public.usage_daily AS u (
     user_id, day, scans, director_msgs, research_calls, updated_at
   ) VALUES (
     p_user_id,
@@ -325,7 +352,7 @@ BEGIN
     CASE WHEN p_field = 'scans' THEN 1 ELSE 0 END,
     CASE WHEN p_field = 'director_msgs' THEN 1 ELSE 0 END,
     CASE WHEN p_field = 'research_calls' THEN 1 ELSE 0 END,
-    now()
+    pg_catalog.now()
   )
   ON CONFLICT (user_id, day) DO UPDATE SET
     scans = CASE
@@ -341,7 +368,7 @@ BEGIN
         THEN coalesce(u.research_calls, 0) + 1
       ELSE coalesce(u.research_calls, 0)
     END,
-    updated_at = now()
+    updated_at = pg_catalog.now()
   WHERE
     (p_field = 'scans' AND u.scans < p_limit)
     OR (p_field = 'director_msgs' AND u.director_msgs < p_limit)
@@ -349,7 +376,7 @@ BEGIN
   RETURNING * INTO v_row;
 
   IF NOT FOUND THEN
-    SELECT * INTO v_row FROM usage_daily WHERE user_id = p_user_id AND day = v_day;
+    SELECT * INTO v_row FROM public.usage_daily WHERE user_id = p_user_id AND day = v_day;
     v_count := CASE p_field
       WHEN 'scans' THEN coalesce(v_row.scans, 0)
       WHEN 'director_msgs' THEN coalesce(v_row.director_msgs, 0)
@@ -386,6 +413,7 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 
 CREATE INDEX IF NOT EXISTS idx_rate_limits_updated ON rate_limits(updated_at);
 
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION check_rate_limit(
   p_key text,
   p_max integer,
@@ -394,15 +422,16 @@ CREATE OR REPLACE FUNCTION check_rate_limit(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz := pg_catalog.clock_timestamp();
   v_window interval;
-  v_row rate_limits%ROWTYPE;
+  v_row public.rate_limits%ROWTYPE;
   v_retry_ms integer;
   v_key text;
 BEGIN
+  PERFORM private.require_service_role();
   v_key := left(trim(both FROM coalesce(p_key, '')), 200);
   IF v_key = '' OR p_max IS NULL OR p_max < 1 OR p_window_ms IS NULL OR p_window_ms < 1 THEN
     RETURN jsonb_build_object('allowed', false, 'error', 'invalid', 'retry_after_ms', 60000);
@@ -410,7 +439,7 @@ BEGIN
 
   v_window := (GREATEST(p_window_ms, 1)::text || ' milliseconds')::interval;
 
-  INSERT INTO rate_limits AS rl (bucket_key, window_start, hit_count, updated_at)
+  INSERT INTO public.rate_limits AS rl (bucket_key, window_start, hit_count, updated_at)
   VALUES (v_key, v_now, 1, v_now)
   ON CONFLICT (bucket_key) DO UPDATE
   SET

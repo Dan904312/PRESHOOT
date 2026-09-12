@@ -2,6 +2,10 @@
 -- PRESHOOT COLLABORATIVE WORKSPACES — PHASE 1
 -- Safe to run multiple times (idempotent).
 -- Does NOT copy personal Studio JSON into workspace_data.
+--
+-- SECURITY: This file may CREATE OR REPLACE DEFINER RPCs.
+-- After any paste, ALWAYS re-run sql/20260911_security_definer_hardening.sql LAST
+-- so require_service_role + search_path='' remain the live bodies.
 -- ============================================
 
 -- ── Tables ─────────────────────────────────────────────────
@@ -76,6 +80,22 @@ CREATE INDEX IF NOT EXISTS idx_workspace_invites_email
 CREATE SCHEMA IF NOT EXISTS private;
 REVOKE ALL ON SCHEMA private FROM PUBLIC;
 GRANT USAGE ON SCHEMA private TO postgres, service_role, authenticated;
+
+CREATE OR REPLACE FUNCTION private.require_service_role()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF coalesce(auth.role(), '') IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'not_authorized' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.require_service_role() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.require_service_role() TO postgres, service_role;
 
 CREATE OR REPLACE FUNCTION private.is_workspace_member(p_workspace_id uuid, p_user_id text)
 RETURNS boolean
@@ -153,36 +173,38 @@ END;
 $$;
 
 -- Idempotent personal workspace provisioner (metadata only — no document copy)
+-- guarded: require_service_role + search_path='' (re-run lock)
 CREATE OR REPLACE FUNCTION ensure_personal_workspace(p_user_id text)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_id uuid;
 BEGIN
+  PERFORM private.require_service_role();
   IF p_user_id IS NULL OR length(trim(p_user_id)) = 0 THEN
     RAISE EXCEPTION 'invalid_user';
   END IF;
 
   SELECT id INTO v_id
-  FROM workspaces
+  FROM public.workspaces
   WHERE owner_id = p_user_id AND kind = 'personal'
   LIMIT 1;
 
   IF v_id IS NOT NULL THEN
-    INSERT INTO workspace_members (workspace_id, user_id, role)
+    INSERT INTO public.workspace_members (workspace_id, user_id, role)
     VALUES (v_id, p_user_id, 'owner')
     ON CONFLICT (workspace_id, user_id) DO NOTHING;
     RETURN v_id;
   END IF;
 
-  INSERT INTO workspaces (name, owner_id, kind)
+  INSERT INTO public.workspaces (name, owner_id, kind)
   VALUES ('Personal', p_user_id, 'personal')
   RETURNING id INTO v_id;
 
-  INSERT INTO workspace_members (workspace_id, user_id, role)
+  INSERT INTO public.workspace_members (workspace_id, user_id, role)
   VALUES (v_id, p_user_id, 'owner')
   ON CONFLICT (workspace_id, user_id) DO NOTHING;
 
