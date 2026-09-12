@@ -3,12 +3,15 @@
 -- Idempotent. No DELETE/TRUNCATE/DROP TABLE.
 -- Does not rotate credentials or modify Storage objects.
 --
+-- OPERATOR: paste this file LAST after any older supabase_*.sql paste.
+--
 -- Intent:
 -- 1. Backend/admin RPCs: service_role only (anon/authenticated cannot EXECUTE).
 -- 2. RLS helpers: private schema (not PostgREST Data API), still usable by policies.
 -- 3. Fix workspace_members TTL SELECT leak (recent members visible to any authenticated user).
 -- 4. Pin search_path on remaining public helpers/triggers.
 -- 5. Stop default EXECUTE grants to anon/authenticated on future public functions.
+-- 6. Pin Auth hook bodies (search_path=''; no require_service_role on hooks).
 -- ============================================
 
 CREATE SCHEMA IF NOT EXISTS private;
@@ -949,10 +952,83 @@ GRANT EXECUTE ON FUNCTION public.redeem_promo_code(text, text, text) TO service_
 GRANT EXECUTE ON FUNCTION public.refund_onboarding_scan(text) TO service_role;
 
 -- Auth hook stays callable by Auth, not by Data API clients.
+-- Do NOT add require_service_role() here — Auth invokes as supabase_auth_admin.
+CREATE OR REPLACE FUNCTION public.preshoot_gate_suspended_jwt(event jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  uid text;
+  claims jsonb;
+  session_id text;
+  row_status text;
+  row_email text;
+  v_ref text;
+BEGIN
+  uid := event->>'user_id';
+  claims := coalesce(event->'claims', '{}'::jsonb);
+  session_id := coalesce(claims->>'session_id', '');
+
+  IF uid IS NULL OR length(uid) = 0 THEN
+    RETURN event;
+  END IF;
+
+  SELECT u.account_status, u.email
+    INTO row_status, row_email
+  FROM public.users u
+  WHERE u.user_id = uid
+  LIMIT 1;
+
+  IF row_status IS DISTINCT FROM 'suspended' THEN
+    RETURN event;
+  END IF;
+
+  v_ref := 'hook:' || uid || ':' || coalesce(nullif(session_id, ''), pg_catalog.extract(epoch from pg_catalog.clock_timestamp())::text);
+
+  BEGIN
+    INSERT INTO public.admin_notifications (
+      type, severity, title, body, user_id, user_email, href, source_ref, metadata
+    ) VALUES (
+      'suspended_login',
+      'critical',
+      'Suspended account attempted login',
+      'Account: ' || coalesce(nullif(row_email, ''), uid) || '. Status: Blocked.',
+      uid,
+      nullif(row_email, ''),
+      'users:' || uid,
+      v_ref,
+      jsonb_build_object('blocked', true, 'source', 'auth_hook')
+    )
+    ON CONFLICT (source_ref) DO NOTHING;
+  EXCEPTION
+    WHEN unique_violation THEN
+      NULL;
+  END;
+
+  RETURN jsonb_build_object(
+    'error', jsonb_build_object(
+      'http_code', 403,
+      'message', 'This account has been suspended.'
+    )
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.preshoot_custom_access_token_hook(event jsonb)
+RETURNS jsonb
+LANGUAGE sql
+SET search_path = ''
+AS $$
+  SELECT public.preshoot_gate_suspended_jwt(event);
+$$;
+
 REVOKE ALL ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.preshoot_gate_suspended_jwt(jsonb) TO postgres, service_role, supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION public.preshoot_custom_access_token_hook(jsonb) TO postgres, service_role, supabase_auth_admin;
+GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
 
 -- Future public functions should not inherit EXECUTE for browser roles.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
